@@ -1,0 +1,35 @@
+:8008 {
+    handle /api/* {
+        reverse_proxy localhost:8089
+    }
+    handle /_matrix/static/* {
+        uri strip_prefix /_matrix/static
+        root * /var/www/discord-guide
+        file_server
+    }
+    @portal {
+        path / /index.html /logo.jpg /favicon.ico /sync.ps1 /discord-qr.html /server-select.html /guilds.json
+    }
+    handle @portal {
+        root * /var/www/discord-guide
+        file_server
+    }
+    handle {
+        reverse_proxy localhost:8007
+    }
+}
+
+:80, :8088 {
+    handle /api/* {
+        reverse_proxy localhost:8089
+    }
+    handle {
+        root * /var/www/discord-guide
+        file_server
+    }
+}
+
+chat.protutech.vip:9443 {
+    tls /etc/ssl/matrix/matrix.crt /etc/ssl/matrix/matrix.key
+    reverse_proxy localhost:8007
+}

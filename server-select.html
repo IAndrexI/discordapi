@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discord Server Inspector & Sync</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(17, 24, 39, 0.95);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #5865F2;
+      --accent-hover: #4752c4;
+      --accent-glow: rgba(88, 101, 242, 0.25);
+      --success: #10b981;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 30px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 920px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 0 20px var(--accent-glow);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      margin-bottom: 20px;
+    }
+    .login-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .login-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .login-row input {
+      flex: 1;
+      min-width: 260px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: rgba(0,0,0,0.4);
+      color: var(--text-main);
+      font-size: 0.88rem;
+    }
+    .login-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .user-profile-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(88, 101, 242, 0.12);
+      border: 1px solid rgba(88, 101, 242, 0.3);
+      border-radius: 30px;
+      padding: 6px 14px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    .user-profile-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: rgba(0,0,0,0.35);
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-accent {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-accent:hover {
+      background: var(--accent-hover);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.07);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.12);
+    }
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-sync {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-idle {
+      background: rgba(156, 163, 175, 0.12);
+      color: #9ca3af;
+      border: 1px solid rgba(156, 163, 175, 0.2);
+    }
+    .badge-owner {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      font-size: 0.68rem;
+      margin-left: 6px;
+    }
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .guild-table-wrap {
+      max-height: 520px;
+      overflow-y: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.2);
+    }
+    .guild-table-wrap::-webkit-scrollbar {
+      width: 6px;
+    }
+    .guild-table-wrap::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+    th {
+      background: rgba(15, 23, 42, 0.95);
+      position: sticky;
+      top: 0;
+      padding: 12px 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--card-border);
+      z-index: 2;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+    tr:hover td {
+      background: rgba(88, 101, 242, 0.06);
+    }
+    .guild-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #e5e7eb;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .guild-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .guild-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .guild-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .id-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: all;
+    }
+    .id-tag:hover {
+      background: rgba(56, 189, 248, 0.16);
+    }
+    .copy-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 1000;
+    }
+    .sync-panel {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sync-inputs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sync-inputs input {
+      flex: 1;
+      min-width: 160px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: rgba(0,0,0,0.3);
+      color: var(--text-main);
+      font-size: 0.85rem;
+    }
+    .sync-inputs input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .notice {
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+      text-align: center;
+    }
+    .notice-err {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .notice-ok {
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="logo.jpg?v=2" class="logo" alt="PROTUTECH">
+      <h1>Discord Server Inspector</h1>
+      <p class="subtitle">Live discord server list pulled directly from your Discord account login</p>
+    </header>
+
+    <div class="card">
+      <!-- DISCORD LOGIN / TOKEN FORM -->
+      <div class="login-box">
+        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;">Pull Servers From Your Discord Login:</div>
+        <div style="color: var(--text-muted); font-size: 0.83rem;">
+          Paste your Discord token below to query your live account server list directly from the Discord API.
+        </div>
+        <div class="login-row">
+          <input type="text" id="discordToken" placeholder="Paste Discord User Token (e.g. MjI5MDQ...)" />
+          <button class="btn btn-accent" id="btnPull" onclick="fetchFromDiscordAccount()">
+            Pull Servers from Discord
+          </button>
+        </div>
+        <div id="accountProfile" style="display: none;"></div>
+      </div>
+
+      <!-- TABLE TOOLBAR -->
+      <div class="toolbar">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search servers by name or ID..." oninput="filterList()" />
+        <button class="btn btn-secondary" onclick="exportJSON()">Export JSON</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-secondary" onclick="copyAllIDs()">Copy All IDs</button>
+      </div>
+
+      <div class="stats-bar">
+        <div>Showing <b id="visibleCount" style="color:var(--text-main)">0</b> of <b id="totalCount" style="color:var(--text-main)">0</b> servers</div>
+        <div><span id="selectedCount" style="color:#38bdf8; font-weight:600;">0</span> servers selected</div>
+      </div>
+
+      <div class="guild-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)" style="cursor: pointer;" />
+              </th>
+              <th>Server Name</th>
+              <th>Discord Server ID</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="guildTableBody">
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                Paste your Discord token above and click <b>Pull Servers from Discord</b> to fetch live servers from your account.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SYNC SELECTED SECTION -->
+      <div class="sync-panel">
+        <div style="font-weight: 600; font-size: 0.9rem;">Sync Selected to Element:</div>
+        <div class="sync-inputs">
+          <input type="text" id="syncUser" placeholder="Your Matrix username"  />
+          <input type="password" id="syncPass" placeholder="Matrix password" />
+          <button class="btn btn-success" id="btnSync" onclick="syncSelected()">
+            Sync (<span id="btnSyncCount">0</span>) Servers
+          </button>
+        </div>
+        <div id="statusNotice" class="notice"></div>
+      </div>
+    </div>
+
+    <footer>
+      <p><a href="/">Back to Setup Portal</a> &bull; Synapse Homeserver: <b>chat.protutech.vip</b></p>
+    </footer>
+  </div>
+
+  <div id="copyToast" class="copy-toast">Copied to clipboard!</div>
+
+  <script>
+    let allGuilds = [];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('pt_discord_token');
+      if (saved) {
+        document.getElementById('discordToken').value = saved;
+        fetchFromDiscordAccount();
+      } else {
+        fetchFallbackCachedGuilds();
+      }
+    });
+
+    async function fetchFallbackCachedGuilds() {
+      try {
+        const res = await fetch('/api/discord/guilds');
+        const data = await res.json();
+        if (data.status === 'success' && data.guilds.length > 0) {
+          allGuilds = data.guilds;
+          document.getElementById('totalCount').textContent = allGuilds.length;
+          renderTable(allGuilds);
+        }
+      } catch (e) {}
+    }
+
+    async function fetchFromDiscordAccount() {
+      const tokenInput = document.getElementById('discordToken');
+      const token = tokenInput.value.trim().replace(/^["']|["']$/g, '');
+      const btn = document.getElementById('btnPull');
+      const notice = document.getElementById('statusNotice');
+      notice.style.display = 'none';
+
+      if (!token) {
+        alert('Please paste your Discord User Token to pull servers from your account.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Contacting Discord API...';
+      document.getElementById('guildTableBody').innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">
+            Connecting to Discord API (@me/guilds)...
+          </td>
+        </tr>
+      `;
+
+      try {
+        const res = await fetch('/api/discord/fetch-account-guilds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discord_token: token, matrix_username: (document.getElementById(" syncUser) ? document.getElementById(syncUser).value.trim() : \) })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.error || 'Failed to pull guilds from Discord.');
+
+        localStorage.setItem('pt_discord_token', token);
+        allGuilds = data.guilds;
+        document.getElementById('totalCount').textContent = allGuilds.length;
+
+        if (data.user && data.user.username) {
+          const p = document.getElementById('accountProfile');
+          const dName = data.user.global_name || data.user.username;
+          const uAvatar = data.user.avatar ? ('https://cdn.discordapp.com/avatars/' + data.user.id + '/' + data.user.avatar + '.png') : '';
+          p.innerHTML = `
+            <div class="user-profile-badge">
+              ` + (uAvatar ? `<img src="` + uAvatar + `" class="user-profile-avatar" />` : ``) + `
+              <span>Logged in as <b>` + escapeHtml(dName) + `</b> (@` + escapeHtml(data.user.username) + `) &bull; ` + data.count + ` Servers Found</span>
+            </div>
+          `;
+          p.style.display = 'block';
+        }
+
+        renderTable(allGuilds);
+      } catch (err) {
+        document.getElementById('guildTableBody').innerHTML = `
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 25px; color: #f87171;">
+              Error pulling from Discord: ` + err.message + `
+            </td>
+          </tr>
+        `;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Pull Servers from Discord';
+      }
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('guildTableBody');
+      tbody.innerHTML = '';
+      document.getElementById('visibleCount').textContent = list.length;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No matching Discord servers found.</td></tr>`;
+        return;
+      }
+
+      list.forEach(g => {
+        const tr = document.createElement('tr');
+        const firstLetter = (g.name || '?').charAt(0).toUpperCase();
+        const avatarHtml = g.avatar_url 
+          ? `<img src="` + g.avatar_url + `" onerror="this.parentElement.innerText='` + firstLetter + `'" />` 
+          : firstLetter;
+
+        tr.innerHTML = `
+          <td style="text-align: center;">
+            <input type="checkbox" class="guild-cb" data-id="` + g.id + `" onchange="updateSelectedCount()" style="cursor: pointer;" />
+          </td>
+          <td>
+            <div class="guild-info">
+              <div class="guild-avatar">` + avatarHtml + `</div>
+              <div class="guild-name">
+                ` + escapeHtml(g.name) + `
+                ` + (g.owner ? '<span class="badge badge-owner">Owner</span>' : '') + `
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="id-tag" title="Click to copy ID" onclick="copyText('` + g.id + `')">
+              ` + g.id + `
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </span>
+          </td>
+          <td>
+            ` + (g.bridged ? '<span class="badge badge-sync">Synced</span>' : '<span class="badge badge-idle">Idle</span>') + `
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      updateSelectedCount();
+    }
+
+    function filterList() {
+      const q = document.getElementById('searchBox').value.toLowerCase().trim();
+      const filtered = allGuilds.filter(g => g.name.toLowerCase().includes(q) || g.id.includes(q));
+      renderTable(filtered);
+    }
+
+    function toggleSelectAll(checked) {
+      document.querySelectorAll('.guild-cb').forEach(cb => cb.checked = checked);
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const selected = document.querySelectorAll('.guild-cb:checked').length;
+      document.getElementById('selectedCount').textContent = selected;
+      document.getElementById('btnSyncCount').textContent = selected;
+    }
+
+    function copyText(txt) {
+      navigator.clipboard.writeText(txt).then(() => {
+        showToast('Copied ID: ' + txt);
+      });
+    }
+
+    function copyAllIDs() {
+      const ids = allGuilds.map(g => g.name + ': ' + g.id).join('\n');
+      navigator.clipboard.writeText(ids).then(() => {
+        showToast('Copied all ' + allGuilds.length + ' server IDs to clipboard!');
+      });
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(allGuilds, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, 'discord_servers.json');
+    }
+
+    function exportCSV() {
+      let csv = 'Server Name,Server ID,Owner,Bridged\n';
+      allGuilds.forEach(g => {
+        const safeName = '"' + g.name.replace(/"/g, '""') + '"';
+        csv += safeName + ',' + g.id + ',' + (g.owner || false) + ',' + g.bridged + '\n';
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      downloadBlob(blob, 'discord_servers.csv');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('copyToast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2200);
+    }
+
+    async function syncSelected() {
+      const checked = Array.from(document.querySelectorAll('.guild-cb:checked')).map(cb => cb.dataset.id);
+      const notice = document.getElementById('statusNotice');
+      notice.style.display = 'none';
+
+      if (checked.length === 0) {
+        notice.className = 'notice notice-err';
+        notice.textContent = 'Please check at least one Discord server to sync.';
+        notice.style.display = 'block';
+        return;
+      }
+
+      const u = document.getElementById('syncUser').value.trim();
+      const p = document.getElementById('syncPass').value.trim();
+      if (!u || !p) {
+        notice.className = 'notice notice-err';
+        notice.textContent = 'Matrix username and password required to bridge channels.';
+        notice.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('btnSync');
+      btn.disabled = true;
+      btn.textContent = 'Syncing ' + checked.length + ' servers...';
+
+      try {
+        const res = await fetch('/api/bridge-guilds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matrix_username: u, matrix_password: p, guild_ids: checked })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.error || 'Sync request failed');
+
+        notice.className = 'notice notice-ok';
+        notice.textContent = 'Successfully synced ' + data.bridged_count + ' servers into Element!';
+        notice.style.display = 'block';
+      } catch (err) {
+        notice.className = 'notice notice-err';
+        notice.textContent = 'Error: ' + err.message;
+        notice.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Sync (<span id="btnSyncCount">' + checked.length + '</span>) Servers';
+      }
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

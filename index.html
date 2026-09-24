@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discord and Element Integration Hub</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(17, 24, 39, 0.9);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #5865F2;
+      --accent-hover: #4752c4;
+      --accent-glow: rgba(88, 101, 242, 0.25);
+      --success: #10b981;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --input-bg: #0d1320;
+      --code-bg: #050811;
+      --tab-inactive: rgba(255, 255, 255, 0.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    header {
+      padding: 44px 20px 20px;
+      text-align: center;
+      max-width: 840px;
+      margin: 0 auto;
+    }
+    .header-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+      object-fit: cover;
+      margin: 0 auto 18px;
+      display: block;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: transform 0.2s ease;
+    }
+    .header-logo:hover {
+      transform: scale(1.05);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(88, 101, 242, 0.12);
+      border: 1px solid rgba(88, 101, 242, 0.3);
+      color: #818cf8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    main {
+      max-width: 840px;
+      margin: 28px auto 60px;
+      padding: 0 20px;
+    }
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 6px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 22px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #d1d5db;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-size: 0.9rem;
+      color: #fff;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.2);
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 6px;
+    }
+    .btn-submit:hover {
+      background: var(--accent-hover);
+    }
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .progress-box {
+      display: none;
+      margin-top: 18px;
+      background: var(--code-bg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .step-item {
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-item.active { color: #38bdf8; font-weight: 600; }
+    .step-item.done { color: var(--success); font-weight: 600; }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4b5563;
+      display: inline-block;
+    }
+    .step-item.active .status-dot { background: #38bdf8; }
+    .step-item.done .status-dot { background: var(--success); }
+    .result-box {
+      display: none;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid var(--success);
+      border-radius: 8px;
+      padding: 18px;
+      text-align: center;
+      margin-top: 18px;
+    }
+    .result-box h3 { color: var(--success); font-size: 1.1rem; margin-bottom: 6px; }
+    .btn-element {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: var(--success);
+      color: #022c22;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .instructions-box {
+      background: rgba(88, 101, 242, 0.04);
+      border: 1px solid rgba(88, 101, 242, 0.2);
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 10px;
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .code-snippet {
+      position: relative;
+      background: var(--code-bg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #7dd3fc;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #d1d5db;
+      font-size: 0.7rem;
+      font-weight: 500;
+      padding: 3px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: var(--accent); color: #fff; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 0.88rem;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+    }
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+    td code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-size: 0.8rem;
+    }
+    footer {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      border-top: 1px solid var(--card-border);
+    }
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+      .tab-bar { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="logo.jpg?v=2" alt="Protutech Cloud" class="header-logo" />
+    <div class="badge">Protutech Cloud Automation Engine (Hosted on LXC)</div>
+    <h1>Connect Discord to Element</h1>
+    <p class="subtitle">Choose from the available setup methods below to link your Discord account and sync all servers and direct messages into Element. All automation runs on the LXC server without installing anything on your PC.</p>
+  </header>
+
+  <main>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('token')">1. Automated Token Setup</button>
+      <button class="tab-btn" onclick="switchTab('commands')">2. Element Direct Commands</button>
+    </div>
+
+    <!-- TAB 1: AUTOMATED TOKEN SETUP -->
+    <div id="tab-token" class="tab-content active">
+      <div class="card">
+        <div class="card-title">Option 1: Automated Token Setup</div>
+        <div class="card-desc">Zero software to install. Retrieve your Discord token in 10 seconds, then run the automated setup on the LXC container.</div>
+
+        <form id="tokenForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Matrix Username</label>
+              <input type="text" id="t_user" placeholder="e.g. andrex" required />
+              <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:3px;">Your Element username (e.g. andrex)</small>
+            </div>
+            <div class="form-group">
+              <label>Matrix Password</label>
+              <input type="password" id="t_pass" placeholder="Password" required />
+              <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:3px;">Your Element account password</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Discord User Token</label>
+            <input type="text" id="t_token" placeholder="Paste user token (e.g. MjI5MDQ...)" required />
+          </div>
+
+          <button type="submit" id="btnTokenSubmit" class="btn-submit">
+            Run Automated Setup
+          </button>
+        </form>
+
+        <div id="tError" style="display:none; color:#f87171; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); border-radius:8px; padding:12px; margin-top:14px; font-size:0.85rem; text-align:center;"></div>
+
+        <div id="tProgress" class="progress-box">
+          <div id="t_step1" class="step-item"><span class="status-dot"></span> <span>Authenticating with Matrix homeserver</span></div>
+          <div id="t_step2" class="step-item"><span class="status-dot"></span> <span>Opening bridge management session</span></div>
+          <div id="t_step3" class="step-item"><span class="status-dot"></span> <span>Connecting to Discord gateway</span></div>
+          <div id="t_step4" class="step-item"><span class="status-dot"></span> <span>Linking master spaces and direct messages</span></div>
+          <div id="t_step5" class="step-item"><span class="status-dot"></span> <span>Joining Discord Community Hub</span></div>
+        </div>
+
+        <div id="tSuccess" class="result-box">
+          <h3>Setup Complete</h3>
+          <p id="tSuccessMsg" style="color:var(--text-muted); font-size:0.88rem;"></p>
+          <a href="https://matrix.to/#/#discord-server:chat.protutech.vip" class="btn-element" target="_blank">
+            Open Discord Hub in Element
+          </a>
+        </div>
+
+        <div class="instructions-box">
+          <div style="font-weight:600; font-size:0.9rem; margin-bottom:8px;">How to find your token in 10 seconds:</div>
+          <ol style="margin-left: 18px; color:#d1d5db; font-size:0.85rem; line-height:1.7;">
+            <li>Log into Discord in your browser at <a href="https://discord.com/app" target="_blank" style="color:#818cf8">https://discord.com/app</a>.</li>
+            <li>Press <kbd>F12</kbd> (or <kbd>Ctrl + Shift + I</kbd>) and select the <b>Network</b> tab.</li>
+            <li>In the filter search box, type <code style="background:#1e293b; padding:1px 5px; border-radius:3px; color:#38bdf8;">api</code>.</li>
+            <li>Click any Discord server or channel to generate activity.</li>
+            <li>Click any entry that appears (such as <code style="background:#1e293b; padding:1px 5px; border-radius:3px; color:#38bdf8;">messages</code> or <code style="background:#1e293b; padding:1px 5px; border-radius:3px; color:#38bdf8;">@me</code>).</li>
+            <li>Under <b>Headers</b> &rarr; <b>Request Headers</b>, copy the value of <b>authorization</b>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: DIRECT ELEMENT COMMANDS -->
+    <div id="tab-commands" class="tab-content">
+      <div class="card">
+        <div class="card-title">Option 2: In-Element Bot Commands</div>
+        <div class="card-desc">If you prefer running commands directly inside your Element client, send any of these commands to <code>@discordbot:chat.protutech.vip</code>:</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>login-token user &lt;token&gt;</code></td>
+              <td>Authenticates using your Discord user token. The message is automatically redacted.</td>
+            </tr>
+            <tr>
+              <td><code>ping</code></td>
+              <td>Verifies connection status and prints your connected Discord username and ID.</td>
+            </tr>
+            <tr>
+              <td><code>guilds status</code></td>
+              <td>Lists all discovered Discord servers, their IDs, and current bridging state.</td>
+            </tr>
+            <tr>
+              <td><code>guilds bridge &lt;id&gt; --entire</code></td>
+              <td>Bridges a specific server and immediately creates rooms for all text channels.</td>
+            </tr>
+            <tr>
+              <td><code>guilds bridging-mode &lt;id&gt; create-on-message</code></td>
+              <td>Auto-bridges channels on-demand only when new messages are posted.</td>
+            </tr>
+            <tr>
+              <td><code>rejoin-space main</code></td>
+              <td>Sends an invite to your master Discord Space containing all servers.</td>
+            </tr>
+            <tr>
+              <td><code>rejoin-space dms</code></td>
+              <td>Sends an invite to your Discord Direct Messages Space.</td>
+            </tr>
+            <tr>
+              <td><code>logout</code></td>
+              <td>Disconnects your Discord session and removes credentials from the bridge.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Matrix Synapse Homeserver: <b>chat.protutech.vip</b></p>
+    <p style="margin-top:8px;"><a href="/server-select.html" style="color:#818cf8;">Server Selector: Choose which Discord servers to sync</a></p>
+  </footer>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    // AUTOMATED TOKEN SETUP (RUNS ON LXC)
+    const tForm = document.getElementById('tokenForm');
+    const btnT = document.getElementById('btnTokenSubmit');
+    const tProg = document.getElementById('tProgress');
+    const tSuccess = document.getElementById('tSuccess');
+
+    tForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btnT.disabled = true;
+      btnT.innerText = "Processing Setup on LXC...";
+      tProg.style.display = "block";
+      tSuccess.style.display = "none";
+      const errDiv = document.getElementById('tError');
+      errDiv.style.display = "none";
+
+      const setTStep = (id, s) => { document.getElementById(id).className = 'step-item ' + s; };
+      setTStep('t_step1', 'active');
+
+      let u = document.getElementById('t_user').value.trim();
+      if (u.startsWith('@')) u = u.substring(1);
+      if (u.includes(':')) u = u.split(':')[0];
+      const p = document.getElementById('t_pass').value.trim();
+      const t = document.getElementById('t_token').value.trim().replace(/^["']|["']$/g, '');
+
+      const stepTimer1 = setTimeout(() => { setTStep('t_step1', 'done'); setTStep('t_step2', 'active'); }, 1200);
+      const stepTimer2 = setTimeout(() => { setTStep('t_step2', 'done'); setTStep('t_step3', 'active'); }, 2800);
+      const stepTimer3 = setTimeout(() => { setTStep('t_step3', 'done'); setTStep('t_step4', 'active'); }, 5500);
+
+      try {
+        const res = await fetch('/api/auto-setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matrix_username: u, matrix_password: p, discord_token: t })
+        });
+        const data = await res.json();
+
+        clearTimeout(stepTimer1);
+        clearTimeout(stepTimer2);
+        clearTimeout(stepTimer3);
+
+        if (data.status !== 'success') {
+          throw new Error(data.error || 'Setup failed on LXC server.');
+        }
+
+        setTStep('t_step1', 'done');
+        setTStep('t_step2', 'done');
+        setTStep('t_step3', 'done');
+        setTStep('t_step4', 'done');
+        setTStep('t_step5', 'done');
+
+        tSuccess.style.display = 'block';
+        document.getElementById('tSuccessMsg').innerText = `Account ${data.user_id} connected. ${data.guilds_discovered} Discord servers and all direct messages have been synced into Element.`;
+        btnT.innerText = "Setup Complete";
+      } catch (err) {
+        clearTimeout(stepTimer1);
+        clearTimeout(stepTimer2);
+        clearTimeout(stepTimer3);
+        tProg.style.display = 'none';
+        errDiv.style.display = 'block';
+        errDiv.innerText = err.message;
+        btnT.disabled = false;
+        btnT.innerText = "Run Automated Setup";
+      }
+    });
+  </script>
+</body>
+</html>
