@@ -16,7 +16,7 @@ try {
         password = $pass
     } | ConvertTo-Json
 
-    $loginRes = Invoke-RestMethod -Uri "https://chat.protutech.vip/_matrix/client/v3/login" -Method Post -Body $loginBody -ContentType "application/json"
+    $loginRes = Invoke-RestMethod -Uri "https://your-domain.com/_matrix/client/v3/login" -Method Post -Body $loginBody -ContentType "application/json"
     $token = $loginRes.access_token
     Write-Host "Matrix authentication successful ($($loginRes.user_id))" -ForegroundColor Green
 } catch {
@@ -38,12 +38,12 @@ $discordToken = $discordToken.Trim().Trim('"').Trim("'")
 
 Write-Host "Connecting to Discord bridge bot..." -ForegroundColor Yellow
 $dmBody = @{
-    invite = @("@discordbot:chat.protutech.vip")
+    invite = @("@discordbot:your-domain.com")
     is_direct = $true
     preset = "trusted_private_chat"
 } | ConvertTo-Json
 
-$roomRes = Invoke-RestMethod -Uri "https://chat.protutech.vip/_matrix/client/v3/createRoom" -Method Post -Body $dmBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+$roomRes = Invoke-RestMethod -Uri "https://your-domain.com/_matrix/client/v3/createRoom" -Method Post -Body $dmBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
 $roomId = $roomRes.room_id
 
 Write-Host "Sending login command to bridge..." -ForegroundColor Yellow
@@ -52,15 +52,15 @@ $msgBody = @{
     body = "login-token user $discordToken"
 } | ConvertTo-Json
 
-Invoke-RestMethod -Uri "https://chat.protutech.vip/_matrix/client/v3/rooms/$([uri]::EscapeDataString($roomId))/send/m.room.message" -Method Post -Body $msgBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
+Invoke-RestMethod -Uri "https://your-domain.com/_matrix/client/v3/rooms/$([uri]::EscapeDataString($roomId))/send/m.room.message" -Method Post -Body $msgBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
 
 Start-Sleep -Seconds 2
 
 Write-Host "Re-inviting to Discord Master Space..." -ForegroundColor Yellow
 $spaceBody = @{ msgtype = "m.text"; body = "rejoin-space main" } | ConvertTo-Json
-Invoke-RestMethod -Uri "https://chat.protutech.vip/_matrix/client/v3/rooms/$([uri]::EscapeDataString($roomId))/send/m.room.message" -Method Post -Body $spaceBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
+Invoke-RestMethod -Uri "https://your-domain.com/_matrix/client/v3/rooms/$([uri]::EscapeDataString($roomId))/send/m.room.message" -Method Post -Body $spaceBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
 
-Invoke-RestMethod -Uri "https://chat.protutech.vip/_matrix/client/v3/join/%23discord-server:chat.protutech.vip" -Method Post -Body "{}" -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
+Invoke-RestMethod -Uri "https://your-domain.com/_matrix/client/v3/join/%23discord-server:your-domain.com" -Method Post -Body "{}" -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | Out-Null
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Green

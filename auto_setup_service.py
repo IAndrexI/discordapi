@@ -15,7 +15,7 @@ import qrcode
 PORT = 8089
 SYNAPSE_URL = "http://localhost:8007/_matrix/client/v3"
 MAUTRIX_DB = "/opt/mautrix-discord/mautrix-discord.db"
-BOT_MXID = "@discordbot:chat.protutech.vip"
+BOT_MXID = "@discordbot:your-domain.com"
 
 # In-memory sessions for QR code login flow
 QR_SESSIONS = {}
@@ -112,10 +112,10 @@ def join_community_and_spaces(user_mxid, room_id, access_token, log_fn):
         log_fn(f"Space join notice: {e}")
 
     community_rooms = [
-        "#discord-server:chat.protutech.vip",
-        "#discord-guide:chat.protutech.vip",
-        "#discord-commands:chat.protutech.vip",
-        "#discord-chat:chat.protutech.vip"
+        "#discord-server:your-domain.com",
+        "#discord-guide:your-domain.com",
+        "#discord-commands:your-domain.com",
+        "#discord-chat:your-domain.com"
     ]
     for cr in community_rooms:
         try:

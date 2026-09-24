@@ -1,4 +1,4 @@
-# Discord Integration & Selective Sync API (`chat.protutech.vip`)
+# Discord Integration & Selective Sync API
 
 Self-hosted microservice and frontend portal for integrating Discord with Matrix Synapse, providing real-time Discord server inspection, ID extraction, and selective server bridging into Element.
 

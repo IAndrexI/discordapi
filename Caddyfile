@@ -29,7 +29,7 @@
     }
 }
 
-chat.protutech.vip:9443 {
+your-domain.com:9443 {
     tls /etc/ssl/matrix/matrix.crt /etc/ssl/matrix/matrix.key
     reverse_proxy localhost:8007
 }
