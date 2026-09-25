@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --bg-servers: #1e1f22;
+  --bg-channels: #2b2d31;
+  --bg-chat: #313338;
+  --bg-userpanel: #232428;
+  --bg-message-input: #383a40;
+  --bg-message-hover: rgba(2, 2, 2, 0.08);
+  --bg-item-hover: rgba(255, 255, 255, 0.07);
+  --bg-item-active: rgba(255, 255, 255, 0.12);
+  --bg-popout: #111214;
+  
+  --text-normal: #dbdee1;
+  --text-muted: #949ba4;
+  --text-header: #f2f3f5;
+  --text-link: #00a8fc;
+  
+  --discord-blurple: #5865f2;
+  --discord-blurple-hover: #4752c4;
+  --status-online: #23a55a;
+  --status-idle: #f0b232;
+  --status-dnd: #f23f43;
+  --status-offline: #80848e;
+
+  --voice-connected: #23a55a;
+  --voice-rtc: #23a55a;
+
+  font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+
+/* Theme presets: Midnight AMOLED */
+body.theme-midnight {
+  --bg-servers: #000000;
+  --bg-channels: #080808;
+  --bg-chat: #101010;
+  --bg-userpanel: #050505;
+  --bg-message-input: #181818;
+  --bg-popout: #050505;
+}
+
+/* Theme presets: Catppuccin Mocha */
+body.theme-catppuccin {
+  --bg-servers: #11111b;
+  --bg-channels: #181825;
+  --bg-chat: #1e1e2e;
+  --bg-userpanel: #11111b;
+  --bg-message-input: #313244;
+  --text-normal: #cdd6f4;
+  --text-muted: #a6adc8;
+  --discord-blurple: #cba6f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-chat);
+  color: var(--text-normal);
+  user-select: none;
+}
+
+/* Custom scrollbars matching Discord */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Discord Tooltips and Animations */
+@keyframes pillPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pill {
+  animation: pillPop 0.15s ease-out forwards;
+}
+
+/* Active voice speaker glow */
+.speaking-ring {
+  box-shadow: 0 0 0 3px var(--status-online), 0 0 12px var(--status-online);
+}

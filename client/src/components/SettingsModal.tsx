@@ -1,0 +1,384 @@
+import React, { useState } from 'react';
+import {
+  X,
+  Paintbrush,
+  Puzzle,
+  LogOut,
+  Radio,
+  Check,
+  Shield,
+  Layers,
+} from 'lucide-react';
+import { vencord } from '../services/vencord';
+import type { ThemeConfig } from '../types';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userId: string;
+  onLogout: () => void;
+}
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  userId,
+  onLogout,
+}) => {
+  const [activeTab, setActiveTab] = useState<'account' | 'voice' | 'themes' | 'plugins'>('themes');
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(vencord.getTheme());
+  const [customCss, setCustomCss] = useState(themeConfig.customCssText || '');
+  const [customUrl, setCustomUrl] = useState(themeConfig.customCssUrl || '');
+  const [plugins, setPlugins] = useState(vencord.getPlugins());
+
+  if (!isOpen) return null;
+
+  const handleSelectTheme = (themeName: 'dark' | 'midnight' | 'catppuccin' | 'custom') => {
+    const updated: ThemeConfig = {
+      ...themeConfig,
+      activeTheme: themeName,
+      customCssText: themeName === 'custom' ? customCss : undefined,
+      customCssUrl: themeName === 'custom' ? customUrl : undefined,
+    };
+    setThemeConfig(updated);
+    vencord.setTheme(updated);
+  };
+
+  const handleApplyCustomCss = () => {
+    const updated: ThemeConfig = {
+      activeTheme: 'custom',
+      customCssText: customCss,
+      customCssUrl: customUrl,
+    };
+    setThemeConfig(updated);
+    vencord.setTheme(updated);
+  };
+
+  const handleTogglePlugin = (pluginId: string, currentEnabled: boolean) => {
+    vencord.togglePlugin(pluginId, !currentEnabled);
+    setPlugins([...vencord.getPlugins()]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+      <div className="w-full max-w-4xl h-[640px] bg-[var(--bg-chat)] rounded-xl flex overflow-hidden shadow-2xl border border-white/10 relative">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-white flex flex-col items-center gap-0.5 group z-10"
+        >
+          <div className="w-9 h-9 rounded-full border-2 border-[var(--text-muted)] group-hover:border-white flex items-center justify-center">
+            <X className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-bold">ESC</span>
+        </button>
+
+        {/* Left Settings Sidebar */}
+        <div className="w-60 bg-[var(--bg-channels)] p-6 flex flex-col justify-between select-none border-r border-black/20">
+          <div className="space-y-6">
+            {/* User Settings Category */}
+            <div>
+              <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-2">
+                User Settings
+              </div>
+              <div className="space-y-0.5">
+                <button
+                  onClick={() => setActiveTab('account')}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    activeTab === 'account'
+                      ? 'bg-[var(--bg-item-active)] text-white'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                  }`}
+                >
+                  My Account
+                </button>
+                <button
+                  onClick={() => setActiveTab('voice')}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    activeTab === 'voice'
+                      ? 'bg-[var(--bg-item-active)] text-white'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                  }`}
+                >
+                  Voice & Video
+                </button>
+              </div>
+            </div>
+
+            {/* Vencord & Equicord Category */}
+            <div>
+              <div className="text-[11px] font-bold text-[var(--discord-blurple)] uppercase tracking-wider px-2 mb-2 flex items-center gap-1.5">
+                <Puzzle className="w-3.5 h-3.5" />
+                <span>Vencord Settings</span>
+              </div>
+              <div className="space-y-0.5">
+                <button
+                  onClick={() => setActiveTab('themes')}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'themes'
+                      ? 'bg-[var(--bg-item-active)] text-white'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                  }`}
+                >
+                  <Paintbrush className="w-4 h-4" />
+                  <span>Themes</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('plugins')}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'plugins'
+                      ? 'bg-[var(--bg-item-active)] text-white'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>Plugins</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium text-[var(--status-dnd)] hover:bg-[var(--status-dnd)]/10 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log Out</span>
+          </button>
+        </div>
+
+        {/* Right Settings Content */}
+        <div className="flex-1 p-8 overflow-y-auto">
+          {/* THEMES TAB */}
+          {activeTab === 'themes' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">Themes & Appearance</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Customize the look and feel of your client using built-in presets or external BetterDiscord/Vencord CSS themes.
+                </p>
+              </div>
+
+              {/* Theme Presets */}
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  onClick={() => handleSelectTheme('dark')}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                    themeConfig.activeTheme === 'dark'
+                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
+                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-white mb-1">
+                    <span>Discord Dark</span>
+                    {themeConfig.activeTheme === 'dark' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">Default clean Discord styling.</div>
+                </div>
+
+                <div
+                  onClick={() => handleSelectTheme('midnight')}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                    themeConfig.activeTheme === 'midnight'
+                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
+                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-white mb-1">
+                    <span>Midnight AMOLED</span>
+                    {themeConfig.activeTheme === 'midnight' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">Pure #000000 black background for OLED screens.</div>
+                </div>
+
+                <div
+                  onClick={() => handleSelectTheme('catppuccin')}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                    themeConfig.activeTheme === 'catppuccin'
+                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
+                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-white mb-1">
+                    <span>Catppuccin Mocha</span>
+                    {themeConfig.activeTheme === 'catppuccin' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">Soothing pastel color palette.</div>
+                </div>
+
+                <div
+                  onClick={() => handleSelectTheme('custom')}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                    themeConfig.activeTheme === 'custom'
+                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
+                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-white mb-1">
+                    <span>Custom CSS Engine</span>
+                    {themeConfig.activeTheme === 'custom' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">Load external BetterDiscord or Vencord CSS.</div>
+                </div>
+              </div>
+
+              {/* Custom CSS Editor */}
+              {themeConfig.activeTheme === 'custom' && (
+                <div className="space-y-4 pt-2 border-t border-white/10">
+                  <div>
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                      Theme URL (BetterDiscord / Vencord CDN)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://raw.githubusercontent.com/.../theme.css"
+                      value={customUrl}
+                      onChange={e => setCustomUrl(e.target.value)}
+                      className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-sm text-white outline-none focus:border-[var(--discord-blurple)]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                      Raw Custom CSS
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder=":root { --bg-chat: #18191c; }"
+                      value={customCss}
+                      onChange={e => setCustomCss(e.target.value)}
+                      className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-xs font-mono text-white outline-none focus:border-[var(--discord-blurple)]"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleApplyCustomCss}
+                    className="bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+                  >
+                    Apply Custom CSS
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PLUGINS TAB */}
+          {activeTab === 'plugins' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">Vencord Plugins</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Modular extensions running locally in your client for extra power and customization.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {plugins.map(plugin => (
+                  <div
+                    key={plugin.id}
+                    className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-white/10 flex items-center justify-between"
+                  >
+                    <div className="pr-4">
+                      <div className="font-semibold text-white text-sm mb-0.5">{plugin.name}</div>
+                      <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+                        {plugin.description}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleTogglePlugin(plugin.id, plugin.enabled)}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors flex-shrink-0 ${
+                        plugin.enabled ? 'bg-[var(--status-online)]' : 'bg-neutral-600'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                          plugin.enabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VOICE TAB */}
+          {activeTab === 'voice' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">Voice & Video Settings</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  LiveKit SFU ultra-low latency voice configuration.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--status-online)]/30 flex items-center gap-3">
+                  <Radio className="w-6 h-6 text-[var(--status-online)]" />
+                  <div>
+                    <div className="text-sm font-semibold text-white">Ultra-Low Latency Mode</div>
+                    <div className="text-xs text-[var(--text-muted)]">
+                      Targeting sub-40ms round-trip latency via direct WebRTC SFU with 48kHz Opus audio.
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Screen Share Quality
+                  </label>
+                  <select className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-sm text-white outline-none">
+                    <option value="1080p60">1080p @ 60 FPS (Nitro Source)</option>
+                    <option value="720p60">720p @ 60 FPS</option>
+                    <option value="720p30">720p @ 30 FPS</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Noise Suppression
+                  </label>
+                  <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-white/10 flex items-center justify-between">
+                    <span className="text-sm text-white">RNNoise Neural Background Cancellation</span>
+                    <span className="text-xs text-[var(--status-online)] font-semibold">Enabled</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ACCOUNT TAB */}
+          {activeTab === 'account' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">My Account</h2>
+                <p className="text-sm text-[var(--text-muted)]">Manage your homeserver credentials and profile.</p>
+              </div>
+
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-white/10 space-y-4">
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-muted)] uppercase">User ID</div>
+                  <div className="text-sm font-mono text-white mt-1">{userId}</div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Homeserver</div>
+                  <div className="text-sm font-mono text-[var(--discord-blurple)] mt-1">
+                    https://chat.protutech.vip
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/10 flex items-center gap-2 text-xs text-[var(--status-online)] font-semibold">
+                  <Shield className="w-4 h-4" />
+                  <span>End-to-End Encryption & Double Puppeting Active</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
