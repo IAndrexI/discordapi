@@ -8,6 +8,9 @@ import {
   Check,
   Shield,
   Layers,
+  Monitor,
+  FolderOpen,
+  Download,
 } from 'lucide-react';
 import { vencord } from '../services/vencord';
 import type { ThemeConfig } from '../types';
@@ -25,7 +28,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   userId,
   onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<'account' | 'voice' | 'themes' | 'plugins'>('themes');
+  const [activeTab, setActiveTab] = useState<'account' | 'voice' | 'themes' | 'plugins' | 'desktop'>('themes');
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(vencord.getTheme());
   const [customCss, setCustomCss] = useState(themeConfig.customCssText || '');
   const [customUrl, setCustomUrl] = useState(themeConfig.customCssUrl || '');
@@ -134,6 +137,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Layers className="w-4 h-4" />
                   <span>Plugins</span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('desktop')}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                    activeTab === 'desktop'
+                      ? 'bg-[var(--bg-item-active)] text-white'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span>Desktop App</span>
+                </button>
               </div>
             </div>
           </div>
@@ -238,6 +252,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-sm text-white outline-none focus:border-[var(--discord-blurple)]"
                     />
                   </div>
+
+                  {typeof window !== 'undefined' && window.electronAPI?.openThemeFileDialog && (
+                    <button
+                      onClick={async () => {
+                        if (!window.electronAPI?.openThemeFileDialog) return;
+                        const res = await window.electronAPI.openThemeFileDialog();
+                        if (res && res.content) {
+                          setCustomCss(res.content);
+                          vencord.setCustomCss(res.content);
+                          vencord.setTheme({
+                            ...themeConfig,
+                            activeTheme: 'custom',
+                            customCssText: res.content,
+                          });
+                          setThemeConfig(vencord.getTheme());
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-gray-200 py-2 px-3 rounded text-xs font-semibold border border-white/10 transition-colors"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+                      <span>Browse Local .CSS Theme File...</span>
+                    </button>
+                  )}
 
                   <div>
                     <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
@@ -375,6 +412,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>End-to-End Encryption & Double Puppeting Active</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* DESKTOP APP TAB */}
+          {activeTab === 'desktop' && (
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1">Desktop Application</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Standalone native Discord client with lower latency, global push-to-talk hotkeys, and system tray integration.
+                </p>
+              </div>
+
+              {typeof window !== 'undefined' && window.electronAPI?.isElectron ? (
+                <div className="space-y-4">
+                  <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] shadow-[0_0_8px_rgba(35,165,90,0.6)]" />
+                        <span className="font-semibold text-white">Native Windows Client Active</span>
+                      </div>
+                      <span className="text-xs bg-[var(--discord-blurple)] text-white px-2 py-0.5 rounded font-mono">v1.0.0</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Running with hardware-accelerated WebRTC PCM 16kHz audio, H.264 video codec, and system tray persistence.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                      Global Desktop Hotkeys
+                    </div>
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-white/10 flex items-center justify-between">
+                      <span className="text-sm text-white">Toggle Microphone Mute</span>
+                      <kbd className="bg-black/40 border border-white/15 px-2 py-1 rounded text-xs font-mono text-gray-300">Ctrl + Shift + M</kbd>
+                    </div>
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-white/10 flex items-center justify-between">
+                      <span className="text-sm text-white">Toggle Headphone Deafen</span>
+                      <kbd className="bg-black/40 border border-white/15 px-2 py-1 rounded text-xs font-mono text-gray-300">Ctrl + Shift + D</kbd>
+                    </div>
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-white/10 flex items-center justify-between">
+                      <span className="text-sm text-white">Close Window Behavior</span>
+                      <span className="text-xs text-[var(--status-online)] font-semibold">Minimizes to System Tray</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-[var(--discord-blurple)]/20 to-[var(--bg-userpanel)] rounded-lg p-6 border border-[var(--discord-blurple)]/40 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Monitor className="w-8 h-8 text-[var(--discord-blurple)]" />
+                      <div>
+                        <h3 className="font-bold text-white text-base">Protutech Discord for Windows</h3>
+                        <p className="text-xs text-[var(--text-muted)]">64-bit Standalone Executable (.exe)</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-300">
+                      Install or run the native desktop client for global push-to-talk hotkeys, seamless 1080p60 screen capture, background system tray audio, and local Vencord CSS theme loading.
+                    </p>
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      <a
+                        href="/downloads/Protutech-Discord-Setup.exe"
+                        className="inline-flex items-center gap-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white px-4 py-2.5 rounded font-semibold text-sm transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download Windows Installer (.exe)</span>
+                      </a>
+                      <a
+                        href="/downloads/Protutech-Discord-Portable.exe"
+                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white px-4 py-2.5 rounded font-semibold text-sm border border-white/15 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download Portable (.exe)</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

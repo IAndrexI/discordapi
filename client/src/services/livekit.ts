@@ -173,13 +173,25 @@ class LiveKitVoiceService {
     this.notify();
   }
 
+  public isMuted: boolean = false;
+  public isDeafened: boolean = false;
+
   public async setMute(muted: boolean) {
+    this.isMuted = muted;
     if (this.room?.localParticipant) {
       await this.room.localParticipant.setMicrophoneEnabled(!muted);
       this.syncParticipant(this.room.localParticipant);
       vencord.playSound(muted ? 'mute' : 'unmute');
       this.notify();
     }
+  }
+
+  public setDeafened(deafened: boolean) {
+    this.isDeafened = deafened;
+    if (deafened) {
+      this.setMute(true);
+    }
+    this.notify();
   }
 
   public async setCamera(enabled: boolean) {

@@ -90,6 +90,15 @@ export class VencordService {
     this.applyTheme(config);
   }
 
+  public setCustomCss(css: string) {
+    this.theme = {
+      ...this.theme,
+      activeTheme: 'custom',
+      customCssText: css,
+    };
+    this.setTheme(this.theme);
+  }
+
   public applyTheme(config: ThemeConfig) {
     document.body.classList.remove('theme-midnight', 'theme-catppuccin');
     if (config.activeTheme === 'midnight') {

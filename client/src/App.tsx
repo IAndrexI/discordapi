@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TitleBar } from './components/TitleBar';
 import { ServerRail } from './components/ServerRail';
 import { ChannelSidebar } from './components/ChannelSidebar';
 import { ChatArea } from './components/ChatArea';
@@ -29,6 +30,30 @@ export const App: React.FC = () => {
   // UI toggles
   const [showMemberList, setShowMemberList] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Native Electron Shortcuts Listener
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    const unsubMute = window.electronAPI.onToggleMute?.(() => {
+      // Toggle mute
+      livekit.setMute(!livekit.isMuted);
+    });
+    const unsubDeafen = window.electronAPI.onToggleDeafen?.(() => {
+      livekit.setDeafened(!livekit.isDeafened);
+    });
+    const unsubVoice = window.electronAPI.onJoinVoice?.((roomName: string) => {
+      const userId = matrix.getUserId() || '@andrex:chat.protutech.vip';
+      const displayName = userId.split(':')[0].replace('@', '');
+      livekit.joinVoice(roomName, userId, displayName);
+      setActiveVoiceRoom(roomName);
+    });
+
+    return () => {
+      unsubMute?.();
+      unsubDeafen?.();
+      unsubVoice?.();
+    };
+  }, []);
 
   // Initialize data on auth
   useEffect(() => {
@@ -115,7 +140,14 @@ export const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <LoginModal onLogin={handleLogin} />;
+    return (
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090d16]">
+        <TitleBar />
+        <div className="flex-1 overflow-auto">
+          <LoginModal onLogin={handleLogin} />
+        </div>
+      </div>
+    );
   }
 
   const activeGuild = activeGuildId ? guilds.find(g => g.id === activeGuildId) || null : null;
@@ -130,8 +162,10 @@ export const App: React.FC = () => {
   const isCurrentRoomVoice = activeVoiceRoom !== null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--bg-chat)]">
-      {/* 1. Left Guild Rail */}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-chat)]">
+      <TitleBar />
+      <div className="flex flex-1 w-full h-[calc(100%-30px)] overflow-hidden">
+        {/* 1. Left Guild Rail */}
       <ServerRail
         guilds={guilds}
         activeGuildId={activeGuildId}
@@ -211,6 +245,7 @@ export const App: React.FC = () => {
         userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
         onLogout={handleLogout}
       />
+      </div>
     </div>
   );
 };
