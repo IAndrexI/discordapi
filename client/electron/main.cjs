@@ -59,7 +59,7 @@ function createWindow() {
     if (!isQuitting) {
       event.preventDefault();
       mainWindow.hide();
-      if (tray) {
+      if (tray && process.platform === 'win32' && typeof tray.displayBalloon === 'function') {
         tray.displayBalloon({
           iconType: 'info',
           title: 'Protutech Discord',

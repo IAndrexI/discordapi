@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Lock, User, Server, AlertCircle } from 'lucide-react';
+import { MessageSquare, Lock, User, Server, AlertCircle, ShieldCheck } from 'lucide-react';
 
 interface LoginModalProps {
   onLogin: (username: string, password: string) => Promise<boolean>;
@@ -39,7 +39,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
 
       <div className="w-full max-w-md bg-[#313338] rounded-lg shadow-2xl p-8 border border-white/10 relative z-10 animate-fadeIn">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <div className="w-12 h-12 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white mx-auto mb-3 shadow-lg">
             <MessageSquare className="w-6 h-6 fill-current" />
           </div>
@@ -47,6 +47,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
           <p className="text-sm text-[var(--text-muted)]">
             Sign in to your private Discord-Matrix instance.
           </p>
+        </div>
+
+        {/* Client-Only Security Guarantee Banner */}
+        <div className="mb-4 p-2.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+          <span><b>Client-Side Only:</b> Login tokens are saved strictly in your local browser sandbox (localStorage) and never stored on the server.</span>
         </div>
 
         {/* Error Alert */}

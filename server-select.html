@@ -10,15 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #090d16;
-      --card-bg: rgba(17, 24, 39, 0.95);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --accent: #5865F2;
-      --accent-hover: #4752c4;
-      --accent-glow: rgba(88, 101, 242, 0.25);
+      --bg: #050915;
+      --card-bg: #0d1636;
+      --card-border: rgba(56, 189, 248, 0.18);
+      --accent: #1d4ed8;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(29, 78, 216, 0.35);
       --success: #10b981;
-      --text-main: #f9fafb;
-      --text-muted: #9ca3af;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -26,7 +26,7 @@
       background: var(--bg);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 30px 16px;
+      padding: 0 0 50px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -34,6 +34,7 @@
     .container {
       width: 100%;
       max-width: 920px;
+      padding: 0 16px;
     }
     header {
       text-align: center;
@@ -363,6 +364,29 @@
   </style>
 </head>
 <body>
+  <!-- Top Navigation Bar -->
+  <nav style="width:100%; position:sticky; top:0; z-index:100; background:rgba(8,15,36,0.95); backdrop-filter:blur(12px); border-bottom:1px solid rgba(56,189,248,0.15); margin-bottom:28px;">
+    <div style="max-width:1100px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <a href="/" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; font-weight:800; font-size:1.15rem;">
+        <img src="logo.jpg?v=2" alt="Protutech" style="width:32px; height:32px; border-radius:8px; object-fit:cover; border:1px solid rgba(56,189,248,0.25);" />
+        <span>Protutech</span>
+      </a>
+
+      <div style="display:flex; align-items:center; gap:22px; flex-wrap:wrap;">
+        <a href="/" style="color:#e2e8f0; text-decoration:none; font-weight:600; font-size:0.9rem;">Home</a>
+        <a href="/#downloadSection" style="color:#e2e8f0; text-decoration:none; font-weight:600; font-size:0.9rem;">Download</a>
+        <a href="/chat/" target="protutech_webclient" rel="noreferrer" style="color:#e2e8f0; text-decoration:none; font-weight:600; font-size:0.9rem;">Web Client</a>
+        <a href="/server-select.html" style="color:#38bdf8; text-decoration:none; font-weight:700; font-size:0.9rem;">Server Sync</a>
+        <a href="/#securitySection" style="color:#e2e8f0; text-decoration:none; font-weight:600; font-size:0.9rem;">Security &amp; Privacy</a>
+        <a href="/#setupSection" style="color:#e2e8f0; text-decoration:none; font-weight:600; font-size:0.9rem;">Account Setup</a>
+      </div>
+
+      <a href="/chat/" target="protutech_webclient" rel="noreferrer" style="background:#1d4ed8; color:#fff; font-weight:700; font-size:0.85rem; padding:8px 18px; border-radius:24px; text-decoration:none; border:1px solid rgba(56,189,248,0.25);">
+        Open Protutech
+      </a>
+    </div>
+  </nav>
+
   <div class="container">
     <header>
       <img src="logo.jpg?v=2" class="logo" alt="PROTUTECH">
