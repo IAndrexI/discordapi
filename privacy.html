@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy - Protutech</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050915;
+      --surface: #0a1128;
+      --card-bg: #0d1636;
+      --card-border: rgba(56, 189, 248, 0.18);
+      --accent: #1d4ed8;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(29, 78, 216, 0.35);
+      --cyan: #38bdf8;
+      --green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.65;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 15, 36, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .nav-brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      list-style: none;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--cyan);
+    }
+    .nav-btn {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 9px 20px;
+      border-radius: 24px;
+      text-decoration: none;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .main-content {
+      max-width: 920px;
+      margin: 40px auto 60px;
+      padding: 0 24px;
+      flex: 1;
+      width: 100%;
+    }
+    .header-box {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header-box h1 {
+      font-size: 2.3rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+    .header-box p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .shield-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 9999px;
+      padding: 6px 18px;
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #34d399;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card p {
+      color: #cbd5e1;
+      margin-bottom: 14px;
+      font-size: 0.95rem;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul {
+      margin-left: 20px;
+      margin-bottom: 14px;
+      color: #cbd5e1;
+      font-size: 0.93rem;
+    }
+    .card li { margin-bottom: 8px; }
+    .highlight-box {
+      background: #060a1c;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 0.92rem;
+      color: #34d399;
+    }
+    footer {
+      border-top: 1px solid rgba(56, 189, 248, 0.15);
+      background: var(--surface);
+      padding: 30px 24px;
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav>
+    <div class="nav-container">
+      <a href="/" class="nav-brand">
+        <img src="logo.jpg?v=2" alt="Protutech" />
+        <span>Protutech</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/#downloadSection">Download</a></li>
+        <li><a href="/chat/" target="protutech_webclient" rel="noreferrer">Web Client</a></li>
+        <li><a href="/server-select.html">Server Sync</a></li>
+        <li><a href="/privacy.html" class="active">Privacy Policy</a></li>
+        <li><a href="/terms.html">Terms of Service</a></li>
+        <li><a href="https://github.com/IAndrexI/discordapi" target="_blank" rel="noreferrer">GitHub</a></li>
+      </ul>
+
+      <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="nav-btn">
+        Open Protutech
+      </a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="header-box">
+      <div class="shield-badge">Zero-Knowledge Local Storage Verified</div>
+      <h1>Privacy Policy</h1>
+      <p>Effective Date: September 25, 2026 &bull; chat.protutech.vip</p>
+    </div>
+
+    <div class="card">
+      <h2>1. The Zero-Knowledge Principle</h2>
+      <p>
+        Protutech is designed around a fundamental core privacy premise: <b>Your sensitive authentication tokens and session credentials must never be retained on a central server.</b>
+      </p>
+      <div class="highlight-box">
+        All Discord user tokens, Matrix session keys, and custom plugin configurations are kept exclusively inside your local device's isolated client sandbox (<code>window.localStorage</code> or your local operating system user profile).
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. What Information is Processed</h2>
+      <p>To deliver real-time voice, video, and chat, the infrastructure processes:</p>
+      <ul>
+        <li><b>WebRTC Voice &amp; Video Streams:</b> Handled in-memory by our on-premises LiveKit SFU (Selective Forwarding Unit) with end-to-end encryption capability. Voice data is never recorded, saved to disk, or analyzed.</li>
+        <li><b>Matrix Chat Messages:</b> Encrypted chat messages synchronized across room participants according to standard Matrix protocol specifications.</li>
+        <li><b>Ephemeral Session Tokens:</b> Time-limited JWTs signed for LiveKit SFU access to authenticate voice room participation (valid for 24 hours).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>3. What Information We Do NOT Collect</h2>
+      <p>We believe data minimization is the best form of privacy. The Protutech server:</p>
+      <ul>
+        <li>Does NOT log or persist Discord account passwords or MFA secrets.</li>
+        <li>Does NOT save Discord user tokens in centralized SQL/SQLite databases.</li>
+        <li>Does NOT track user web browsing history, sell data to data brokers, or include advertising SDKs.</li>
+        <li>Does NOT use telemetry trackers or fingerprinting scripts.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>4. Client-Side Data Storage &amp; Encryption</h2>
+      <p>
+        Credentials stored on your device:
+      </p>
+      <ul>
+        <li><b>Web Client:</b> Stored in your browser's private origin-bound <code>localStorage</code> (<code>matrix_access_token</code>, <code>matrix_user_id</code>). Other domains cannot access this sandbox.</li>
+        <li><b>Linux Desktop:</b> Stored in <code>~/.config/Protutech Discord/</code> governed by standard Linux user permissions.</li>
+        <li><b>Windows Desktop:</b> Stored in <code>%APPDATA%\Protutech Discord\</code>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>5. Your Right to Audit &amp; Delete Data</h2>
+      <p>
+        You have absolute control over your local data. You can at any moment:
+      </p>
+      <ul>
+        <li>Use the on-page <b>Client Storage Auditor</b> at <a href="/#securitySection" style="color:var(--cyan);">chat.protutech.vip/#securitySection</a> to inspect all active keys.</li>
+        <li>Purge all locally cached tokens with a single click, instantly terminating the session on that device.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>6. Code Transparency &amp; Verification</h2>
+      <p>
+        We believe that privacy promises should be verifiable by code, not just legal text. The full source code of the client, server configuration, and bridge scripts is available for public audit at <a href="https://github.com/IAndrexI/discordapi" target="_blank" style="color:var(--cyan);">github.com/IAndrexI/discordapi</a>.
+      </p>
+    </div>
+  </main>
+
+  <footer>
+    <div>
+      <a href="/">Home</a> |
+      <a href="/privacy.html">Privacy Policy</a> |
+      <a href="/terms.html">Terms of Service</a> |
+      <a href="https://github.com/IAndrexI/discordapi" target="_blank">GitHub</a> |
+      <a href="/#downloadSection">Downloads</a>
+    </div>
+    <div style="margin-top:10px;">
+      Protutech &bull; chat.protutech.vip &bull; Hosted on Debian 13 LXC
+    </div>
+  </footer>
+
+</body>
+</html>

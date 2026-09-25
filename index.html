@@ -853,6 +853,138 @@
       transition: background 0.2s;
     }
     .btn-auditor-purge:hover { background: rgba(239, 68, 68, 0.25); }
+
+    /* GitHub buttons */
+    .nav-github-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #e2e8f0;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: color 0.2s ease;
+    }
+    .nav-github-link:hover { color: #38bdf8; }
+    .btn-hero-github {
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 16px 28px;
+      border-radius: 40px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+    .btn-hero-github:hover {
+      background: #1e293b;
+      border-color: #38bdf8;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Theme Switcher Chips */
+    .theme-chip-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .theme-chip-btn {
+      background: #060a1c;
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      color: #94a3b8;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .theme-chip-btn:hover {
+      color: #fff;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .theme-chip-btn.active {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 2px 10px rgba(29, 78, 216, 0.5);
+    }
+
+    /* Modal Backdrop and Dialog */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .modal-backdrop.open {
+      display: flex;
+      opacity: 1;
+    }
+    .modal-dialog {
+      background: #0d1636;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 20px;
+      max-width: 960px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(29, 78, 216, 0.25);
+      position: relative;
+      animation: modalSlideUp 0.3s ease-out;
+    }
+    @keyframes modalSlideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(8, 15, 36, 0.8);
+      border-radius: 20px 20px 0 0;
+    }
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .modal-close-btn:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .modal-body {
+      padding: 28px;
+    }
   </style>
 </head>
 <body>
@@ -870,8 +1002,14 @@
         <li><a href="#downloadSection">Download</a></li>
         <li><a href="/chat/" target="protutech_webclient" rel="noreferrer">Web Client</a></li>
         <li><a href="/server-select.html">Server Sync</a></li>
-        <li><a href="#securitySection">Security &amp; Privacy</a></li>
-        <li><a href="#setupSection">Account Setup</a></li>
+        <li><a href="/privacy.html">Privacy</a></li>
+        <li><a href="/terms.html">Terms</a></li>
+        <li>
+          <a href="https://github.com/IAndrexI/discordapi" target="_blank" rel="noreferrer" class="nav-github-link">
+            <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            <span>GitHub</span>
+          </a>
+        </li>
       </ul>
 
       <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="nav-btn-open">
@@ -899,16 +1037,21 @@
           <svg style="width:20px; height:20px;" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
           </svg>
-          <span>Download for Windows &amp; Linux</span>
+          <span>Download Apps</span>
         </a>
 
         <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="btn-hero-secondary">
-          <span>Open Protutech in your browser</span>
+          <span>Open Web Client</span>
+        </a>
+
+        <a href="https://github.com/IAndrexI/discordapi" target="_blank" rel="noreferrer" class="btn-hero-github">
+          <svg style="width:20px; height:20px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>View on GitHub</span>
         </a>
       </div>
 
       <div class="hero-sublink">
-        Windows 10/11 &bull; Linux (.AppImage, .deb, .tar.gz) &bull; Zero Server Credential Storage
+        Windows 10/11 &bull; Linux (.AppImage, .deb, .tar.gz) &bull; 100% Open Source on GitHub
       </div>
 
       <!-- Live Telemetry Status -->
@@ -1066,9 +1209,15 @@
         <p>
           Grab a seat in a voice channel when you're free. Friends in your server can see you're around and pop in to talk without having to call. Powered by an on-premises LiveKit SFU with 48kHz Opus stereo sound and sub-30ms response times.
         </p>
-        <a href="/chat/?voice=true" class="feature-btn" style="background:var(--green);">
-          Join Voice Lounge (&lt;30ms) &rarr;
-        </a>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px;">
+          <button type="button" onclick="openAppDemoModal()" class="feature-btn" style="background:var(--green); border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+            <svg style="width:20px; height:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Launch Live App Demo &rarr;</span>
+          </button>
+          <a href="/chat/?voice=true" target="protutech_webclient" rel="noreferrer" class="feature-btn" style="background:#1d4ed8;">
+            <span>Open in Web Client</span>
+          </a>
+        </div>
       </div>
 
       <!-- Visual Mockup -->
@@ -1092,7 +1241,7 @@
               <span class="mock-ping-badge">18ms RTC</span>
               <div class="mock-avatar" style="background:#57f287; color:#000;">P</div>
               <div style="font-weight:700; color:#fff; font-size:0.95rem;">Protutech Cloud</div>
-              <div style="font-size:0.75rem; color:#949ba4; margin-top:2px;">Connected</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Connected</div>
             </div>
           </div>
 
@@ -1119,18 +1268,29 @@
           <div class="mock-dot"></div>
           <div class="mock-title" style="margin-left:8px;">Protutech &bull; Theme Engine</div>
         </div>
-        <div class="mock-body" style="background:#070d22; border:1px solid rgba(56,189,248,0.12);">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-            <div style="border:1px solid var(--cyan); background:rgba(29,78,216,0.25); border-radius:8px; padding:12px;">
-              <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Midnight Blue</div>
-              <div style="font-size:0.72rem; color:#94a3b8;">Default midnight theme</div>
+        <!-- Live Theme Previewer Selector -->
+        <div style="padding: 12px 16px 0; background: #080f26; border-bottom: 1px solid rgba(56,189,248,0.12);">
+          <div style="font-size:0.72rem; font-weight:700; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">Click to preview themes live:</div>
+          <div class="theme-chip-bar">
+            <button type="button" class="theme-chip-btn active" id="chip-midnight" onclick="previewTheme('midnight')">Midnight Blue</button>
+            <button type="button" class="theme-chip-btn" id="chip-amoled" onclick="previewTheme('amoled')">AMOLED Black</button>
+            <button type="button" class="theme-chip-btn" id="chip-catppuccin" onclick="previewTheme('catppuccin')">Catppuccin</button>
+            <button type="button" class="theme-chip-btn" id="chip-nord" onclick="previewTheme('nord')">Nord</button>
+            <button type="button" class="theme-chip-btn" id="chip-cyberpunk" onclick="previewTheme('cyberpunk')">Cyberpunk</button>
+          </div>
+        </div>
+        <div class="mock-body" id="themeMockBody" style="background:#070d22; border:1px solid rgba(56,189,248,0.12); transition:all 0.3s ease;">
+          <div id="themePreviewGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+            <div id="themeCardPrimary" style="border:1px solid var(--cyan); background:rgba(29,78,216,0.25); border-radius:8px; padding:12px; transition:all 0.3s ease;">
+              <div id="themeTitle" style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Midnight Blue</div>
+              <div id="themeDesc" style="font-size:0.72rem; color:#94a3b8;">Default midnight theme</div>
             </div>
-            <div style="border:1px solid rgba(56,189,248,0.16); background:#0c1635; border-radius:8px; padding:12px;">
-              <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Midnight AMOLED</div>
-              <div style="font-size:0.72rem; color:#94a3b8;">Pure #000000 for OLED</div>
+            <div id="themeCardSecondary" style="border:1px solid rgba(56,189,248,0.16); background:#0c1635; border-radius:8px; padding:12px; transition:all 0.3s ease;">
+              <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Custom CSS Engine</div>
+              <div style="font-size:0.72rem; color:#94a3b8;">Local .css &amp; Vencord import</div>
             </div>
           </div>
-          <div style="background:#09122c; border:1px solid rgba(56,189,248,0.15); border-radius:8px; padding:12px;">
+          <div id="themePluginsBox" style="background:#09122c; border:1px solid rgba(56,189,248,0.15); border-radius:8px; padding:12px; transition:all 0.3s ease;">
             <div style="font-size:0.75rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Plugins Active</div>
             <div style="font-size:0.8rem; color:#dbdee1; display:flex; justify-content:space-between; margin-bottom:4px;">
               <span>Message Logger (Deleted Messages)</span>
@@ -1152,11 +1312,17 @@
       <div class="feature-text">
         <h2>From casual hangouts to full UI customization</h2>
         <p>
-          Make the client truly yours. Built-in custom theme support lets you hot-swap styles (Dark, Midnight AMOLED, Catppuccin Mocha), load external CSS stylesheets, and even browse local .css files right from your disk.
+          Make the client truly yours. Built-in custom theme support lets you hot-swap styles (Midnight Blue, AMOLED Black, Catppuccin Mocha, Nord, Cyberpunk), load external CSS stylesheets, and even browse local .css files right from your disk.
         </p>
-        <a href="/chat/" class="feature-btn">
-          Explore Themes in Client &rarr;
-        </a>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px;">
+          <button type="button" onclick="openThemeExplorerModal()" class="feature-btn" style="background:#1d4ed8; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+            <svg style="width:18px; height:18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            <span>Explore All Themes Gallery</span>
+          </button>
+          <button type="button" onclick="openAppDemoModal()" class="feature-btn" style="background:#080f26; border:1px solid rgba(56,189,248,0.25); cursor:pointer;">
+            <span>Preview in Interactive Demo &rarr;</span>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -1550,6 +1716,406 @@
         auditClientStorage();
       }
     }
+
+    // THEME PREVIEW ENGINE
+    const themeConfigs = {
+      midnight: {
+        name: 'Midnight Blue',
+        desc: 'Default midnight blue theme',
+        bg: '#070d22',
+        border: 'rgba(56,189,248,0.18)',
+        cardBg: 'rgba(29,78,216,0.25)',
+        cardBorder: 'var(--cyan)',
+        boxBg: '#09122c'
+      },
+      amoled: {
+        name: 'Midnight AMOLED',
+        desc: 'Pure #000000 black for OLED screens',
+        bg: '#000000',
+        border: 'rgba(255,255,255,0.15)',
+        cardBg: 'rgba(255,255,255,0.06)',
+        cardBorder: 'rgba(255,255,255,0.4)',
+        boxBg: '#0a0a0a'
+      },
+      catppuccin: {
+        name: 'Catppuccin Mocha',
+        desc: 'Soothing pastel lavender and dark mauve',
+        bg: '#1e1e2e',
+        border: 'rgba(203,166,247,0.3)',
+        cardBg: 'rgba(203,166,247,0.15)',
+        cardBorder: '#cba6f7',
+        boxBg: '#181825'
+      },
+      nord: {
+        name: 'Nord Frost',
+        desc: 'Arctic polar night with icy blue accents',
+        bg: '#2e3440',
+        border: 'rgba(136,192,208,0.3)',
+        cardBg: 'rgba(136,192,208,0.15)',
+        cardBorder: '#88c0d0',
+        boxBg: '#242933'
+      },
+      cyberpunk: {
+        name: 'Cyberpunk Neon',
+        desc: 'Deep violet with neon cyan and pink glow',
+        bg: '#12072b',
+        border: 'rgba(244,63,94,0.3)',
+        cardBg: 'rgba(244,63,94,0.18)',
+        cardBorder: '#f43f5e',
+        boxBg: '#1d0b45'
+      }
+    };
+
+    function previewTheme(key) {
+      const c = themeConfigs[key];
+      if (!c) return;
+      document.querySelectorAll('.theme-chip-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('chip-' + key);
+      if (btn) btn.classList.add('active');
+
+      const body = document.getElementById('themeMockBody');
+      const cardPri = document.getElementById('themeCardPrimary');
+      const tTitle = document.getElementById('themeTitle');
+      const tDesc = document.getElementById('themeDesc');
+      const box = document.getElementById('themePluginsBox');
+
+      if (body) { body.style.background = c.bg; body.style.borderColor = c.border; }
+      if (cardPri) { cardPri.style.background = c.cardBg; cardPri.style.borderColor = c.cardBorder; }
+      if (tTitle) { tTitle.innerText = c.name; }
+      if (tDesc) { tDesc.innerText = c.desc; }
+      if (box) { box.style.background = c.boxBg; box.style.borderColor = c.border; }
+    }
+
+    // MODAL HANDLERS
+    function openAppDemoModal() {
+      document.getElementById('appDemoModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeAppDemoModal() {
+      document.getElementById('appDemoModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+    }
+    function openThemeExplorerModal() {
+      document.getElementById('themeExplorerModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeThemeExplorerModal() {
+      document.getElementById('themeExplorerModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+    }
+
+    // INTERACTIVE DEMO SIMULATION
+    let demoSpeaking = false;
+    let demoMuted = false;
+
+    function demoSelectChannel(name, isVoice = false) {
+      document.querySelectorAll('.demo-chan-item').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById('demoHeaderChannelName').innerText = (isVoice ? '🔊 ' : '# ') + name;
+      const chatArea = document.getElementById('demoChatMessages');
+      const voiceStage = document.getElementById('demoVoiceStage');
+      if (isVoice) {
+        chatArea.style.display = 'none';
+        voiceStage.style.display = 'block';
+      } else {
+        chatArea.style.display = 'block';
+        voiceStage.style.display = 'none';
+      }
+    }
+
+    function demoSendMsg(e) {
+      if (e.key === 'Enter') {
+        const input = document.getElementById('demoMsgInput');
+        const text = input.value.trim();
+        if (!text) return;
+        const msgList = document.getElementById('demoMsgList');
+        const d = document.createElement('div');
+        d.style.cssText = 'display:flex; gap:10px; margin-bottom:12px; animation:fadeIn 0.2s;';
+        d.innerHTML = `
+          <div style="width:34px; height:34px; border-radius:50%; background:#1d4ed8; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:0.85rem; flex-shrink:0;">U</div>
+          <div>
+            <div style="display:flex; align-items:baseline; gap:8px;">
+              <span style="font-weight:700; color:#38bdf8; font-size:0.88rem;">You (Demo Guest)</span>
+              <span style="font-size:0.7rem; color:#94a3b8;">Just now</span>
+            </div>
+            <div style="color:#f8fafc; font-size:0.9rem; margin-top:2px;">${text.replace(/</g, '&lt;')}</div>
+          </div>
+        `;
+        msgList.appendChild(d);
+        input.value = '';
+        const scrollArea = document.getElementById('demoChatScroll');
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+      }
+    }
+
+    function demoToggleMute() {
+      demoMuted = !demoMuted;
+      const btn = document.getElementById('demoMuteBtn');
+      const statusText = document.getElementById('demoVoiceStatusText');
+      if (demoMuted) {
+        btn.style.color = '#ef4444';
+        btn.innerText = 'Unmute Mic';
+        if (statusText) statusText.innerText = 'Microphone Muted (Ctrl+Shift+M)';
+      } else {
+        btn.style.color = '#10b981';
+        btn.innerText = 'Mute Mic';
+        if (statusText) statusText.innerText = 'Voice Active (<30ms LiveKit SFU)';
+      }
+    }
   </script>
+
+  <!-- INTERACTIVE APP DEMO MODAL -->
+  <div id="appDemoModal" class="modal-backdrop" onclick="if(event.target===this) closeAppDemoModal();">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <img src="logo.jpg?v=2" alt="Protutech" style="width:28px; height:28px; border-radius:8px;" />
+          <div>
+            <div style="font-weight:800; color:#fff; font-size:1.05rem;">Protutech Interactive Sandbox Demo</div>
+            <div style="font-size:0.75rem; color:#38bdf8;">Running in-browser live prototype &bull; Sub-30ms LiveKit SFU Voice</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="nav-btn-open" style="font-size:0.78rem; padding:6px 14px;">
+            Open Live Web Client &rarr;
+          </a>
+          <button type="button" class="modal-close-btn" onclick="closeAppDemoModal()">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding:0;">
+        <div style="display:flex; height:520px; background:#070d22; border-radius:0 0 20px 20px; overflow:hidden;">
+          <!-- Server Rail -->
+          <div style="width:68px; background:#040714; border-right:1px solid rgba(56,189,248,0.12); padding:12px 0; display:flex; flex-direction:column; align-items:center; gap:12px;">
+            <div style="width:46px; height:46px; border-radius:14px; background:#1d4ed8; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; cursor:pointer; box-shadow:0 0 12px rgba(29,78,216,0.6);" title="Protutech Master Space">
+              P
+            </div>
+            <div style="width:32px; height:2px; background:rgba(255,255,255,0.1); border-radius:2px;"></div>
+            <div style="width:44px; height:44px; border-radius:50%; background:#0a122e; border:1px solid rgba(56,189,248,0.2); display:flex; align-items:center; justify-content:center; color:#38bdf8; font-size:1.2rem; cursor:pointer;" title="Gaming Guild">
+              🎮
+            </div>
+            <div style="width:44px; height:44px; border-radius:50%; background:#0a122e; border:1px solid rgba(56,189,248,0.2); display:flex; align-items:center; justify-content:center; color:#38bdf8; font-size:1.2rem; cursor:pointer;" title="Clips & Video">
+              🎬
+            </div>
+          </div>
+
+          <!-- Channel Sidebar -->
+          <div style="width:220px; background:#080f26; border-right:1px solid rgba(56,189,248,0.12); display:flex; flex-direction:column; justify-content:space-between;">
+            <div style="padding:14px;">
+              <div style="font-weight:800; color:#fff; font-size:0.95rem; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;">
+                <span>Protutech Server</span>
+                <span style="font-size:0.75rem; color:#10b981;">● Online</span>
+              </div>
+
+              <div style="font-size:0.7rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Text Channels</div>
+              <div class="demo-chan-item active" onclick="demoSelectChannel('welcome-and-rules', false)" style="padding:7px 10px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; cursor:pointer; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                <span style="color:#94a3b8;">#</span>
+                <span>welcome-and-rules</span>
+              </div>
+              <div class="demo-chan-item" onclick="demoSelectChannel('general-chat', false)" style="padding:7px 10px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; cursor:pointer; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                <span style="color:#94a3b8;">#</span>
+                <span>general-chat</span>
+              </div>
+              <div class="demo-chan-item" onclick="demoSelectChannel('clips-and-highlights', false)" style="padding:7px 10px; border-radius:6px; font-size:0.85rem; color:#cbd5e1; cursor:pointer; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                <span style="color:#94a3b8;">#</span>
+                <span>clips-and-highlights</span>
+              </div>
+
+              <div style="font-size:0.7rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-top:14px; margin-bottom:6px;">Voice Channels</div>
+              <div class="demo-chan-item" onclick="demoSelectChannel('Voice Lounge', true)" style="padding:7px 10px; border-radius:6px; font-size:0.85rem; color:#34d399; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+                <span>🔊 Voice Lounge</span>
+                <span style="font-size:0.68rem; background:rgba(16,185,129,0.2); padding:2px 6px; border-radius:4px;">&lt;30ms</span>
+              </div>
+            </div>
+
+            <!-- Demo User Bar -->
+            <div style="background:#050915; border-top:1px solid rgba(56,189,248,0.12); padding:10px 12px; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:28px; height:28px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.75rem;">A</div>
+                <div>
+                  <div style="font-weight:700; color:#fff; font-size:0.8rem;">andrex</div>
+                  <div style="font-size:0.68rem; color:#10b981;">Online</div>
+                </div>
+              </div>
+              <button type="button" id="demoMuteBtn" onclick="demoToggleMute()" style="background:none; border:none; font-size:0.75rem; color:#10b981; font-weight:700; cursor:pointer;">
+                Mute Mic
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Demo Content Area -->
+          <div style="flex:1; display:flex; flex-direction:column; background:#070d22;">
+            <!-- Top Channel Bar -->
+            <div style="height:48px; border-bottom:1px solid rgba(56,189,248,0.12); display:flex; align-items:center; justify-content:space-between; padding:0 18px;">
+              <div style="font-weight:800; color:#fff; font-size:0.95rem;" id="demoHeaderChannelName"># welcome-and-rules</div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:0.72rem; background:rgba(56,189,248,0.15); color:#38bdf8; padding:3px 8px; border-radius:4px; font-family:'JetBrains Mono',monospace;">LiveKit SFU 22ms</span>
+                <span style="font-size:0.72rem; color:#94a3b8;">Opus 48kHz Stereo</span>
+              </div>
+            </div>
+
+            <!-- Text Chat Simulation View -->
+            <div id="demoChatMessages" style="flex:1; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden;">
+              <div id="demoChatScroll" style="flex:1; overflow-y:auto; padding:18px;">
+                <div id="demoMsgList">
+                  <div style="display:flex; gap:10px; margin-bottom:14px;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:#10b981; display:flex; align-items:center; justify-content:center; font-weight:700; color:#000; font-size:0.85rem; flex-shrink:0;">P</div>
+                    <div>
+                      <div style="display:flex; align-items:baseline; gap:8px;">
+                        <span style="font-weight:700; color:#34d399; font-size:0.88rem;">Protutech System</span>
+                        <span style="font-size:0.7rem; color:#94a3b8;">Today at 1:15 AM</span>
+                      </div>
+                      <div style="color:#cbd5e1; font-size:0.9rem; margin-top:2px;">
+                        Welcome to the Protutech private communication network! You are experiencing the zero-latency prototype interface.
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:10px; margin-bottom:14px;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:#38bdf8; display:flex; align-items:center; justify-content:center; font-weight:700; color:#000; font-size:0.85rem; flex-shrink:0;">M</div>
+                    <div>
+                      <div style="display:flex; align-items:baseline; gap:8px;">
+                        <span style="font-weight:700; color:#38bdf8; font-size:0.88rem;">Matrix Bridge Bot</span>
+                        <span style="font-size:0.7rem; color:#94a3b8;">Today at 1:16 AM</span>
+                      </div>
+                      <div style="color:#cbd5e1; font-size:0.9rem; margin-top:2px;">
+                        Double-puppeting sync is active. Discord channels and voice stages remain synchronized in real-time.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:14px 18px; background:#050915; border-top:1px solid rgba(56,189,248,0.12);">
+                <input type="text" id="demoMsgInput" placeholder="Message #welcome-and-rules (Type and press Enter to test)..." onkeydown="demoSendMsg(event)" style="width:100%; background:#0a122e; border:1px solid rgba(56,189,248,0.2); border-radius:8px; padding:10px 14px; color:#fff; font-size:0.88rem; outline:none;" />
+              </div>
+            </div>
+
+            <!-- Voice Stage Simulation View (Hidden by default) -->
+            <div id="demoVoiceStage" style="display:none; flex:1; padding:24px; overflow-y:auto;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                <div style="background:#09122c; border:2px solid #10b981; border-radius:12px; padding:24px; text-align:center; position:relative; box-shadow:0 0 20px rgba(16,185,129,0.2);">
+                  <span style="position:absolute; top:10px; right:12px; font-size:0.72rem; color:#10b981; font-weight:700;">22ms RTC</span>
+                  <div style="width:56px; height:56px; border-radius:50%; background:#1d4ed8; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:800; margin:0 auto 10px;">A</div>
+                  <div style="font-weight:700; color:#fff; font-size:1rem;">andrex (You)</div>
+                  <div style="font-size:0.75rem; color:#10b981; font-weight:600; margin-top:4px;" id="demoVoiceStatusText">Speaking &bull; Voice Active (&lt;30ms LiveKit SFU)</div>
+                </div>
+                <div style="background:#09122c; border:1px solid rgba(56,189,248,0.18); border-radius:12px; padding:24px; text-align:center; position:relative;">
+                  <span style="position:absolute; top:10px; right:12px; font-size:0.72rem; color:#94a3b8;">18ms RTC</span>
+                  <div style="width:56px; height:56px; border-radius:50%; background:#10b981; color:#000; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:800; margin:0 auto 10px;">P</div>
+                  <div style="font-weight:700; color:#fff; font-size:1rem;">Protutech Live SFU</div>
+                  <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">1080p 60FPS Screen Sharing Ready</div>
+                </div>
+              </div>
+              <div style="background:#060a1c; border:1px solid rgba(56,189,248,0.18); border-radius:8px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+                  <span style="font-size:0.85rem; font-weight:700; color:#fff;">LiveKit SFU Hardware Acceleration Active</span>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#38bdf8;">Sub-30ms Stereo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THEME EXPLORER GALLERY MODAL -->
+  <div id="themeExplorerModal" class="modal-backdrop" onclick="if(event.target===this) closeThemeExplorerModal();">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px; height:12px; border-radius:50%; background:#38bdf8;"></div>
+          <div style="font-weight:800; color:#fff; font-size:1.1rem;">Explore Client Themes &amp; Customization</div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeThemeExplorerModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:#cbd5e1; font-size:0.95rem; margin-bottom:24px;">
+          Protutech supports instant hot-swapping across preset colorways and custom Vencord CSS stylesheets. Select a theme below to preview its palette:
+        </p>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;">
+          <!-- Midnight Blue -->
+          <div style="background:#070d22; border:1px solid #38bdf8; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#fff; font-size:1rem;">Midnight Blue</div>
+              <span style="font-size:0.7rem; background:#1d4ed8; color:#fff; padding:2px 8px; border-radius:10px;">Default</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#050915; border:1px solid #38bdf8;" title="#050915"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#0d1636;" title="#0d1636"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#1d4ed8;" title="#1d4ed8"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#38bdf8;" title="#38bdf8"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:14px;">Deep oceanic navy with electric royal blue and cyan highlights.</p>
+            <button type="button" onclick="previewTheme('midnight'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- AMOLED Black -->
+          <div style="background:#000000; border:1px solid rgba(255,255,255,0.25); border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#fff; font-size:1rem;">Midnight AMOLED</div>
+              <span style="font-size:0.7rem; background:#222; color:#fff; padding:2px 8px; border-radius:10px;">OLED</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#000000; border:1px solid #fff;" title="#000000"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#111111;" title="#111111"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#222222;" title="#222222"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#ffffff;" title="#ffffff"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:14px;">True pure pitch black designed to conserve battery on OLED displays.</p>
+            <button type="button" onclick="previewTheme('amoled'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Catppuccin Mocha -->
+          <div style="background:#1e1e2e; border:1px solid #cba6f7; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#cba6f7; font-size:1rem;">Catppuccin Mocha</div>
+              <span style="font-size:0.7rem; background:#45475a; color:#cba6f7; padding:2px 8px; border-radius:10px;">Pastel</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#1e1e2e;" title="#1e1e2e"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#181825;" title="#181825"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#cba6f7;" title="#cba6f7"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#89b4fa;" title="#89b4fa"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#a6adc8; margin-bottom:14px;">Cozy pastel lavender and warm dark tones for long reading sessions.</p>
+            <button type="button" onclick="previewTheme('catppuccin'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Nord Frost -->
+          <div style="background:#2e3440; border:1px solid #88c0d0; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#88c0d0; font-size:1rem;">Nord Frost</div>
+              <span style="font-size:0.7rem; background:#3b4252; color:#88c0d0; padding:2px 8px; border-radius:10px;">Arctic</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#2e3440;" title="#2e3440"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#3b4252;" title="#3b4252"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#88c0d0;" title="#88c0d0"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#eceff4;" title="#eceff4"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#d8dee9; margin-bottom:14px;">Clean arctic palette inspired by Scandinavian cold days and northern lights.</p>
+            <button type="button" onclick="previewTheme('nord'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Cyberpunk Neon -->
+          <div style="background:#12072b; border:1px solid #f43f5e; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#f43f5e; font-size:1rem;">Cyberpunk Neon</div>
+              <span style="font-size:0.7rem; background:#3b0764; color:#f43f5e; padding:2px 8px; border-radius:10px;">Vibrant</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#12072b;" title="#12072b"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#1d0b45;" title="#1d0b45"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#f43f5e;" title="#f43f5e"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#06b6d4;" title="#06b6d4"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">High-energy neon synthwave aesthetic with saturated pinks and electric cyan.</p>
+            <button type="button" onclick="previewTheme('cyberpunk'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

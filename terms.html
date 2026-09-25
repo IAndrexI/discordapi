@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms of Service - Protutech</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050915;
+      --surface: #0a1128;
+      --card-bg: #0d1636;
+      --card-border: rgba(56, 189, 248, 0.18);
+      --accent: #1d4ed8;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(29, 78, 216, 0.35);
+      --cyan: #38bdf8;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.65;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 15, 36, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .nav-brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      list-style: none;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      color: var(--cyan);
+    }
+    .nav-btn {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 9px 20px;
+      border-radius: 24px;
+      text-decoration: none;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .main-content {
+      max-width: 920px;
+      margin: 40px auto 60px;
+      padding: 0 24px;
+      flex: 1;
+      width: 100%;
+    }
+    .header-box {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header-box h1 {
+      font-size: 2.3rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+    .header-box p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card p {
+      color: #cbd5e1;
+      margin-bottom: 14px;
+      font-size: 0.95rem;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul {
+      margin-left: 20px;
+      margin-bottom: 14px;
+      color: #cbd5e1;
+      font-size: 0.93rem;
+    }
+    .card li { margin-bottom: 8px; }
+    footer {
+      border-top: 1px solid rgba(56, 189, 248, 0.15);
+      background: var(--surface);
+      padding: 30px 24px;
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav>
+    <div class="nav-container">
+      <a href="/" class="nav-brand">
+        <img src="logo.jpg?v=2" alt="Protutech" />
+        <span>Protutech</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/#downloadSection">Download</a></li>
+        <li><a href="/chat/" target="protutech_webclient" rel="noreferrer">Web Client</a></li>
+        <li><a href="/server-select.html">Server Sync</a></li>
+        <li><a href="/privacy.html">Privacy Policy</a></li>
+        <li><a href="/terms.html" class="active">Terms of Service</a></li>
+        <li><a href="https://github.com/IAndrexI/discordapi" target="_blank" rel="noreferrer">GitHub</a></li>
+      </ul>
+
+      <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="nav-btn">
+        Open Protutech
+      </a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="header-box">
+      <h1>Terms of Service</h1>
+      <p>Effective Date: September 25, 2026 &bull; chat.protutech.vip</p>
+    </div>
+
+    <div class="card">
+      <h2>1. Acceptance of Terms</h2>
+      <p>
+        By accessing or using the Protutech platform, web client (<code>https://chat.protutech.vip/chat/</code>), downloadable desktop clients (Windows, Linux), or associated synchronization utilities, you agree to be bound by these Terms of Service. If you do not agree to these terms, do not access or use the software.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. Architecture &amp; Self-Hosted Nature</h2>
+      <p>
+        Protutech is a privacy-first, self-hosted communication ecosystem composed of:
+      </p>
+      <ul>
+        <li>A Matrix Synapse federated homeserver instance.</li>
+        <li>An on-premises LiveKit Selective Forwarding Unit (SFU) delivering sub-30ms audio, video, and screen sharing.</li>
+        <li>Double-puppeting bridging gateways facilitating chat interoperability.</li>
+      </ul>
+      <p>
+        You acknowledge that you are responsible for maintaining the security of your local environment and client machines.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>3. Client-Side Only Credential Policy</h2>
+      <p>
+        Protutech operates under strict zero-knowledge credential isolation:
+      </p>
+      <ul>
+        <li>Discord tokens and user authentication secrets are stored exclusively in your local client sandbox (<code>localStorage</code> on Web, and your encrypted local application folder on Desktop).</li>
+        <li>The Protutech central server does not persist, log, or record Discord user passwords, authorization tokens, or two-factor authentication codes in any database.</li>
+        <li>You retain complete ownership and control over your session keys and can purge all local data at any time via the on-page storage auditor.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>4. Acceptable Use Policy</h2>
+      <p>When utilizing the Protutech services, you agree not to:</p>
+      <ul>
+        <li>Transmit unlawful, harassing, defamatory, abusive, or infringing material.</li>
+        <li>Deploy automated scrapers, denial-of-service tools, or packet flooding attacks against the LiveKit SFU or Matrix endpoints.</li>
+        <li>Violate applicable local, national, or international telecommunications laws or third-party platform terms of service.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>5. Open Source Software &amp; Code Transparency</h2>
+      <p>
+        Protutech client source code and setup utilities are published openly on <a href="https://github.com/IAndrexI/discordapi" target="_blank" style="color:var(--cyan);">GitHub</a>. Users are encouraged to inspect and verify the software. The software is provided under the terms of the MIT License, without warranty of any kind, express or implied.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>6. Modifications &amp; Contact</h2>
+      <p>
+        We reserve the right to modify these terms to reflect infrastructure or compliance changes. Continued use of the service constitutes acceptance of any revised terms.
+      </p>
+      <p>
+        For inquiries regarding these terms, contact the administrator at <code>admin@protutech.vip</code> or via the Matrix homeserver.
+      </p>
+    </div>
+  </main>
+
+  <footer>
+    <div>
+      <a href="/">Home</a> |
+      <a href="/privacy.html">Privacy Policy</a> |
+      <a href="/terms.html">Terms of Service</a> |
+      <a href="https://github.com/IAndrexI/discordapi" target="_blank">GitHub</a> |
+      <a href="/#downloadSection">Downloads</a>
+    </div>
+    <div style="margin-top:10px;">
+      Protutech &bull; chat.protutech.vip &bull; Hosted on Debian 13 LXC
+    </div>
+  </footer>
+
+</body>
+</html>
