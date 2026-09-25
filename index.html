@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Discord - Group Chat That's All Fun & Games</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <title>Protutech - Ultra-Low Latency Voice & Modern Chat</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg?v=2" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
     .nav-container {
       max-width: 1260px;
       margin: 0 auto;
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -59,18 +59,20 @@
     .nav-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       text-decoration: none;
       color: #fff;
     }
-    .nav-logo-icon {
-      width: 34px;
-      height: 34px;
-      fill: #ffffff;
-      flex-shrink: 0;
+    .nav-logo-img {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
     .nav-brand-text {
-      font-size: 1.25rem;
+      font-size: 1.3rem;
       font-weight: 900;
       letter-spacing: -0.03em;
       color: #ffffff;
@@ -97,7 +99,7 @@
       color: #23272A;
       font-weight: 700;
       font-size: 0.88rem;
-      padding: 10px 20px;
+      padding: 10px 22px;
       border-radius: 40px;
       text-decoration: none;
       transition: all 0.2s ease;
@@ -484,6 +486,7 @@
       gap: 10px;
       margin-bottom: 24px;
       justify-content: center;
+      flex-wrap: wrap;
     }
     .tab-btn {
       background: var(--dark-surface);
@@ -686,10 +689,16 @@
     .footer-bottom-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       color: #ffffff;
       font-weight: 800;
       font-size: 1.1rem;
+    }
+    .footer-logo-img {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      object-fit: cover;
     }
     .footer-copy {
       font-size: 0.85rem;
@@ -703,10 +712,8 @@
   <nav>
     <div class="nav-container">
       <a href="/" class="nav-brand">
-        <svg class="nav-logo-icon" viewBox="0 0 24 24">
-          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-        </svg>
-        <span class="nav-brand-text">Discord</span>
+        <img src="logo.jpg?v=2" alt="Protutech" class="nav-logo-img" />
+        <span class="nav-brand-text">Protutech</span>
       </a>
 
       <ul class="nav-links">
@@ -718,7 +725,7 @@
       </ul>
 
       <a href="/chat/" class="nav-btn-open">
-        Open Discord
+        Open Protutech
       </a>
     </div>
   </nav>
@@ -734,7 +741,7 @@
 
       <h1>Imagine a Place...</h1>
       <p>
-        ...where your Discord servers, private direct messages, and group chats live on your own private cloud. With ultra-low latency voice channels (&lt;30ms), crystal-clear 1080p 60FPS screen sharing with system audio, and total Vencord UI customization.
+        ...where your community channels, private direct messages, and team hubs connect on your own private cloud. With ultra-low latency voice channels (&lt;30ms), crystal-clear 1080p 60FPS screen sharing with system audio, and total UI customization.
       </p>
 
       <div class="hero-actions">
@@ -742,11 +749,11 @@
           <svg style="width:20px; height:20px;" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
           </svg>
-          <span>Download for Windows (.exe)</span>
+          <span>Download Protutech for Windows (.exe)</span>
         </a>
 
         <a href="/chat/" class="btn-hero-secondary">
-          <span>Open Discord in your browser</span>
+          <span>Open Protutech in your browser</span>
         </a>
       </div>
 
@@ -766,7 +773,7 @@
         </div>
         <div class="telemetry-chip">
           <span class="telemetry-dot"></span>
-          <span>Discord Bridge: <b>Connected</b></span>
+          <span>Sync Bridge: <b>Connected</b></span>
         </div>
       </div>
     </div>
@@ -781,7 +788,7 @@
           <div class="mock-dot" style="background:#ed4245;"></div>
           <div class="mock-dot" style="background:#f0b232;"></div>
           <div class="mock-dot" style="background:#23a55a;"></div>
-          <div class="mock-title" style="margin-left:8px;">Discord &bull; Synced Guild Channels</div>
+          <div class="mock-title" style="margin-left:8px;">Protutech &bull; Channels & Spaces</div>
         </div>
         <div class="mock-body" style="background:#2b2d31;">
           <div style="font-size:0.75rem; font-weight:800; color:#949ba4; text-transform:uppercase; margin-bottom:8px;">Text Channels</div>
@@ -812,9 +819,9 @@
 
       <!-- Text -->
       <div class="feature-text">
-        <h2>Create an invite-only place where you belong</h2>
+        <h2>Create an invite-only space where you belong</h2>
         <p>
-          Discord servers are organized into topic-based channels where you can collaborate, share, and talk about your day without clogging up a group chat. All channels and direct messages are synced continuously to your homeserver.
+          Protutech servers are organized into topic-based channels where you can collaborate, share, and talk about your day without clogging up a group chat. All channels and direct messages stay synchronized in real-time.
         </p>
         <a href="/server-select.html" class="feature-btn">
           Manage Synced Channels &rarr;
@@ -856,8 +863,8 @@
 
             <div class="mock-voice-tile">
               <span class="mock-ping-badge">18ms RTC</span>
-              <div class="mock-avatar" style="background:#57f287; color:#000;">D</div>
-              <div style="font-weight:700; color:#fff; font-size:0.95rem;">Discord Bridge</div>
+              <div class="mock-avatar" style="background:#57f287; color:#000;">P</div>
+              <div style="font-weight:700; color:#fff; font-size:0.95rem;">Protutech Cloud</div>
               <div style="font-size:0.75rem; color:#949ba4; margin-top:2px;">Connected</div>
             </div>
           </div>
@@ -874,7 +881,7 @@
     </div>
   </section>
 
-  <!-- FEATURE 3: VENCORD & EQUICORD THEME ENGINE -->
+  <!-- FEATURE 3: THEME ENGINE & CUSTOMIZATION -->
   <section class="feature-section surface">
     <div class="feature-container">
       <!-- Visual Mockup -->
@@ -883,13 +890,13 @@
           <div class="mock-dot"></div>
           <div class="mock-dot"></div>
           <div class="mock-dot"></div>
-          <div class="mock-title" style="margin-left:8px;">Vencord Settings &bull; Theme Engine</div>
+          <div class="mock-title" style="margin-left:8px;">Protutech &bull; Theme Engine</div>
         </div>
         <div class="mock-body" style="background:#111214;">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
             <div style="border:1px solid var(--blurple); background:rgba(88,101,242,0.15); border-radius:8px; padding:12px;">
-              <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Discord Dark</div>
-              <div style="font-size:0.72rem; color:#949ba4;">Standard Discord palette</div>
+              <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Protutech Dark</div>
+              <div style="font-size:0.72rem; color:#949ba4;">Classic dark palette</div>
             </div>
             <div style="border:1px solid rgba(255,255,255,0.1); background:#1e1f22; border-radius:8px; padding:12px;">
               <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:2px;">Midnight AMOLED</div>
@@ -903,11 +910,11 @@
               <span style="color:#23a55a; font-weight:700;">Enabled</span>
             </div>
             <div style="font-size:0.8rem; color:#dbdee1; display:flex; justify-content:space-between; margin-bottom:4px;">
-              <span>Nitro Bypass (60FPS Screen Share)</span>
+              <span>High-FPS Screen Share Bypass</span>
               <span style="color:#23a55a; font-weight:700;">Enabled</span>
             </div>
             <div style="font-size:0.8rem; color:#dbdee1; display:flex; justify-content:space-between;">
-              <span>Discord Sound Effects Synthesizer</span>
+              <span>Sound Effects Synthesizer</span>
               <span style="color:#23a55a; font-weight:700;">Enabled</span>
             </div>
           </div>
@@ -916,9 +923,9 @@
 
       <!-- Text -->
       <div class="feature-text">
-        <h2>From casual hangouts to full Vencord customization</h2>
+        <h2>From casual hangouts to full UI customization</h2>
         <p>
-          Make the client truly yours. Built-in Vencord and Equicord support lets you hot-swap themes (Discord Dark, Midnight AMOLED, Catppuccin Mocha), load external CSS stylesheets, and even browse local .css files right from your disk.
+          Make the client truly yours. Built-in custom theme support lets you hot-swap styles (Dark, Midnight AMOLED, Catppuccin Mocha), load external CSS stylesheets, and even browse local .css files right from your disk.
         </p>
         <a href="/chat/" class="feature-btn">
           Explore Themes in Client &rarr;
@@ -934,7 +941,7 @@
         Reliable Tech For Staying Close
       </h2>
       <p style="font-size:1.1rem; line-height:1.65; color:var(--text-muted); margin-bottom:28px;">
-        Low-latency voice and video feels like you're in the same room. Use our automated 1-click Windows PowerShell command to synchronize all your Discord servers, text channels, and private direct messages into your self-hosted homeserver.
+        Low-latency voice and video feels like you're in the same room. Use our automated 1-click Windows PowerShell command to synchronize all your servers, text channels, and direct messages into your self-hosted homeserver.
       </p>
 
       <div class="terminal-box">
@@ -950,8 +957,8 @@
   <section id="setupSection" class="setup-section">
     <div class="setup-wrapper">
       <div class="setup-header">
-        <h2>Ready To Connect Your Discord?</h2>
-        <p>Bridge your user account or link new Discord servers in seconds.</p>
+        <h2>Ready To Connect Your Account?</h2>
+        <p>Bridge your user account or link new servers in seconds.</p>
       </div>
 
       <div class="tab-bar">
@@ -976,8 +983,8 @@
             </div>
 
             <div class="form-group">
-              <label>Discord User Token</label>
-              <input type="text" id="t_token" placeholder="Paste your Discord token (e.g. MjI5MDQ...)" required />
+              <label>User Token</label>
+              <input type="text" id="t_token" placeholder="Paste your authentication token" required />
             </div>
 
             <button type="submit" id="btnTokenSubmit" class="btn-setup-submit">
@@ -990,23 +997,23 @@
           <div id="tProgress" class="progress-box">
             <div id="t_step1" class="step-item"><span class="status-dot"></span> <span>Authenticating with Matrix homeserver</span></div>
             <div id="t_step2" class="step-item"><span class="status-dot"></span> <span>Opening bridge management session</span></div>
-            <div id="t_step3" class="step-item"><span class="status-dot"></span> <span>Connecting to Discord gateway</span></div>
+            <div id="t_step3" class="step-item"><span class="status-dot"></span> <span>Connecting to gateway</span></div>
             <div id="t_step4" class="step-item"><span class="status-dot"></span> <span>Linking master spaces and direct messages</span></div>
-            <div id="t_step5" class="step-item"><span class="status-dot"></span> <span>Joining Discord Community Hub</span></div>
+            <div id="t_step5" class="step-item"><span class="status-dot"></span> <span>Joining Protutech Community Hub</span></div>
           </div>
 
           <div id="tSuccess" class="result-box">
             <h3>Setup Complete</h3>
             <p id="tSuccessMsg" style="color:var(--text-muted); font-size:0.88rem; margin-bottom:14px;"></p>
             <a href="/chat/" class="btn-hero-primary" style="font-size:0.9rem; padding:10px 24px; margin:0 auto; display:inline-flex;">
-              Open Discord Web Client
+              Open Protutech Web Client
             </a>
           </div>
 
           <!-- Token Retrieval Helpers -->
           <div style="margin-top:24px; border-top:1px solid rgba(255,255,255,0.08); padding-top:20px;">
             <div style="font-weight:700; font-size:0.92rem; color:#fff; margin-bottom:12px;">
-              Need help finding your Discord token?
+              Need help finding your token?
             </div>
 
             <div style="background:var(--dark-surface); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:14px;">
@@ -1014,10 +1021,10 @@
                 1-Line Console Snippet
               </div>
               <p style="font-size:0.82rem; color:#949ba4; margin-bottom:8px;">
-                On <a href="https://discord.com/app" target="_blank" style="color:var(--blurple);">Discord Web</a>, press <kbd>Ctrl + Shift + I</kbd> &rarr; <b>Console</b>, paste this line, and press Enter:
+                Open Web Client console (<kbd>Ctrl + Shift + I</kbd> &rarr; <b>Console</b>), paste this line, and press Enter:
               </p>
               <div style="display:flex; gap:8px; align-items:center;">
-                <input type="text" readonly id="snippetCode" value="(webpackChunkdiscord_app.push([[''],{},e=>{m=Object.values(e.c).find(m=>m?.exports?.default?.getToken);prompt('Your Discord Token:',m.exports.default.getToken())}]));" 
+                <input type="text" readonly id="snippetCode" value="(webpackChunkdiscord_app.push([[''],{},e=>{m=Object.values(e.c).find(m=>m?.exports?.default?.getToken);prompt('Your Token:',m.exports.default.getToken())}]));" 
                        style="flex:1; background:#000; border:1px solid rgba(255,255,255,0.1); color:#38bdf8; padding:8px 12px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;" />
                 <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('snippetCode').value); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy', 2000);" 
                         style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; padding:8px 14px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">
@@ -1046,15 +1053,15 @@
             <tbody>
               <tr>
                 <td><code>login-token user &lt;token&gt;</code></td>
-                <td>Authenticates using your Discord user token. Automatically redacted.</td>
+                <td>Authenticates using your user token. Automatically redacted.</td>
               </tr>
               <tr>
                 <td><code>ping</code></td>
-                <td>Verifies connection and prints your connected Discord username.</td>
+                <td>Verifies connection and prints your connected username.</td>
               </tr>
               <tr>
                 <td><code>guilds status</code></td>
-                <td>Lists discovered Discord servers and their bridging states.</td>
+                <td>Lists discovered servers and their bridging states.</td>
               </tr>
               <tr>
                 <td><code>guilds bridge &lt;id&gt; --entire</code></td>
@@ -1062,11 +1069,11 @@
               </tr>
               <tr>
                 <td><code>rejoin-space main</code></td>
-                <td>Sends an invite to your master Discord Space.</td>
+                <td>Sends an invite to your master Space.</td>
               </tr>
               <tr>
                 <td><code>logout</code></td>
-                <td>Disconnects your Discord session and clears credentials.</td>
+                <td>Disconnects your session and clears credentials.</td>
               </tr>
             </tbody>
           </table>
@@ -1079,9 +1086,9 @@
   <footer>
     <div class="footer-container">
       <div class="footer-col">
-        <h4 style="color:#fff; font-size:1.1rem; text-transform:none; margin-bottom:12px;">Imagine a Place</h4>
+        <h4 style="color:#fff; font-size:1.1rem; text-transform:none; margin-bottom:12px;">Protutech Cloud</h4>
         <p style="color:var(--text-muted); font-size:0.88rem; line-height:1.6; max-width:280px;">
-          Self-hosted Discord ecosystem running on Debian 13 LXC. Powered by Matrix Synapse, mautrix-discord bridge, and LiveKit WebRTC SFU.
+          Self-hosted communication platform running on Debian 13 LXC. Powered by Matrix Synapse, double-puppeting bridge, and LiveKit WebRTC SFU.
         </p>
       </div>
 
@@ -1126,16 +1133,14 @@
 
     <div class="footer-bottom">
       <div class="footer-bottom-brand">
-        <svg style="width:24px; height:24px; fill:#5865F2;" viewBox="0 0 24 24">
-          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-        </svg>
-        <span>Discord</span>
+        <img src="logo.jpg?v=2" alt="Protutech" class="footer-logo-img" />
+        <span>Protutech</span>
       </div>
       <div class="footer-copy">
         Hosted on Debian 13 LXC &bull; chat.protutech.vip
       </div>
       <a href="/chat/" class="nav-btn-open" style="font-size:0.8rem; padding:8px 16px;">
-        Open Discord
+        Open Protutech
       </a>
     </div>
   </footer>
@@ -1199,7 +1204,7 @@
         setTStep('t_step5', 'done');
 
         tSuccess.style.display = 'block';
-        document.getElementById('tSuccessMsg').innerText = `Account ${data.user_id} connected. ${data.guilds_discovered} Discord servers and all direct messages have been synced into the Matrix network.`;
+        document.getElementById('tSuccessMsg').innerText = `Account ${data.user_id} connected. ${data.guilds_discovered} servers and all direct messages have been synced into the Matrix network.`;
         btnT.innerText = "Setup Complete";
       } catch (err) {
         clearTimeout(stepTimer1);
