@@ -40,6 +40,50 @@ body.theme-midnight {
   --bg-popout: #050505;
 }
 
+/* Theme presets: Frosted Translucent (Aero Glass) */
+body.theme-translucent {
+  --bg-servers: rgba(7, 13, 34, 0.72);
+  --bg-channels: rgba(10, 18, 42, 0.65);
+  --bg-chat: rgba(13, 22, 54, 0.55);
+  --bg-userpanel: rgba(7, 13, 34, 0.8);
+  --bg-message-input: rgba(29, 78, 216, 0.22);
+  --bg-item-hover: rgba(56, 189, 248, 0.12);
+  --bg-item-active: rgba(56, 189, 248, 0.22);
+  --bg-popout: rgba(10, 18, 42, 0.88);
+  --text-normal: #e2e8f0;
+  --text-header: #ffffff;
+  --discord-blurple: #38bdf8;
+  --discord-blurple-hover: #0ea5e9;
+  background: radial-gradient(ellipse at 50% 20%, #0d1b40 0%, #050a18 60%, #02050d 100%) !important;
+}
+body.theme-translucent #root {
+  background: transparent !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Theme presets: Pure Transparent (Acrylic Clear) */
+body.theme-transparent {
+  --bg-servers: rgba(0, 0, 0, 0.28);
+  --bg-channels: rgba(0, 0, 0, 0.2);
+  --bg-chat: rgba(0, 0, 0, 0.1);
+  --bg-userpanel: rgba(0, 0, 0, 0.35);
+  --bg-message-input: rgba(255, 255, 255, 0.08);
+  --bg-item-hover: rgba(255, 255, 255, 0.1);
+  --bg-item-active: rgba(255, 255, 255, 0.18);
+  --bg-popout: rgba(0, 0, 0, 0.7);
+  --text-normal: #ffffff;
+  --text-header: #ffffff;
+  --discord-blurple: #00d2ff;
+  --discord-blurple-hover: #00a8e8;
+  background: transparent !important;
+}
+body.theme-transparent #root {
+  background: transparent !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
 /* Theme presets: Catppuccin Mocha */
 body.theme-catppuccin {
   --bg-servers: #11111b;
@@ -50,6 +94,81 @@ body.theme-catppuccin {
   --text-normal: #cdd6f4;
   --text-muted: #a6adc8;
   --discord-blurple: #cba6f7;
+}
+
+/* Theme presets: Nord Frost */
+body.theme-nord {
+  --bg-servers: #242933;
+  --bg-channels: #2e3440;
+  --bg-chat: #3b4252;
+  --bg-userpanel: #242933;
+  --bg-message-input: #434c5e;
+  --bg-popout: #2e3440;
+  --text-normal: #d8dee9;
+  --text-muted: #88c0d0;
+  --text-header: #eceff4;
+  --discord-blurple: #88c0d0;
+  --discord-blurple-hover: #81a1c1;
+}
+
+/* Theme presets: Cyberpunk Neon */
+body.theme-cyberpunk {
+  --bg-servers: #0d041a;
+  --bg-channels: #14072b;
+  --bg-chat: #1d0b45;
+  --bg-userpanel: #0d041a;
+  --bg-message-input: #2d1066;
+  --bg-popout: #14072b;
+  --text-normal: #f3e8ff;
+  --text-muted: #c084fc;
+  --text-header: #ffffff;
+  --discord-blurple: #f43f5e;
+  --discord-blurple-hover: #e11d48;
+}
+
+/* Theme presets: Crimson Moon */
+body.theme-crimson {
+  --bg-servers: #080304;
+  --bg-channels: #0f0508;
+  --bg-chat: #1a080d;
+  --bg-userpanel: #080304;
+  --bg-message-input: #260c14;
+  --bg-popout: #0f0508;
+  --text-normal: #fecdd3;
+  --text-muted: #fb7185;
+  --text-header: #ffffff;
+  --discord-blurple: #f43f5e;
+  --discord-blurple-hover: #e11d48;
+}
+
+/* Theme presets: Emerald Matrix */
+body.theme-emerald {
+  --bg-servers: #020d08;
+  --bg-channels: #04170e;
+  --bg-chat: #062819;
+  --bg-userpanel: #020d08;
+  --bg-message-input: #0a3d27;
+  --bg-popout: #04170e;
+  --text-normal: #d1fae5;
+  --text-muted: #6ee7b7;
+  --text-header: #ffffff;
+  --discord-blurple: #10b981;
+  --discord-blurple-hover: #059669;
+}
+
+/* Theme presets: Twilight Amber */
+body.theme-solarized {
+  --bg-servers: #0e0c07;
+  --bg-channels: #16120b;
+  --bg-chat: #211c12;
+  --bg-userpanel: #0e0c07;
+  --bg-message-input: #2e2619;
+  --bg-popout: #16120b;
+  --text-normal: #fef3c7;
+  --text-muted: #fcd34d;
+  --text-header: #ffffff;
+  --discord-blurple: #f59e0b;
+  --discord-blurple-hover: #d97706;
 }
 
 * {

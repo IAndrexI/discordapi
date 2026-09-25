@@ -72,7 +72,7 @@ export interface VencordPlugin {
 }
 
 export interface ThemeConfig {
-  activeTheme: 'dark' | 'midnight' | 'catppuccin' | 'custom';
+  activeTheme: 'dark' | 'midnight' | 'translucent' | 'transparent' | 'catppuccin' | 'nord' | 'cyberpunk' | 'crimson' | 'emerald' | 'solarized' | 'custom';
   customCssUrl?: string;
   customCssText?: string;
 }

@@ -100,11 +100,20 @@ export class VencordService {
   }
 
   public applyTheme(config: ThemeConfig) {
-    document.body.classList.remove('theme-midnight', 'theme-catppuccin');
-    if (config.activeTheme === 'midnight') {
-      document.body.classList.add('theme-midnight');
-    } else if (config.activeTheme === 'catppuccin') {
-      document.body.classList.add('theme-catppuccin');
+    const knownThemes = [
+      'theme-midnight',
+      'theme-translucent',
+      'theme-transparent',
+      'theme-catppuccin',
+      'theme-nord',
+      'theme-cyberpunk',
+      'theme-crimson',
+      'theme-emerald',
+      'theme-solarized'
+    ];
+    document.body.classList.remove(...knownThemes);
+    if (config.activeTheme && config.activeTheme !== 'dark' && config.activeTheme !== 'custom') {
+      document.body.classList.add(`theme-${config.activeTheme}`);
     }
 
     let styleEl = document.getElementById('vencord-custom-theme') as HTMLStyleElement;

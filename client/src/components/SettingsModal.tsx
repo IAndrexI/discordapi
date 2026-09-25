@@ -36,7 +36,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSelectTheme = (themeName: 'dark' | 'midnight' | 'catppuccin' | 'custom') => {
+  const handleSelectTheme = (themeName: ThemeConfig['activeTheme']) => {
     const updated: ThemeConfig = {
       ...themeConfig,
       activeTheme: themeName,
@@ -176,65 +176,117 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Theme Presets */}
               <div className="grid grid-cols-2 gap-3">
-                <div
-                  onClick={() => handleSelectTheme('dark')}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    themeConfig.activeTheme === 'dark'
-                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
-                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-semibold text-white mb-1">
-                    <span>Discord Dark</span>
-                    {themeConfig.activeTheme === 'dark' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                {[
+                  {
+                    id: 'dark' as const,
+                    name: 'Discord Dark',
+                    badge: 'Standard',
+                    desc: 'Classic clean dark gray layout.',
+                    colors: ['#1e1f22', '#2b2d31', '#313338', '#5865f2'],
+                  },
+                  {
+                    id: 'midnight' as const,
+                    name: 'Midnight AMOLED',
+                    badge: 'OLED',
+                    desc: 'Pure #000000 black background for OLED screens.',
+                    colors: ['#000000', '#080808', '#101010', '#ffffff'],
+                  },
+                  {
+                    id: 'translucent' as const,
+                    name: 'Frosted Translucent',
+                    badge: 'Aero Glass',
+                    desc: 'Glassmorphic frosted dark acrylic with 20px blur.',
+                    colors: ['#070d22', '#0a122a', '#0d1636', '#38bdf8'],
+                  },
+                  {
+                    id: 'transparent' as const,
+                    name: 'Pure Transparent',
+                    badge: 'Acrylic Clear',
+                    desc: 'Ultra-clear see-through panels for custom wallpapers.',
+                    colors: ['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.15)', '#00d2ff'],
+                  },
+                  {
+                    id: 'catppuccin' as const,
+                    name: 'Catppuccin Mocha',
+                    badge: 'Pastel',
+                    desc: 'Soothing pastel lavender and dark mauve tones.',
+                    colors: ['#11111b', '#181825', '#1e1e2e', '#cba6f7'],
+                  },
+                  {
+                    id: 'nord' as const,
+                    name: 'Nord Frost',
+                    badge: 'Arctic',
+                    desc: 'Clean arctic polar palette with icy blue accents.',
+                    colors: ['#242933', '#2e3440', '#3b4252', '#88c0d0'],
+                  },
+                  {
+                    id: 'cyberpunk' as const,
+                    name: 'Cyberpunk Neon',
+                    badge: 'Vibrant',
+                    desc: 'Neon synthwave aesthetic with magenta & electric cyan.',
+                    colors: ['#0d041a', '#14072b', '#1d0b45', '#f43f5e'],
+                  },
+                  {
+                    id: 'crimson' as const,
+                    name: 'Crimson Moon',
+                    badge: 'Blood Red',
+                    desc: 'Deep obsidian shadows with striking ruby crimson.',
+                    colors: ['#080304', '#0f0508', '#1a080d', '#f43f5e'],
+                  },
+                  {
+                    id: 'emerald' as const,
+                    name: 'Emerald Matrix',
+                    badge: 'Cyber Green',
+                    desc: 'Hacker terminal dark green phosphor luminescence.',
+                    colors: ['#020d08', '#04170e', '#062819', '#10b981'],
+                  },
+                  {
+                    id: 'solarized' as const,
+                    name: 'Twilight Amber',
+                    badge: 'Warm Dark',
+                    desc: 'Golden amber and brass highlights on warm charcoal.',
+                    colors: ['#0e0c07', '#16120b', '#211c12', '#f59e0b'],
+                  },
+                  {
+                    id: 'custom' as const,
+                    name: 'Custom CSS Engine',
+                    badge: 'Engine',
+                    desc: 'Load external BetterDiscord or Vencord CSS.',
+                    colors: ['#1e1f22', '#2b2d31', '#5865f2', '#38bdf8'],
+                  },
+                ].map(t => (
+                  <div
+                    key={t.id}
+                    onClick={() => handleSelectTheme(t.id)}
+                    className={`p-3.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-between ${
+                      themeConfig.activeTheme === t.id
+                        ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10 ring-1 ring-[var(--discord-blurple)]/50'
+                        : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20 hover:bg-[var(--bg-userpanel)]/80'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between font-semibold text-white mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{t.name}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                            {t.badge}
+                          </span>
+                        </div>
+                        {themeConfig.activeTheme === t.id && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
+                      </div>
+                      <div className="text-xs text-[var(--text-muted)] line-clamp-2 mb-2.5">{t.desc}</div>
+                    </div>
+                    <div className="flex gap-1.5 mt-auto pt-1">
+                      {t.colors.map((c, idx) => (
+                        <span
+                          key={idx}
+                          className="w-4 h-4 rounded-sm border border-white/20 inline-block shadow-sm"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="text-xs text-[var(--text-muted)]">Default clean Discord styling.</div>
-                </div>
-
-                <div
-                  onClick={() => handleSelectTheme('midnight')}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    themeConfig.activeTheme === 'midnight'
-                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
-                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-semibold text-white mb-1">
-                    <span>Midnight AMOLED</span>
-                    {themeConfig.activeTheme === 'midnight' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">Pure #000000 black background for OLED screens.</div>
-                </div>
-
-                <div
-                  onClick={() => handleSelectTheme('catppuccin')}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    themeConfig.activeTheme === 'catppuccin'
-                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
-                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-semibold text-white mb-1">
-                    <span>Catppuccin Mocha</span>
-                    {themeConfig.activeTheme === 'catppuccin' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">Soothing pastel color palette.</div>
-                </div>
-
-                <div
-                  onClick={() => handleSelectTheme('custom')}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    themeConfig.activeTheme === 'custom'
-                      ? 'border-[var(--discord-blurple)] bg-[var(--discord-blurple)]/10'
-                      : 'border-white/10 bg-[var(--bg-userpanel)] hover:border-white/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-semibold text-white mb-1">
-                    <span>Custom CSS Engine</span>
-                    {themeConfig.activeTheme === 'custom' && <Check className="w-4 h-4 text-[var(--discord-blurple)]" />}
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">Load external BetterDiscord or Vencord CSS.</div>
-                </div>
+                ))}
               </div>
 
               {/* Custom CSS Editor */}

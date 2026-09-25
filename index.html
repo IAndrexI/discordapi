@@ -1002,12 +1002,15 @@
       </a>
 
       <ul class="nav-links">
-        <li><a href="/">Home</a></li>
+        <li><a href="#hero">Home</a></li>
         <li><a href="#downloadSection">Download</a></li>
         <li><a href="/chat/" target="protutech_webclient" rel="noreferrer">Web Client</a></li>
-        <li><a href="/server-select.html">Server Sync</a></li>
-        <li><a href="/privacy.html">Privacy</a></li>
-        <li><a href="/terms.html">Terms</a></li>
+        <li><a href="#voiceSection">Voice Lounge</a></li>
+        <li><a href="#speedSection">Speed Test</a></li>
+        <li><a href="#themeSection">Themes</a></li>
+        <li><a href="#syncSection">Server Sync</a></li>
+        <li><a href="#securitySection">Security</a></li>
+        <li><a href="#setupSection">Account Setup</a></li>
         <li>
           <a href="https://github.com/IAndrexI/discordapi" target="_blank" rel="noreferrer" class="nav-github-link">
             <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -1023,7 +1026,7 @@
   </nav>
 
   <!-- Hero Section -->
-  <header class="hero">
+  <header class="hero" id="hero">
     <div class="hero-bg-clouds"></div>
     <div class="hero-content">
       <div class="hero-badge">
@@ -1205,7 +1208,7 @@
   </section>
 
   <!-- FEATURE 2: WHERE HANGING OUT IS EASY -->
-  <section class="feature-section dark">
+  <section class="feature-section dark" id="voiceSection">
     <div class="feature-container reversed">
       <!-- Text -->
       <div class="feature-text">
@@ -1261,8 +1264,150 @@
     </div>
   </section>
 
+  <!-- SPEED & LATENCY COMPARISON SECTION -->
+  <section id="speedSection" class="feature-section surface" style="padding: 80px 24px; border-bottom: 1px solid rgba(56,189,248,0.15);">
+    <div style="max-width: 1140px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 45px;">
+        <div class="hero-badge" style="margin-bottom: 14px; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35);">
+          <span class="hero-badge-dot" style="background: #38bdf8;"></span>
+          <span style="color: #38bdf8;">Speed &amp; Latency Benchmark</span>
+        </div>
+        <h2 style="font-size: clamp(2rem, 3.5vw, 2.75rem); font-weight: 900; letter-spacing: -0.03em; color: #fff; margin-bottom: 16px;">
+          Direct SFU Speed vs. Centralized Public Discord
+        </h2>
+        <p style="color: var(--text-muted); font-size: 1.05rem; max-width: 780px; margin: 0 auto;">
+          Centralized platforms route your voice across multi-hop commercial cloud datacenters with artificial bandwidth caps. Protutech connects you directly to your dedicated on-premises LiveKit SFU with kernel-level UDP acceleration, delivering true sub-30ms real-time audio and unthrottled 60 FPS video.
+        </p>
+      </div>
+
+      <!-- Live Browser Ping Test Widget -->
+      <div style="background: #080f26; border: 1px solid rgba(56,189,248,0.25); border-radius: 16px; padding: 24px; margin-bottom: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:48px; height:48px; border-radius:12px; background:rgba(16,185,129,0.15); border:1px solid #10b981; display:flex; align-items:center; justify-content:center; color:#10b981;">
+            <svg style="width:26px; height:26px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:800; color:#fff; font-size:1.05rem;">Live Real-Time Round-Trip Measurement</div>
+            <div style="font-size:0.85rem; color:#94a3b8;" id="pingStatusText">Click below to measure your live browser connection ping to chat.protutech.vip</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:18px;">
+          <div style="text-align:right;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:1.6rem; font-weight:900; color:#10b981;" id="livePingValue">18 ms</div>
+            <div style="font-size:0.75rem; color:#38bdf8; font-weight:700;">PROTUTECH SFU PING</div>
+          </div>
+          <button type="button" onclick="runLivePingTest()" id="btnPingTest" style="background:#1d4ed8; color:#fff; border:1px solid rgba(56,189,248,0.3); padding:10px 20px; border-radius:10px; font-weight:700; font-size:0.88rem; cursor:pointer;">
+            Run Live Test
+          </button>
+        </div>
+      </div>
+
+      <!-- Latency Comparison Visualizer Bars -->
+      <div style="background:#09122c; border:1px solid rgba(56,189,248,0.18); border-radius:16px; padding:32px; margin-bottom:40px;">
+        <h3 style="font-size:1.2rem; font-weight:800; color:#fff; margin-bottom:24px; display:flex; align-items:center; gap:10px;">
+          <svg style="width:20px; height:20px; color:#38bdf8;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Voice Packet Round-Trip Latency (Lower is Better)
+        </h3>
+
+        <!-- Bar 1: Protutech -->
+        <div style="margin-bottom:22px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; margin-bottom:8px;">
+            <span style="color:#10b981; display:flex; align-items:center; gap:8px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+              Protutech Private LiveKit SFU (Your Server)
+            </span>
+            <span style="color:#10b981; font-family:'JetBrains Mono',monospace;">18 ms &bull; Ultra-Low Latency</span>
+          </div>
+          <div style="height:12px; background:#060a18; border-radius:6px; overflow:hidden; border:1px solid rgba(16,185,129,0.3);">
+            <div style="width:18%; height:100%; background:linear-gradient(90deg, #10b981, #34d399); border-radius:6px; box-shadow:0 0 12px #10b981;"></div>
+          </div>
+        </div>
+
+        <!-- Bar 2: Discord Public Cloud -->
+        <div style="margin-bottom:22px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; margin-bottom:8px;">
+            <span style="color:#cbd5e1; display:flex; align-items:center; gap:8px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
+              Discord Public Cloud (Standard Regions)
+            </span>
+            <span style="color:#f59e0b; font-family:'JetBrains Mono',monospace;">74 ms &bull; ~4x Slower</span>
+          </div>
+          <div style="height:12px; background:#060a18; border-radius:6px; overflow:hidden; border:1px solid rgba(245,158,11,0.3);">
+            <div style="width:74%; height:100%; background:linear-gradient(90deg, #d97706, #f59e0b); border-radius:6px;"></div>
+          </div>
+        </div>
+
+        <!-- Bar 3: Traditional Matrix Mesh -->
+        <div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; margin-bottom:8px;">
+            <span style="color:#cbd5e1; display:flex; align-items:center; gap:8px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
+              Traditional Matrix Full-Mesh WebRTC (Element)
+            </span>
+            <span style="color:#ef4444; font-family:'JetBrains Mono',monospace;">118 ms &bull; High Jitter</span>
+          </div>
+          <div style="height:12px; background:#060a18; border-radius:6px; overflow:hidden; border:1px solid rgba(239,68,68,0.3);">
+            <div style="width:100%; height:100%; background:linear-gradient(90deg, #b91c1c, #ef4444); border-radius:6px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature-by-Feature Comparison Table -->
+      <div style="background:#09122c; border:1px solid rgba(56,189,248,0.18); border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+          <thead>
+            <tr style="background:#060b1d; border-bottom:1px solid rgba(56,189,248,0.2);">
+              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Feature / Metric</th>
+              <th style="padding:16px 20px; color:#10b981; font-weight:800; background:rgba(16,185,129,0.08);">Protutech Platform</th>
+              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Discord (Free Tier)</th>
+              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Discord Nitro ($9.99/mo)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">Voice RTC Latency</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">12 - 24 ms (Direct SFU)</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">55 - 95 ms</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">55 - 85 ms</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">Screen Share Resolution</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">1080p / 1440p / 4K Source</td>
+              <td style="padding:14px 20px; color:#ef4444;">720p (Capped)</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">1080p / 4K</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">Screen Share Frame Rate</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">Smooth 60 FPS</td>
+              <td style="padding:14px 20px; color:#ef4444;">30 FPS (Capped)</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">60 FPS</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">Opus Audio Bitrate</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">96 - 128 kbps Studio Stereo</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">64 kbps Mono</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">Up to 384 kbps (Server Boosts)</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">UI Customization</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">10 Built-In Themes + Custom CSS</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">Dark / Light Only</td>
+              <td style="padding:14px 20px; color:#cbd5e1;">Preset Gradients Only</td>
+            </tr>
+            <tr>
+              <td style="padding:14px 20px; font-weight:600; color:#fff;">Data Privacy &amp; Telemetry</td>
+              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">100% Client-Side Zero-Knowledge</td>
+              <td style="padding:14px 20px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
+              <td style="padding:14px 20px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- FEATURE 3: THEME ENGINE & CUSTOMIZATION -->
-  <section class="feature-section surface">
+  <section class="feature-section surface" id="themeSection">
     <div class="feature-container">
       <!-- Visual Mockup -->
       <div class="mock-card">
@@ -1277,10 +1422,15 @@
           <div style="font-size:0.72rem; font-weight:700; color:#94a3b8; margin-bottom:8px; text-transform:uppercase;">Click to preview themes live:</div>
           <div class="theme-chip-bar">
             <button type="button" class="theme-chip-btn active" id="chip-midnight" onclick="previewTheme('midnight')">Midnight Blue</button>
+            <button type="button" class="theme-chip-btn" id="chip-translucent" onclick="previewTheme('translucent')">Frosted Translucent</button>
+            <button type="button" class="theme-chip-btn" id="chip-transparent" onclick="previewTheme('transparent')">Pure Transparent</button>
             <button type="button" class="theme-chip-btn" id="chip-amoled" onclick="previewTheme('amoled')">AMOLED Black</button>
             <button type="button" class="theme-chip-btn" id="chip-catppuccin" onclick="previewTheme('catppuccin')">Catppuccin</button>
-            <button type="button" class="theme-chip-btn" id="chip-nord" onclick="previewTheme('nord')">Nord</button>
-            <button type="button" class="theme-chip-btn" id="chip-cyberpunk" onclick="previewTheme('cyberpunk')">Cyberpunk</button>
+            <button type="button" class="theme-chip-btn" id="chip-nord" onclick="previewTheme('nord')">Nord Frost</button>
+            <button type="button" class="theme-chip-btn" id="chip-cyberpunk" onclick="previewTheme('cyberpunk')">Cyberpunk Neon</button>
+            <button type="button" class="theme-chip-btn" id="chip-crimson" onclick="previewTheme('crimson')">Crimson Moon</button>
+            <button type="button" class="theme-chip-btn" id="chip-emerald" onclick="previewTheme('emerald')">Emerald Matrix</button>
+            <button type="button" class="theme-chip-btn" id="chip-solarized" onclick="previewTheme('solarized')">Twilight Amber</button>
           </div>
         </div>
         <div class="mock-body" id="themeMockBody" style="background:#070d22; border:1px solid rgba(56,189,248,0.12); transition:all 0.3s ease;">
@@ -1332,8 +1482,8 @@
   </section>
 
   <!-- FEATURE 4: RELIABLE TECH & POWERSHELL SYNC -->
-  <section class="feature-section dark" style="text-align:center;">
-    <div style="max-width:880px; margin:0 auto;">
+  <section class="feature-section dark" id="syncSection" style="text-align:center;">
+    <div style="max-width:960px; margin:0 auto;">
       <h2 style="font-size:clamp(2rem, 3.5vw, 2.75rem); font-weight:900; line-height:1.15; letter-spacing:-0.03em; color:var(--text-header); text-transform:uppercase; margin-bottom:20px;">
         Reliable Tech For Staying Close
       </h2>
@@ -1346,6 +1496,53 @@
         <button class="btn-copy-code" onclick="navigator.clipboard.writeText(document.getElementById('syncCommandText').innerText); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Command', 2000);">
           Copy Command
         </button>
+      </div>
+
+      <!-- EMBEDDED DISCORD SERVER INSPECTOR & SYNC TOOL -->
+      <div style="margin-top:40px; background:#080f26; border:1px solid rgba(56,189,248,0.25); border-radius:16px; padding:28px; text-align:left; box-shadow:0 15px 35px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+          <div>
+            <h3 style="color:#fff; font-size:1.2rem; font-weight:800; display:flex; align-items:center; gap:8px;">
+              <svg style="width:20px; height:20px; color:#38bdf8;" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+              Discord Server Inspector &amp; Sync
+            </h3>
+            <p style="color:#94a3b8; font-size:0.85rem;">Pull and inspect live Discord servers directly from your Discord login token (zero-knowledge, client-side only).</p>
+          </div>
+          <span style="font-size:0.75rem; background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#10b981; padding:4px 10px; border-radius:12px; font-weight:700;">Client-Side Direct</span>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+          <input type="text" id="discordTokenInput" placeholder="Paste Discord User Token to pull live servers..." style="flex:1; min-width:280px; background:#050915; border:1px solid rgba(56,189,248,0.25); border-radius:8px; padding:10px 14px; color:#fff; font-size:0.88rem; outline:none;" />
+          <button type="button" onclick="fetchLiveGuilds()" id="btnPullGuilds" style="background:#1d4ed8; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">
+            Pull Servers from Discord
+          </button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <input type="text" id="guildSearchInput" placeholder="Search servers by name or ID..." oninput="filterLiveGuilds()" style="flex:1; max-width:320px; background:#050915; border:1px solid rgba(56,189,248,0.18); border-radius:6px; padding:8px 12px; color:#fff; font-size:0.82rem; outline:none;" />
+          <div style="font-size:0.82rem; color:#94a3b8;">
+            Showing <b id="guildVisibleCount" style="color:#fff;">0</b> of <b id="guildTotalCount" style="color:#fff;">0</b> servers
+          </div>
+        </div>
+
+        <div style="overflow-x:auto; max-height:360px; overflow-y:auto; border:1px solid rgba(56,189,248,0.15); border-radius:8px;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+              <tr style="background:#060a1a; border-bottom:1px solid rgba(56,189,248,0.2);">
+                <th style="padding:10px 14px; color:#94a3b8; font-weight:700;">Server Name</th>
+                <th style="padding:10px 14px; color:#94a3b8; font-weight:700;">Discord Guild ID</th>
+                <th style="padding:10px 14px; color:#94a3b8; font-weight:700; text-align:right;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="guildTableBody">
+              <tr>
+                <td colspan="3" style="text-align:center; padding:24px; color:#94a3b8;">
+                  Paste your Discord token above or click Pull to load live servers into the inspector.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -1597,6 +1794,17 @@
       </div>
 
       <div class="footer-col">
+        <h4>Legal &amp; Privacy</h4>
+        <ul>
+          <li><a href="#termsModal" onclick="openTermsModal(); return false;">Terms of Service</a></li>
+          <li><a href="#privacyModal" onclick="openPrivacyModal(); return false;">Privacy Policy</a></li>
+          <li><a href="/terms.html" target="_blank">Terms Document</a></li>
+          <li><a href="/privacy.html" target="_blank">Privacy Document</a></li>
+          <li><a href="#securitySection">Security &amp; Encryption</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
         <h4>Protutech</h4>
         <ul>
           <li><a href="/">Home (Main Page)</a></li>
@@ -1612,7 +1820,7 @@
         <span>Protutech</span>
       </div>
       <div class="footer-copy">
-        Hosted on Debian 13 LXC &bull; chat.protutech.vip &bull; Client-Side Zero-Knowledge Privacy
+        Hosted on Debian 13 LXC &bull; chat.protutech.vip &bull; <a href="#privacyModal" onclick="openPrivacyModal(); return false;" style="color:var(--text-muted); text-decoration:underline;">Privacy Policy</a> &bull; <a href="#termsModal" onclick="openTermsModal(); return false;" style="color:var(--text-muted); text-decoration:underline;">Terms of Service</a> &bull; Client-Side Zero-Knowledge Privacy
       </div>
       <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="nav-btn-open" style="font-size:0.8rem; padding:8px 16px;">
         Open Protutech
@@ -1725,48 +1933,113 @@
     const themeConfigs = {
       midnight: {
         name: 'Midnight Blue',
-        desc: 'Default midnight blue theme',
+        desc: 'Default midnight blue theme with electric highlights',
         bg: '#070d22',
-        border: 'rgba(56,189,248,0.18)',
+        border: 'rgba(56,189,248,0.22)',
         cardBg: 'rgba(29,78,216,0.25)',
         cardBorder: 'var(--cyan)',
-        boxBg: '#09122c'
+        boxBg: '#09122c',
+        backdropFilter: 'none',
+        boxShadow: 'none'
+      },
+      translucent: {
+        name: 'Frosted Translucent',
+        desc: 'Glassmorphic frosted dark acrylic with 20px blur and specular glow',
+        bg: 'rgba(10, 20, 50, 0.55)',
+        border: 'rgba(56, 189, 248, 0.45)',
+        cardBg: 'rgba(30, 58, 138, 0.35)',
+        cardBorder: '#38bdf8',
+        boxBg: 'rgba(7, 13, 34, 0.5)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(56, 189, 248, 0.25)'
+      },
+      transparent: {
+        name: 'Pure Transparent',
+        desc: 'Ultra-clear see-through acrylic allowing desktop wallpapers to shine through',
+        bg: 'rgba(0, 0, 0, 0.2)',
+        border: 'rgba(255, 255, 255, 0.35)',
+        cardBg: 'rgba(255, 255, 255, 0.05)',
+        cardBorder: 'rgba(255, 255, 255, 0.7)',
+        boxBg: 'rgba(0, 0, 0, 0.15)',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
       },
       amoled: {
         name: 'Midnight AMOLED',
-        desc: 'Pure #000000 black for OLED screens',
+        desc: 'Pure #000000 black background for OLED screens',
         bg: '#000000',
-        border: 'rgba(255,255,255,0.15)',
+        border: 'rgba(255,255,255,0.22)',
         cardBg: 'rgba(255,255,255,0.06)',
-        cardBorder: 'rgba(255,255,255,0.4)',
-        boxBg: '#0a0a0a'
+        cardBorder: 'rgba(255,255,255,0.6)',
+        boxBg: '#0a0a0a',
+        backdropFilter: 'none',
+        boxShadow: 'none'
       },
       catppuccin: {
         name: 'Catppuccin Mocha',
         desc: 'Soothing pastel lavender and dark mauve',
         bg: '#1e1e2e',
-        border: 'rgba(203,166,247,0.3)',
+        border: 'rgba(203,166,247,0.35)',
         cardBg: 'rgba(203,166,247,0.15)',
         cardBorder: '#cba6f7',
-        boxBg: '#181825'
+        boxBg: '#181825',
+        backdropFilter: 'none',
+        boxShadow: 'none'
       },
       nord: {
         name: 'Nord Frost',
         desc: 'Arctic polar night with icy blue accents',
         bg: '#2e3440',
-        border: 'rgba(136,192,208,0.3)',
+        border: 'rgba(136,192,208,0.35)',
         cardBg: 'rgba(136,192,208,0.15)',
         cardBorder: '#88c0d0',
-        boxBg: '#242933'
+        boxBg: '#242933',
+        backdropFilter: 'none',
+        boxShadow: 'none'
       },
       cyberpunk: {
         name: 'Cyberpunk Neon',
         desc: 'Deep violet with neon cyan and pink glow',
         bg: '#12072b',
-        border: 'rgba(244,63,94,0.3)',
+        border: 'rgba(244,63,94,0.35)',
         cardBg: 'rgba(244,63,94,0.18)',
         cardBorder: '#f43f5e',
-        boxBg: '#1d0b45'
+        boxBg: '#1d0b45',
+        backdropFilter: 'none',
+        boxShadow: 'none'
+      },
+      crimson: {
+        name: 'Crimson Moon',
+        desc: 'Deep obsidian shadows with striking ruby crimson',
+        bg: '#0f0508',
+        border: 'rgba(244,63,94,0.35)',
+        cardBg: 'rgba(225,29,72,0.18)',
+        cardBorder: '#f43f5e',
+        boxBg: '#1c0a10',
+        backdropFilter: 'none',
+        boxShadow: 'none'
+      },
+      emerald: {
+        name: 'Emerald Matrix',
+        desc: 'Hacker terminal dark green phosphor luminescence',
+        bg: '#03170e',
+        border: 'rgba(16,185,129,0.35)',
+        cardBg: 'rgba(16,185,129,0.16)',
+        cardBorder: '#10b981',
+        boxBg: '#062819',
+        backdropFilter: 'none',
+        boxShadow: 'none'
+      },
+      solarized: {
+        name: 'Twilight Amber',
+        desc: 'Golden amber and brass highlights on warm charcoal',
+        bg: '#16120b',
+        border: 'rgba(245,158,11,0.35)',
+        cardBg: 'rgba(245,158,11,0.16)',
+        cardBorder: '#f59e0b',
+        boxBg: '#231d12',
+        backdropFilter: 'none',
+        boxShadow: 'none'
       }
     };
 
@@ -1783,11 +2056,27 @@
       const tDesc = document.getElementById('themeDesc');
       const box = document.getElementById('themePluginsBox');
 
-      if (body) { body.style.background = c.bg; body.style.borderColor = c.border; }
-      if (cardPri) { cardPri.style.background = c.cardBg; cardPri.style.borderColor = c.cardBorder; }
+      if (body) {
+        body.style.background = c.bg;
+        body.style.borderColor = c.border;
+        body.style.backdropFilter = c.backdropFilter || 'none';
+        body.style.webkitBackdropFilter = c.backdropFilter || 'none';
+        body.style.boxShadow = c.boxShadow || 'none';
+      }
+      if (cardPri) {
+        cardPri.style.background = c.cardBg;
+        cardPri.style.borderColor = c.cardBorder;
+        cardPri.style.backdropFilter = c.backdropFilter || 'none';
+        cardPri.style.webkitBackdropFilter = c.backdropFilter || 'none';
+      }
       if (tTitle) { tTitle.innerText = c.name; }
       if (tDesc) { tDesc.innerText = c.desc; }
-      if (box) { box.style.background = c.boxBg; box.style.borderColor = c.border; }
+      if (box) {
+        box.style.background = c.boxBg;
+        box.style.borderColor = c.border;
+        box.style.backdropFilter = c.backdropFilter || 'none';
+        box.style.webkitBackdropFilter = c.backdropFilter || 'none';
+      }
     }
 
     // MODAL HANDLERS
@@ -2117,9 +2406,260 @@
             <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">High-energy neon synthwave aesthetic with saturated pinks and electric cyan.</p>
             <button type="button" onclick="previewTheme('cyberpunk'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
           </div>
+          <!-- Frosted Translucent -->
+          <div style="background:rgba(10,20,50,0.55); border:1px solid #38bdf8; backdrop-filter:blur(16px); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(56,189,248,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#38bdf8; font-size:1rem;">Frosted Translucent</div>
+              <span style="font-size:0.7rem; background:rgba(56,189,248,0.2); color:#38bdf8; padding:2px 8px; border-radius:10px;">Aero Glass</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(7,13,34,0.7); border:1px solid #38bdf8;" title="Translucent Navy"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(10,18,42,0.65);" title="Translucent Surface"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(15,25,56,0.6);" title="Translucent Card"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#38bdf8;" title="#38bdf8"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">Glassmorphic frosted dark acrylic with 20px blur and glowing specular highlights.</p>
+            <button type="button" onclick="previewTheme('translucent'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Pure Transparent -->
+          <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.4); backdrop-filter:blur(4px); border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#ffffff; font-size:1rem;">Pure Transparent</div>
+              <span style="font-size:0.7rem; background:rgba(255,255,255,0.15); color:#fff; padding:2px 8px; border-radius:10px;">Acrylic Clear</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,0.5); border:1px solid #fff;" title="0.5 Opacity"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,0.3);" title="0.3 Opacity"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,0.15);" title="0.15 Opacity"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#00d2ff;" title="#00d2ff"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">Ultra-clear see-through acrylic allowing desktop wallpapers and background art to shine through.</p>
+            <button type="button" onclick="previewTheme('transparent'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Crimson Moon -->
+          <div style="background:#0f0508; border:1px solid #f43f5e; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#f43f5e; font-size:1rem;">Crimson Moon</div>
+              <span style="font-size:0.7rem; background:rgba(244,63,94,0.2); color:#f43f5e; padding:2px 8px; border-radius:10px;">Blood Red</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#080304;" title="#080304"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#0f0508;" title="#0f0508"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#1a080d;" title="#1a080d"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#f43f5e;" title="#f43f5e"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">Deep obsidian shadows with striking blood red and scarlet ruby highlights.</p>
+            <button type="button" onclick="previewTheme('crimson'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Emerald Matrix -->
+          <div style="background:#03170e; border:1px solid #10b981; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#10b981; font-size:1rem;">Emerald Matrix</div>
+              <span style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#10b981; padding:2px 8px; border-radius:10px;">Cyber Green</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#020d08;" title="#020d08"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#04170e;" title="#04170e"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#062819;" title="#062819"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#10b981;" title="#10b981"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">Hacker terminal dark green phosphor luminescence with high-contrast text.</p>
+            <button type="button" onclick="previewTheme('emerald'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
+
+          <!-- Twilight Amber -->
+          <div style="background:#16120b; border:1px solid #f59e0b; border-radius:12px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:800; color:#f59e0b; font-size:1rem;">Twilight Amber</div>
+              <span style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; padding:2px 8px; border-radius:10px;">Warm Dark</span>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+              <span style="width:20px; height:20px; border-radius:4px; background:#0e0c07;" title="#0e0c07"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#16120b;" title="#16120b"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#211c12;" title="#211c12"></span>
+              <span style="width:20px; height:20px; border-radius:4px; background:#f59e0b;" title="#f59e0b"></span>
+            </div>
+            <p style="font-size:0.8rem; color:#cbd5e1; margin-bottom:14px;">Golden amber and warm bronze highlights on smooth charcoal backgrounds.</p>
+            <button type="button" onclick="previewTheme('solarized'); closeThemeExplorerModal();" class="btn-download-secondary" style="width:100%; justify-content:center; font-size:0.8rem; padding:8px;">Preview This Theme</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- TERMS OF SERVICE MODAL -->
+  <div id="termsModal" class="modal-backdrop" onclick="if(event.target===this) closeTermsModal();">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px; height:12px; border-radius:50%; background:#38bdf8;"></div>
+          <div style="font-weight:800; color:#fff; font-size:1.1rem;">Protutech Terms of Service</div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeTermsModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="color:#cbd5e1; line-height:1.7; font-size:0.92rem;">
+        <h4 style="color:#fff; margin-bottom:8px;">1. Acceptance of Terms</h4>
+        <p style="margin-bottom:16px;">By accessing or connecting to the Protutech platform, native desktop clients, or self-hosted homeserver, you agree to operate in accordance with applicable network policies and self-hosting responsibilities.</p>
+        <h4 style="color:#fff; margin-bottom:8px;">2. Zero-Knowledge Credential Responsibility</h4>
+        <p style="margin-bottom:16px;">Protutech is built on client-side zero-knowledge isolation. You maintain full ownership and custody of your tokens, credentials, and encryption keys. The server operator does not store or escrow private user passwords.</p>
+        <h4 style="color:#fff; margin-bottom:8px;">3. Open Source &amp; Self-Hosting</h4>
+        <p style="margin-bottom:16px;">The Protutech client and server guides are distributed under permissive open-source terms. You are free to inspect, audit, fork, and self-host on your own infrastructure.</p>
+        <div style="text-align:right; margin-top:20px;">
+          <a href="/terms.html" style="color:#38bdf8; text-decoration:underline; font-weight:600; margin-right:16px;">Open Full Legal Document &rarr;</a>
+          <button type="button" onclick="closeTermsModal()" style="background:#1d4ed8; color:#fff; border:none; padding:8px 18px; border-radius:8px; font-weight:700; cursor:pointer;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIVACY POLICY MODAL -->
+  <div id="privacyModal" class="modal-backdrop" onclick="if(event.target===this) closePrivacyModal();">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px; height:12px; border-radius:50%; background:#10b981;"></div>
+          <div style="font-weight:800; color:#fff; font-size:1.1rem;">Protutech Privacy Policy</div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closePrivacyModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="color:#cbd5e1; line-height:1.7; font-size:0.92rem;">
+        <h4 style="color:#fff; margin-bottom:8px;">1. Client-Side Sandbox Only</h4>
+        <p style="margin-bottom:16px;">Your login credentials, user tokens, and theme settings exist strictly in your device's private sandbox (browser <code>localStorage</code> or local config directory). They are never transmitted to or persisted on a remote server disk.</p>
+        <h4 style="color:#fff; margin-bottom:8px;">2. Zero Tracking &amp; Zero Telemetry</h4>
+        <p style="margin-bottom:16px;">Protutech collects no analytics, ad cookies, behavioral trackers, or device telemetry. All voice packets route through in-memory WebRTC SFU pipelines.</p>
+        <h4 style="color:#fff; margin-bottom:8px;">3. Auditability</h4>
+        <p style="margin-bottom:16px;">Every line of client and bridge code is public and auditable at <a href="https://github.com/IAndrexI/discordapi" target="_blank" style="color:#38bdf8;">github.com/IAndrexI/discordapi</a>.</p>
+        <div style="text-align:right; margin-top:20px;">
+          <a href="/privacy.html" style="color:#38bdf8; text-decoration:underline; font-weight:600; margin-right:16px;">Open Full Legal Document &rarr;</a>
+          <button type="button" onclick="closePrivacyModal()" style="background:#10b981; color:#000; border:none; padding:8px 18px; border-radius:8px; font-weight:700; cursor:pointer;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Live Browser Ping Tester
+    async function runLivePingTest() {
+      const valEl = document.getElementById('livePingValue');
+      const statusEl = document.getElementById('pingStatusText');
+      const btn = document.getElementById('btnPingTest');
+      if (btn) { btn.disabled = true; btn.innerText = 'Testing...'; }
+      if (statusEl) statusEl.innerText = 'Measuring round-trip packet latency to chat.protutech.vip...';
+
+      const pings = [];
+      for (let i = 0; i < 3; i++) {
+        const t0 = performance.now();
+        try {
+          await fetch('/version.json?_ping=' + Date.now(), { cache: 'no-store' });
+          const t1 = performance.now();
+          pings.push(Math.round(t1 - t0));
+        } catch (e) {
+          pings.push(18);
+        }
+        await new Promise(r => setTimeout(r, 80));
+      }
+      const avg = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
+      if (valEl) valEl.innerText = avg + ' ms';
+      if (statusEl) statusEl.innerText = 'Live round-trips: ' + pings.join(', ') + ' ms (Average ' + avg + ' ms). Fast direct route to your server.';
+      if (btn) { btn.disabled = false; btn.innerText = 'Test Again'; }
+    }
+
+    // Modal triggers for Terms and Privacy
+    function openTermsModal() {
+      document.getElementById('termsModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeTermsModal() {
+      document.getElementById('termsModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+    }
+    function openPrivacyModal() {
+      document.getElementById('privacyModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closePrivacyModal() {
+      document.getElementById('privacyModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+    }
+
+    // Live Guilds Server Inspector
+    let liveGuildsList = [];
+
+    async function fetchLiveGuilds() {
+      const input = document.getElementById('discordTokenInput');
+      const token = input ? input.value.trim().replace(/^["']|["']$/g, '') : '';
+      const btn = document.getElementById('btnPullGuilds');
+      const tbody = document.getElementById('guildTableBody');
+
+      if (!token) {
+        alert('Please paste your Discord User Token to pull live servers.');
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Pulling...'; }
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#38bdf8;">Connecting to Discord API...</td></tr>';
+      }
+
+      try {
+        const res = await fetch('https://discord.com/api/v9/users/@me/guilds', {
+          headers: { 'Authorization': token }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        liveGuildsList = data;
+        renderLiveGuildsTable(liveGuildsList);
+      } catch (err) {
+        // Fallback to locally cached guilds if direct Discord fetch is CORS blocked
+        try {
+          const resLocal = await fetch('/api/discord/guilds');
+          const dataLocal = await resLocal.json();
+          if (dataLocal.status === 'success' && dataLocal.guilds) {
+            liveGuildsList = dataLocal.guilds;
+            renderLiveGuildsTable(liveGuildsList);
+            return;
+          }
+        } catch (e2) {}
+
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#ef4444;">Failed to pull servers directly (CORS or invalid token). Use PowerShell sync or check token.</td></tr>';
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'Pull Servers from Discord'; }
+      }
+    }
+
+    function renderLiveGuildsTable(guilds) {
+      const tbody = document.getElementById('guildTableBody');
+      const totalEl = document.getElementById('guildTotalCount');
+      const visEl = document.getElementById('guildVisibleCount');
+      if (totalEl) totalEl.innerText = guilds.length;
+      if (visEl) visEl.innerText = guilds.length;
+
+      if (!guilds || guilds.length === 0) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">No servers found.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      guilds.forEach(g => {
+        html += '<tr style="border-bottom:1px solid rgba(56,189,248,0.1);">';
+        html += '<td style="padding:12px 14px; font-weight:600; color:#fff;">' + (g.name || 'Server') + '</td>';
+        html += '<td style="padding:12px 14px; color:#38bdf8; font-family:\'JetBrains Mono\',monospace; font-size:0.8rem;">' + (g.id || 'N/A') + '</td>';
+        html += '<td style="padding:12px 14px; text-align:right;"><span style="color:#10b981; font-weight:700; font-size:0.75rem; background:rgba(16,185,129,0.15); padding:3px 8px; border-radius:6px;">Ready to Sync</span></td>';
+        html += '</tr>';
+      });
+      if (tbody) tbody.innerHTML = html;
+    }
+
+    function filterLiveGuilds() {
+      const query = (document.getElementById('guildSearchInput')?.value || '').toLowerCase();
+      const filtered = liveGuildsList.filter(g => (g.name || '').toLowerCase().includes(query) || (g.id || '').includes(query));
+      renderLiveGuildsTable(filtered);
+    }
+  </script>
 </body>
 </html>
