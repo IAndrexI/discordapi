@@ -11,10 +11,9 @@ export class MatrixClientService {
   private messageListeners: Set<(roomId: string, message: MatrixMessage) => void> = new Set();
   private presenceListeners: Set<(userId: string, presence: 'online' | 'idle' | 'dnd' | 'offline') => void> = new Set();
   private roomsCache: Map<string, MatrixRoom> = new Map();
-  private guildsCache: Map<string, DiscordGuild> = new Map();
 
   public getCachedGuilds(): DiscordGuild[] {
-    return Array.from(this.guildsCache.values());
+    return [];
   }
 
   constructor() {
@@ -103,15 +102,6 @@ export class MatrixClientService {
       const directRoomSet = new Set(Object.values(directMap).flat());
 
       const rooms: MatrixRoom[] = [];
-      const guildsMap: Map<string, DiscordGuild> = new Map();
-
-      // Default Discord Home Server for bridged channels
-      const defaultGuild: DiscordGuild = {
-        id: 'discord_synced',
-        name: 'Discord Synced Servers',
-        channels: [],
-        hasVoice: true,
-      };
 
       for (const roomId of joined_rooms) {
         try {
@@ -162,34 +152,15 @@ export class MatrixClientService {
 
           rooms.push(roomObj);
           this.roomsCache.set(roomId, roomObj);
-
-          if (!isDirect && !isGroupChat) {
-            defaultGuild.channels.push(roomObj);
-          }
         } catch {
           // ignore single room state error
         }
       }
 
-      if (defaultGuild.channels.length > 0) {
-        guildsMap.set(defaultGuild.id, defaultGuild);
-      }
-
-      // Add a dedicated ultra-low latency voice room
-      defaultGuild.channels.unshift({
-        id: 'livekit_lounge',
-        name: '🔊 Ultra-Low Latency Voice',
-        topic: 'Dedicated LiveKit 48kHz Opus Voice & 1080p60 Screen Sharing Channel (<30ms ping)',
-        isDirect: false,
-        isGroupChat: false,
-        isVoice: true,
-        members: [],
-      });
-
-      this.guildsCache = guildsMap;
       this.startSync();
 
-      return { rooms, guilds: Array.from(guildsMap.values()) };
+      // No synced server groups — return rooms only, guilds list is empty
+      return { rooms, guilds: [] };
     } catch {
       return { rooms: [], guilds: [] };
     }

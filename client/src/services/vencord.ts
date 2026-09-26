@@ -37,7 +37,6 @@ export const DEFAULT_PLUGINS: VencordPlugin[] = [
 export class VencordService {
   private plugins: Map<string, VencordPlugin> = new Map();
   private theme: ThemeConfig = { activeTheme: 'dark' };
-  private audioContext: AudioContext | null = null;
 
   constructor() {
     this.loadState();
@@ -139,66 +138,10 @@ export class VencordService {
     }
   }
 
-  // Discord sound effects generation using Web Audio API synthesis
-  public playSound(type: 'join' | 'leave' | 'mute' | 'unmute' | 'ping') {
-    if (!this.isPluginEnabled('customSounds')) return;
-
-    try {
-      if (!this.audioContext) {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        this.audioContext = new AudioCtx();
-      }
-      if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
-      }
-
-      const now = this.audioContext.currentTime;
-      const osc = this.audioContext.createOscillator();
-      const gain = this.audioContext.createGain();
-      osc.connect(gain);
-      gain.connect(this.audioContext.destination);
-
-      if (type === 'join') {
-        // Discord high dual-tone join chord
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'leave') {
-        // Discord falling tone
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'mute') {
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.setValueAtTime(300, now + 0.05);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } else if (type === 'unmute') {
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.setValueAtTime(450, now + 0.05);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } else if (type === 'ping') {
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.setValueAtTime(1000, now + 0.06);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-        osc.start(now);
-        osc.stop(now + 0.18);
-      }
-    } catch {
-      // Audio playback safety
-    }
+  // Sound effects disabled — no audio beeps
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public playSound(_type: 'join' | 'leave' | 'mute' | 'unmute' | 'ping') {
+    // Intentionally silent. Sound effects have been removed.
   }
 }
 
