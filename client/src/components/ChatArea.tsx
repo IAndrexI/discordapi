@@ -10,6 +10,7 @@ import {
   PhoneCall,
   FileText,
   Trash2,
+  Link as LinkIcon,
 } from 'lucide-react';
 import type { MatrixMessage, MatrixRoom } from '../types';
 import { matrix } from '../services/matrix';
@@ -23,6 +24,7 @@ interface ChatAreaProps {
   isVoiceActive: boolean;
   onToggleMemberList: () => void;
   showMemberList: boolean;
+  onOpenSyncLater?: (room: MatrixRoom) => void;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -33,6 +35,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isVoiceActive,
   onToggleMemberList,
   showMemberList,
+  onOpenSyncLater,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -95,6 +98,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 {room.topic}
               </span>
             </>
+          )}
+
+          {/* Sync Status Badge or Later-Sync Action */}
+          {room.isSynced ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Synced with Discord</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onOpenSyncLater?.(room)}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/35 text-cyan-300 border border-cyan-400/30 flex items-center gap-1.5 transition-all shadow-sm flex-shrink-0 cursor-pointer"
+              title="Synchronize this conversation with Discord"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              <span>Sync with Discord</span>
+            </button>
           )}
         </div>
 

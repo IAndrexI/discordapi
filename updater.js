@@ -98,8 +98,8 @@
   // Initial check on page load
   checkLatestVersion();
 
-  // Background polling every 15 seconds
-  setInterval(checkLatestVersion, 15000);
+  // Background polling every 10 seconds
+  setInterval(checkLatestVersion, 10000);
 
   // Instant re-validation when tab regains focus or visibility
   document.addEventListener('visibilitychange', function() {

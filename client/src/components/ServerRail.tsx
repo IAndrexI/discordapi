@@ -6,6 +6,7 @@ interface ServerRailProps {
   guilds: DiscordGuild[];
   activeGuildId: string | null; // null = DM / Home view
   onSelectGuild: (guildId: string | null) => void;
+  onOpenAddModal?: () => void;
   unreadDMsCount?: number;
 }
 
@@ -13,6 +14,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   guilds,
   activeGuildId,
   onSelectGuild,
+  onOpenAddModal,
   unreadDMsCount = 0,
 }) => {
   return (
@@ -78,12 +80,18 @@ export const ServerRail: React.FC<ServerRailProps> = ({
                     ? 'bg-[var(--discord-blurple)] text-white rounded-[16px]'
                     : 'bg-[var(--bg-chat)] text-[var(--text-normal)] rounded-[24px] hover:rounded-[16px] hover:bg-[var(--discord-blurple)] hover:text-white'
                 }`}
-                title={guild.name}
+                title={guild.name + (guild.isAlwaysSynced ? ' (Always Synced)' : '')}
               >
                 {guild.iconUrl ? (
                   <img src={guild.iconUrl} alt={guild.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{initials}</span>
+                )}
+                {guild.isAlwaysSynced && (
+                  <span
+                    className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[var(--bg-servers)] shadow-sm"
+                    title="Always Synced with Discord"
+                  />
                 )}
               </button>
             </div>
@@ -93,8 +101,9 @@ export const ServerRail: React.FC<ServerRailProps> = ({
         {/* Add a Server */}
         <div className="relative group flex items-center justify-center w-full">
           <button
-            className="w-12 h-12 flex items-center justify-center bg-[var(--bg-chat)] text-[var(--status-online)] rounded-[24px] hover:rounded-[16px] hover:bg-[var(--status-online)] hover:text-white transition-all duration-200"
-            title="Add a Server"
+            onClick={() => onOpenAddModal?.()}
+            className="w-12 h-12 flex items-center justify-center bg-[var(--bg-chat)] text-[var(--status-online)] rounded-[24px] hover:rounded-[16px] hover:bg-[var(--status-online)] hover:text-white transition-all duration-200 shadow-md"
+            title="Add or Sync Server"
           >
             <Plus className="w-6 h-6" />
           </button>

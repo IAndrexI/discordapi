@@ -11,9 +11,10 @@ export class MatrixClientService {
   private messageListeners: Set<(roomId: string, message: MatrixMessage) => void> = new Set();
   private presenceListeners: Set<(userId: string, presence: 'online' | 'idle' | 'dnd' | 'offline') => void> = new Set();
   private roomsCache: Map<string, MatrixRoom> = new Map();
+  private guildsCache: Map<string, DiscordGuild> = new Map();
 
   public getCachedGuilds(): DiscordGuild[] {
-    return [];
+    return Array.from(this.guildsCache.values());
   }
 
   constructor() {
@@ -102,6 +103,7 @@ export class MatrixClientService {
       const directRoomSet = new Set(Object.values(directMap).flat());
 
       const rooms: MatrixRoom[] = [];
+      const guildsMap: Map<string, DiscordGuild> = new Map();
 
       for (const roomId of joined_rooms) {
         try {
@@ -116,6 +118,9 @@ export class MatrixClientService {
           let avatarUrl: string | undefined;
           const members: MatrixUser[] = [];
 
+          let parentSpaceId: string | undefined;
+          let isSpace = false;
+
           events.forEach(ev => {
             if (ev.type === 'm.room.name') {
               name = (ev.content?.name as string) || name;
@@ -123,6 +128,10 @@ export class MatrixClientService {
               topic = (ev.content?.topic as string) || '';
             } else if (ev.type === 'm.room.avatar') {
               avatarUrl = this.mxcToHttp(ev.content?.url as string);
+            } else if (ev.type === 'm.room.create' && (ev.content as Record<string, unknown>)?.type === 'm.space') {
+              isSpace = true;
+            } else if (ev.type === 'm.space.parent' && ev.state_key) {
+              parentSpaceId = ev.state_key;
             } else if (ev.type === 'm.room.member' && ev.content?.membership === 'join') {
               const uId = ev.state_key || '';
               members.push({
@@ -134,8 +143,11 @@ export class MatrixClientService {
             }
           });
 
-          const isDirect = directRoomSet.has(roomId) || members.length <= 2;
-          const isGroupChat = !isDirect && !name.startsWith('#') && members.length > 2 && members.length < 30;
+          // Check if bridged to Discord
+          const isSynced = members.some(m => m.userId.includes('discordbot') || m.userId.includes('discord_'));
+
+          const isDirect = !isSpace && (directRoomSet.has(roomId) || members.length <= 2);
+          const isGroupChat = !isSpace && !isDirect && !name.startsWith('#') && members.length > 2 && members.length < 30;
           const isVoice = name.toLowerCase().includes('voice') || name.toLowerCase().includes('call') || name.toLowerCase().includes('general');
 
           const roomObj: MatrixRoom = {
@@ -146,23 +158,119 @@ export class MatrixClientService {
             isDirect,
             isGroupChat,
             isVoice,
+            isSynced,
+            syncSource: isSynced ? 'discord' : 'matrix',
+            guildId: parentSpaceId,
             members,
             unreadCount: 0,
           };
 
-          rooms.push(roomObj);
-          this.roomsCache.set(roomId, roomObj);
+          if (isSpace) {
+            // Space represents a Discord Server / Guild
+            guildsMap.set(roomId, {
+              id: roomId,
+              name,
+              iconUrl: avatarUrl,
+              channels: [],
+              hasVoice: true,
+              isAlwaysSynced: isSynced,
+            });
+          } else {
+            rooms.push(roomObj);
+            this.roomsCache.set(roomId, roomObj);
+          }
         } catch {
           // ignore single room state error
         }
       }
 
+      // Group channels under their parent Space Guild
+      rooms.forEach(room => {
+        if (room.guildId && guildsMap.has(room.guildId)) {
+          guildsMap.get(room.guildId)!.channels.push(room);
+        } else if (!room.isDirect && !room.isGroupChat) {
+          // If room looks like a guild channel (#channel) but has no explicit space, create a default synced guild
+          let defGuild = guildsMap.get('discord_synced');
+          if (!defGuild) {
+            defGuild = {
+              id: 'discord_synced',
+              name: 'Synced Servers',
+              channels: [],
+              hasVoice: true,
+              isAlwaysSynced: true,
+            };
+            guildsMap.set('discord_synced', defGuild);
+          }
+          defGuild.channels.push(room);
+        }
+      });
+
+      // Add dedicated ultra-low latency voice lounge to each active guild
+      guildsMap.forEach((g: DiscordGuild) => {
+        if (!g.channels.some((c: MatrixRoom) => c.id === 'livekit_lounge')) {
+          g.channels.unshift({
+            id: 'livekit_lounge',
+            name: '🔊 Ultra-Low Latency Voice',
+            topic: 'Dedicated LiveKit 48kHz Opus Voice & 1080p60 Screen Sharing Channel (<30ms ping)',
+            isDirect: false,
+            isGroupChat: false,
+            isVoice: true,
+            members: [],
+          });
+        }
+      });
+
+      this.guildsCache = guildsMap;
       this.startSync();
 
-      // No synced server groups — return rooms only, guilds list is empty
-      return { rooms, guilds: [] };
+      return { rooms, guilds: Array.from(guildsMap.values()) };
     } catch {
       return { rooms: [], guilds: [] };
+    }
+  }
+
+  /**
+   * Creates a fresh native Matrix room or group conversation.
+   */
+  public async createNativeRoom(options: {
+    name: string;
+    topic?: string;
+    isDirect?: boolean;
+    isGroupChat?: boolean;
+    invites?: string[];
+  }): Promise<MatrixRoom | null> {
+    if (!this.accessToken) return null;
+    try {
+      const res = await fetch(`${BASE_URL}/_matrix/client/v3/createRoom`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: options.name,
+          topic: options.topic || '',
+          preset: options.isDirect ? 'trusted_private_chat' : 'private_chat',
+          is_direct: options.isDirect || false,
+          invite: options.invites || [],
+        }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const newRoom: MatrixRoom = {
+        id: data.room_id,
+        name: options.name,
+        topic: options.topic,
+        isDirect: !!options.isDirect,
+        isGroupChat: !!options.isGroupChat,
+        members: [],
+        unreadCount: 0,
+      };
+      this.roomsCache.set(newRoom.id, newRoom);
+      return newRoom;
+    } catch (err) {
+      console.error('Error creating native room:', err);
+      return null;
     }
   }
 

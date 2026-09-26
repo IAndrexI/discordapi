@@ -7,6 +7,7 @@ import {
   ChevronDown,
   UserPlus,
   Radio,
+  Plus,
 } from 'lucide-react';
 import type { MatrixRoom, DiscordGuild, MatrixUser } from '../types';
 
@@ -17,6 +18,7 @@ interface ChannelSidebarProps {
   onSelectRoom: (roomId: string) => void;
   onJoinVoice: (room: MatrixRoom) => void;
   activeVoiceRoomId: string | null;
+  onOpenAddModal?: (tab?: 'server' | 'group' | 'dm') => void;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -26,6 +28,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onSelectRoom,
   onJoinVoice,
   activeVoiceRoomId,
+  onOpenAddModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -43,11 +46,23 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   return (
     <div className="w-60 h-full bg-[var(--bg-channels)] flex flex-col select-none flex-shrink-0 border-r border-black/20">
       {/* Header */}
-      <div className="h-12 border-b border-black/20 px-4 flex items-center justify-between font-semibold text-white shadow-sm hover:bg-white/[0.04] transition-colors cursor-pointer">
-        <span className="truncate">
-          {activeGuild ? activeGuild.name : 'Direct Messages'}
-        </span>
-        <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+      <div
+        onClick={() => {
+          if (activeGuild) onOpenAddModal?.('server');
+        }}
+        className="h-12 border-b border-black/20 px-4 flex items-center justify-between font-semibold text-white shadow-sm hover:bg-white/[0.04] transition-colors cursor-pointer"
+      >
+        <div className="truncate flex items-center gap-2">
+          <span className="truncate">
+            {activeGuild ? activeGuild.name : 'Direct Messages'}
+          </span>
+          {activeGuild?.isAlwaysSynced && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
+              Always Synced
+            </span>
+          )}
+        </div>
+        <ChevronDown className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
       </div>
 
       {/* Main Content Area */}
@@ -78,11 +93,20 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             </div>
 
             {/* Group Chats Section */}
-            {filteredGroupChats.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                  <span>Group Chats ({filteredGroupChats.length})</span>
-                </div>
+            <div>
+              <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                <span>Group Chats ({filteredGroupChats.length})</span>
+                <button
+                  type="button"
+                  onClick={() => onOpenAddModal?.('group')}
+                  className="p-1 hover:text-white rounded hover:bg-white/10 transition-colors"
+                  title="Create or Sync Group Chat"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {filteredGroupChats.length > 0 && (
                 <div className="space-y-0.5">
                   {filteredGroupChats.map(gc => {
                     const isActive = activeRoomId === gc.id;
@@ -111,14 +135,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Direct Messages Section */}
             <div>
               <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
                 <span>Direct Messages ({filteredDMs.length})</span>
-                <UserPlus className="w-3.5 h-3.5 hover:text-white cursor-pointer" />
+                <button
+                  type="button"
+                  onClick={() => onOpenAddModal?.('dm')}
+                  className="p-1 hover:text-white rounded hover:bg-white/10 transition-colors"
+                  title="Start or Sync Direct Message"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               <div className="space-y-0.5">
@@ -272,6 +303,18 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     );
                   })}
               </div>
+            </div>
+
+            {/* Quick Action to Sync More Channels */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onOpenAddModal?.('server')}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-dashed border-cyan-500/30 text-xs font-semibold text-cyan-400 hover:text-white hover:bg-cyan-500/10 hover:border-cyan-400/60 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add or Sync Channels</span>
+              </button>
             </div>
           </>
         )}

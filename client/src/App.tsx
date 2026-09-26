@@ -9,6 +9,8 @@ import { VoiceStage } from './components/VoiceStage';
 import { MemberList } from './components/MemberList';
 import { SettingsModal } from './components/SettingsModal';
 import { LoginModal } from './components/LoginModal';
+import { AddConversationModal, type AddModalTab } from './components/AddConversationModal';
+import { useAutoUpdater } from './hooks/useAutoUpdater';
 
 import { matrix } from './services/matrix';
 import { livekit } from './services/livekit';
@@ -27,9 +29,14 @@ export const App: React.FC = () => {
   const [rtcPing, setRtcPing] = useState<number>(24);
   const [activeVoiceRoom, setActiveVoiceRoom] = useState<string | null>(null);
 
-  // UI toggles
+  // UI toggles & Modals
   const [showMemberList, setShowMemberList] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalTab, setAddModalTab] = useState<AddModalTab>('server');
+
+  // Real-time live auto-update sentinel
+  const { updateAvailable, newVersion } = useAutoUpdater();
 
   // Native Electron Shortcuts Listener
   useEffect(() => {
@@ -55,21 +62,29 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  const loadData = async (targetId?: string) => {
+    const data = await matrix.loadInitialRooms();
+    setRooms(data.rooms);
+    setGuilds(data.guilds);
+
+    if (targetId) {
+      const foundGuild = data.guilds.find(g => g.id === targetId);
+      if (foundGuild) {
+        setActiveGuildId(foundGuild.id);
+        if (foundGuild.channels.length > 0) {
+          setActiveRoomId(foundGuild.channels[0].id);
+        }
+      } else {
+        setActiveRoomId(targetId);
+      }
+    } else if (data.rooms.length > 0 && !activeRoomId) {
+      setActiveRoomId(data.rooms[0].id);
+    }
+  };
+
   // Initialize data on auth
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const loadData = async () => {
-      const data = await matrix.loadInitialRooms();
-      setRooms(data.rooms);
-      setGuilds(data.guilds);
-
-      // Select first room if available
-      if (data.rooms.length > 0 && !activeRoomId) {
-        setActiveRoomId(data.rooms[0].id);
-      }
-    };
-
     loadData();
 
     // Subscribe to incoming messages
@@ -139,6 +154,22 @@ export const App: React.FC = () => {
     setActiveVoiceRoom(null);
   };
 
+  const handleOpenAddModal = (tab: AddModalTab = 'server') => {
+    setAddModalTab(tab);
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenSyncLater = (room: MatrixRoom) => {
+    if (room.isGroupChat) {
+      setAddModalTab('group');
+    } else if (room.isDirect) {
+      setAddModalTab('dm');
+    } else {
+      setAddModalTab('server');
+    }
+    setIsAddModalOpen(true);
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090d16]">
@@ -162,92 +193,124 @@ export const App: React.FC = () => {
   const isCurrentRoomVoice = activeVoiceRoom !== null;
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-chat)]">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-chat)] relative">
       <TitleBar />
       <div className="flex flex-1 w-full h-[calc(100%-30px)] overflow-hidden">
         {/* 1. Left Guild Rail */}
-      <ServerRail
-        guilds={guilds}
-        activeGuildId={activeGuildId}
-        onSelectGuild={id => {
-          setActiveGuildId(id);
-          if (id === null) {
-            const firstDM = rooms.find(r => r.isDirect);
-            if (firstDM) setActiveRoomId(firstDM.id);
-          } else {
-            const guild = guilds.find(g => g.id === id);
-            if (guild && guild.channels.length > 0) {
-              setActiveRoomId(guild.channels[0].id);
+        <ServerRail
+          guilds={guilds}
+          activeGuildId={activeGuildId}
+          onSelectGuild={id => {
+            setActiveGuildId(id);
+            if (id === null) {
+              const firstDM = rooms.find(r => r.isDirect);
+              if (firstDM) setActiveRoomId(firstDM.id);
+            } else {
+              const guild = guilds.find(g => g.id === id);
+              if (guild && guild.channels.length > 0) {
+                setActiveRoomId(guild.channels[0].id);
+              }
             }
-          }
-        }}
-      />
-
-      {/* 2. Channel & DM Sidebar */}
-      <div className="flex flex-col h-full flex-shrink-0 z-10">
-        <ChannelSidebar
-          activeGuild={activeGuild}
-          rooms={rooms}
-          activeRoomId={activeRoomId}
-          onSelectRoom={id => setActiveRoomId(id)}
-          onJoinVoice={handleJoinVoice}
-          activeVoiceRoomId={activeVoiceRoom}
+          }}
+          onOpenAddModal={() => handleOpenAddModal('server')}
         />
 
-        {/* Bottom Voice Panel (if connected) */}
-        {activeVoiceRoom && (
-          <VoicePanel
-            roomName={activeVoiceRoom}
-            rtcPing={rtcPing}
-            onDisconnect={handleDisconnectVoice}
+        {/* 2. Channel & DM Sidebar */}
+        <div className="flex flex-col h-full flex-shrink-0 z-10">
+          <ChannelSidebar
+            activeGuild={activeGuild}
+            rooms={rooms}
+            activeRoomId={activeRoomId}
+            onSelectRoom={id => setActiveRoomId(id)}
+            onJoinVoice={handleJoinVoice}
+            activeVoiceRoomId={activeVoiceRoom}
+            onOpenAddModal={handleOpenAddModal}
           />
+
+          {/* Bottom Voice Panel (if connected) */}
+          {activeVoiceRoom && (
+            <VoicePanel
+              roomName={activeVoiceRoom}
+              rtcPing={rtcPing}
+              onDisconnect={handleDisconnectVoice}
+            />
+          )}
+
+          {/* Bottom User Controls Bar */}
+          <UserBar
+            userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
+            displayName={matrix.getUserId()?.split(':')[0].replace('@', '') || 'andrex'}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        </div>
+
+        {/* 3. Main Chat & Voice Stage Area */}
+        <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+          {/* Voice Stage when in a voice call */}
+          {isCurrentRoomVoice && (
+            <VoiceStage
+              participants={voiceParticipants}
+              roomName={activeVoiceRoom || 'Voice Channel'}
+            />
+          )}
+
+          {/* Chat Area */}
+          <ChatArea
+            room={currentRoom}
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            onJoinVoice={handleJoinVoice}
+            isVoiceActive={isCurrentRoomVoice}
+            onToggleMemberList={() => setShowMemberList(!showMemberList)}
+            showMemberList={showMemberList}
+            onOpenSyncLater={handleOpenSyncLater}
+          />
+        </div>
+
+        {/* 4. Right Member Sidebar */}
+        {showMemberList && (
+          <MemberList members={currentRoom.members} />
         )}
 
-        {/* Bottom User Controls Bar */}
-        <UserBar
+        {/* Settings & Vencord Customization Modal */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
           userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
-          displayName={matrix.getUserId()?.split(':')[0].replace('@', '') || 'andrex'}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onLogout={handleLogout}
+        />
+
+        {/* Add / Sync Conversation Modal */}
+        <AddConversationModal
+          isOpen={isAddModalOpen}
+          initialTab={addModalTab}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={targetId => {
+            loadData(targetId);
+          }}
         />
       </div>
 
-      {/* 3. Main Chat & Voice Stage Area */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
-        {/* Voice Stage when in a voice call */}
-        {isCurrentRoomVoice && (
-          <VoiceStage
-            participants={voiceParticipants}
-            roomName={activeVoiceRoom || 'Voice Channel'}
-          />
-        )}
-
-        {/* Chat Area */}
-        <ChatArea
-          room={currentRoom}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onJoinVoice={handleJoinVoice}
-          isVoiceActive={isCurrentRoomVoice}
-          onToggleMemberList={() => setShowMemberList(!showMemberList)}
-          showMemberList={showMemberList}
-        />
-      </div>
-
-      {/* 4. Right Member Sidebar */}
-      {showMemberList && (
-        <MemberList members={currentRoom.members} />
+      {/* Real-time live auto-update toast banner */}
+      {updateAvailable && (
+        <div className="fixed bottom-5 right-5 z-[999999] bg-[#0c132c] border border-cyan-400/80 shadow-2xl rounded-2xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          <div className="text-xs text-white">
+            <span className="font-bold text-cyan-300 block">Protutech Update Live</span>
+            <span>Version {newVersion || 'latest'} deployed. Refreshing app...</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="ml-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-md transition-all cursor-pointer"
+          >
+            Reload Now
+          </button>
+        </div>
       )}
-
-      {/* Settings & Vencord Customization Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
-        onLogout={handleLogout}
-      />
-      </div>
     </div>
   );
 };
 
 export default App;
+
