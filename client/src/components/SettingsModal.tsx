@@ -11,6 +11,14 @@ import {
   Monitor,
   FolderOpen,
   Download,
+  Plus,
+  Trash2,
+  Search,
+  Code,
+  Globe,
+  Zap,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { vencord } from '../services/vencord';
 import type { ThemeConfig } from '../types';
@@ -33,6 +41,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [customCss, setCustomCss] = useState(themeConfig.customCssText || '');
   const [customUrl, setCustomUrl] = useState(themeConfig.customCssUrl || '');
   const [plugins, setPlugins] = useState(vencord.getPlugins());
+
+  // Equicord Plugins Management States
+  const [pluginFilter, setPluginFilter] = useState<'all' | 'equicord' | 'vencord' | 'user'>('all');
+  const [pluginCategoryFilter, setPluginCategoryFilter] = useState<string>('all');
+  const [pluginSearch, setPluginSearch] = useState('');
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [installType, setInstallType] = useState<'url' | 'code'>('url');
+  const [installName, setInstallName] = useState('');
+  const [installDesc, setInstallDesc] = useState('');
+  const [installAuthor, setInstallAuthor] = useState('');
+  const [installCategory, setInstallCategory] = useState<'chat' | 'media' | 'ui' | 'privacy' | 'utility'>('utility');
+  const [installUrl, setInstallUrl] = useState('');
+  const [installCode, setInstallCode] = useState('');
+  const [installError, setInstallError] = useState('');
+  const [installLoading, setInstallLoading] = useState(false);
+  const [installSuccess, setInstallSuccess] = useState('');
 
   if (!isOpen) return null;
 
@@ -61,6 +85,85 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     vencord.togglePlugin(pluginId, !currentEnabled);
     setPlugins([...vencord.getPlugins()]);
   };
+
+  const handleInstallPlugin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInstallError('');
+    setInstallSuccess('');
+
+    if (!installName.trim()) {
+      setInstallError('Please enter a plugin name.');
+      return;
+    }
+
+    if (installType === 'url' && !installUrl.trim()) {
+      setInstallError('Please provide a valid plugin JS URL (e.g. GitHub raw link).');
+      return;
+    }
+
+    if (installType === 'code' && !installCode.trim()) {
+      setInstallError('Please paste the raw JavaScript plugin code.');
+      return;
+    }
+
+    setInstallLoading(true);
+    try {
+      const installed = await vencord.installUserPlugin({
+        name: installName.trim(),
+        description: installDesc.trim() || 'Custom Equicord user plugin.',
+        author: installAuthor.trim() || 'User Plugin',
+        category: installCategory,
+        codeUrl: installType === 'url' ? installUrl.trim() : undefined,
+        code: installType === 'code' ? installCode : undefined,
+      });
+
+      setPlugins([...vencord.getPlugins()]);
+      setInstallSuccess(`Successfully installed and activated "${installed.name}"!`);
+      setTimeout(() => {
+        setShowInstallModal(false);
+        setInstallName('');
+        setInstallDesc('');
+        setInstallAuthor('');
+        setInstallUrl('');
+        setInstallCode('');
+        setInstallSuccess('');
+        setPluginFilter('user');
+      }, 1000);
+    } catch (err) {
+      setInstallError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setInstallLoading(false);
+    }
+  };
+
+  const handleUninstallPlugin = (pluginId: string, name: string) => {
+    if (window.confirm(`Are you sure you want to remove custom plugin "${name}"?`)) {
+      vencord.uninstallUserPlugin(pluginId);
+      setPlugins([...vencord.getPlugins()]);
+    }
+  };
+
+  const equicordCount = plugins.filter(p => p.source === 'equicord').length;
+  const vencordCount = plugins.filter(p => p.source === 'vencord' || !p.source).length;
+  const userCount = plugins.filter(p => p.source === 'user').length;
+
+  const filteredPlugins = plugins.filter(p => {
+    if (pluginFilter === 'equicord' && p.source !== 'equicord') return false;
+    if (pluginFilter === 'vencord' && (p.source !== 'vencord' && p.source !== undefined)) return false;
+    if (pluginFilter === 'user' && p.source !== 'user') return false;
+
+    if (pluginCategoryFilter !== 'all' && p.category !== pluginCategoryFilter) return false;
+
+    if (pluginSearch.trim()) {
+      const q = pluginSearch.toLowerCase();
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchDesc = p.description.toLowerCase().includes(q);
+      const matchAuthor = p.author?.toLowerCase().includes(q);
+      const matchCat = p.category?.toLowerCase().includes(q);
+      return matchName || matchDesc || matchAuthor || matchCat;
+    }
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
@@ -110,9 +213,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* Vencord & Equicord Category */}
             <div>
-              <div className="text-[11px] font-bold text-[var(--discord-blurple)] uppercase tracking-wider px-2 mb-2 flex items-center gap-1.5">
+              <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider px-2 mb-2 flex items-center gap-1.5">
                 <Puzzle className="w-3.5 h-3.5" />
-                <span>Vencord Settings</span>
+                <span>Plugins & Themes</span>
               </div>
               <div className="space-y-0.5">
                 <button
@@ -128,14 +231,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
                 <button
                   onClick={() => setActiveTab('plugins')}
-                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-between ${
                     activeTab === 'plugins'
                       ? 'bg-[var(--bg-item-active)] text-white'
                       : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
                   }`}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span>Plugins</span>
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    <span>Plugins</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                    Equicord
+                  </span>
                 </button>
                 <button
                   onClick={() => setActiveTab('desktop')}
@@ -354,41 +462,417 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* PLUGINS TAB */}
           {activeTab === 'plugins' && (
-            <div className="space-y-6 max-w-xl">
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1">Vencord Plugins</h2>
-                <p className="text-sm text-[var(--text-muted)]">
-                  Modular extensions running locally in your client for extra power and customization.
-                </p>
+            <div className="space-y-6 max-w-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-xl font-bold text-white">Equicord & Vencord Plugins</h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-cyan-400" />
+                      Equicord V2
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                    Modular client enhancements and official Equicord extensions. Run community scripts, bypass limitations, enhance voice, and customize your experience.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowInstallModal(true);
+                    setInstallError('');
+                    setInstallSuccess('');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-bold shadow-lg transition-all flex-shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Install Plugin</span>
+                </button>
               </div>
 
-              <div className="space-y-3">
-                {plugins.map(plugin => (
-                  <div
-                    key={plugin.id}
-                    className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-white/10 flex items-center justify-between"
-                  >
-                    <div className="pr-4">
-                      <div className="font-semibold text-white text-sm mb-0.5">{plugin.name}</div>
-                      <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-                        {plugin.description}
+              {/* Install Modal */}
+              {showInstallModal && (
+                <div className="p-5 rounded-xl bg-black/40 border border-cyan-500/30 backdrop-blur-md space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                        <Code className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Install Equicord Plugin</h3>
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          Load a community plugin from a URL (e.g. GitHub raw link) or paste raw JavaScript code.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowInstallModal(false)}
+                      className="text-gray-400 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleInstallPlugin} className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Plugin Name *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. AutoTranslator"
+                          value={installName}
+                          onChange={e => setInstallName(e.target.value)}
+                          className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Author
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Equicord Community"
+                          value={installAuthor}
+                          onChange={e => setInstallAuthor(e.target.value)}
+                          className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                        />
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Category
+                        </label>
+                        <select
+                          value={installCategory}
+                          onChange={e => setInstallCategory(e.target.value as any)}
+                          className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                        >
+                          <option value="chat">Chat & Messaging</option>
+                          <option value="media">Media & Voice</option>
+                          <option value="ui">UI & Appearance</option>
+                          <option value="privacy">Privacy & Security</option>
+                          <option value="utility">Utility & Tools</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Description
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Short summary of what it does"
+                          value={installDesc}
+                          onChange={e => setInstallDesc(e.target.value)}
+                          className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => setInstallType('url')}
+                          className={`text-xs px-3 py-1 rounded font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            installType === 'url'
+                              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                              : 'text-gray-400 hover:text-white bg-white/5'
+                          }`}
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>Remote URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInstallType('code')}
+                          className={`text-xs px-3 py-1 rounded font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            installType === 'code'
+                              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                              : 'text-gray-400 hover:text-white bg-white/5'
+                          }`}
+                        >
+                          <Code className="w-3.5 h-3.5" />
+                          <span>Paste Raw Code</span>
+                        </button>
+                      </div>
+
+                      {installType === 'url' ? (
+                        <div>
+                          <input
+                            type="url"
+                            placeholder="https://raw.githubusercontent.com/user/repo/main/plugin.js"
+                            value={installUrl}
+                            onChange={e => setInstallUrl(e.target.value)}
+                            className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-xs font-mono text-white outline-none focus:border-cyan-400"
+                          />
+                          <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                            Direct HTTP/HTTPS link to JavaScript plugin source file.
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <textarea
+                            rows={5}
+                            placeholder="// Example Equicord Plugin&#10;export default {&#10;  name: 'MyPlugin',&#10;  start() { console.log('Plugin started!'); },&#10;  stop() { console.log('Plugin stopped!'); }&#10;};"
+                            value={installCode}
+                            onChange={e => setInstallCode(e.target.value)}
+                            className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded px-3 py-2 text-xs font-mono text-white outline-none focus:border-cyan-400"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {installError && (
+                      <div className="flex items-center gap-2 p-2.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{installError}</span>
+                      </div>
+                    )}
+
+                    {installSuccess && (
+                      <div className="flex items-center gap-2 p-2.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        <span>{installSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowInstallModal(false)}
+                        className="px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={installLoading}
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {installLoading ? 'Installing...' : 'Install & Run'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Filters and Search Bar */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 bg-[var(--bg-userpanel)] border border-white/10 rounded-lg px-3 py-2">
+                  <Search className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search Equicord & Vencord plugins by name, tag, or description..."
+                    value={pluginSearch}
+                    onChange={e => setPluginSearch(e.target.value)}
+                    className="w-full bg-transparent text-xs text-white outline-none placeholder:text-[var(--text-muted)]"
+                  />
+                  {pluginSearch && (
                     <button
-                      onClick={() => handleTogglePlugin(plugin.id, plugin.enabled)}
-                      className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors flex-shrink-0 ${
-                        plugin.enabled ? 'bg-[var(--status-online)]' : 'bg-neutral-600'
+                      onClick={() => setPluginSearch('')}
+                      className="text-gray-400 hover:text-white text-xs cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  {/* Source filter tabs */}
+                  <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
+                    <button
+                      onClick={() => setPluginFilter('all')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+                        pluginFilter === 'all'
+                          ? 'bg-white/15 text-white shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-white'
                       }`}
                     >
-                      <div
-                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                          plugin.enabled ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
+                      All ({plugins.length})
+                    </button>
+                    <button
+                      onClick={() => setPluginFilter('equicord')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                        pluginFilter === 'equicord'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-cyan-300'
+                      }`}
+                    >
+                      <Zap className="w-3 h-3 text-cyan-400" />
+                      <span>Equicord ({equicordCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setPluginFilter('vencord')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+                        pluginFilter === 'vencord'
+                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-indigo-300'
+                      }`}
+                    >
+                      Vencord ({vencordCount})
+                    </button>
+                    <button
+                      onClick={() => setPluginFilter('user')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                        pluginFilter === 'user'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                          : 'text-[var(--text-muted)] hover:text-emerald-300'
+                      }`}
+                    >
+                      <Code className="w-3 h-3 text-emerald-400" />
+                      <span>Custom ({userCount})</span>
                     </button>
                   </div>
-                ))}
+
+                  {/* Category filter */}
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-[var(--text-muted)] text-[11px] font-medium">Category:</span>
+                    <select
+                      value={pluginCategoryFilter}
+                      onChange={e => setPluginCategoryFilter(e.target.value)}
+                      className="bg-[var(--bg-userpanel)] border border-white/10 rounded px-2 py-1 text-xs text-gray-200 outline-none"
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="chat">Chat</option>
+                      <option value="media">Media & Voice</option>
+                      <option value="ui">UI & Styling</option>
+                      <option value="privacy">Privacy</option>
+                      <option value="utility">Utility</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Plugin List */}
+              <div className="space-y-2.5">
+                {filteredPlugins.length === 0 ? (
+                  <div className="p-8 text-center rounded-xl bg-[var(--bg-userpanel)]/40 border border-white/5 space-y-2">
+                    <Layers className="w-8 h-8 text-[var(--text-muted)] mx-auto opacity-50" />
+                    <p className="text-sm font-semibold text-white">No plugins match your search</p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Try adjusting your keywords or clearing the category filters.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setPluginSearch('');
+                        setPluginFilter('all');
+                        setPluginCategoryFilter('all');
+                      }}
+                      className="mt-2 text-xs text-cyan-400 hover:underline cursor-pointer"
+                    >
+                      Reset all filters
+                    </button>
+                  </div>
+                ) : (
+                  filteredPlugins.map(plugin => {
+                    const isEquicord = plugin.source === 'equicord';
+                    const isUser = plugin.source === 'user';
+                    const isVencord = plugin.source === 'vencord' || !plugin.source;
+
+                    return (
+                      <div
+                        key={plugin.id}
+                        className={`p-3.5 rounded-lg bg-[var(--bg-userpanel)] border transition-all ${
+                          plugin.enabled
+                            ? isEquicord
+                              ? 'border-cyan-500/25 shadow-[0_0_15px_rgba(6,182,212,0.06)]'
+                              : isUser
+                              ? 'border-emerald-500/25 shadow-[0_0_15px_rgba(16,185,129,0.06)]'
+                              : 'border-indigo-500/25'
+                            : 'border-white/5 opacity-75 hover:opacity-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center flex-wrap gap-2 mb-1">
+                              <span className="font-semibold text-white text-sm">
+                                {plugin.name}
+                              </span>
+
+                              {/* Source Badge */}
+                              {isEquicord && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
+                                  <Zap className="w-2.5 h-2.5" />
+                                  Equicord
+                                </span>
+                              )}
+                              {isUser && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                  <Code className="w-2.5 h-2.5" />
+                                  Custom
+                                </span>
+                              )}
+                              {isVencord && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                                  Vencord
+                                </span>
+                              )}
+
+                              {/* Category Badge */}
+                              {plugin.category && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/5 text-gray-400 capitalize">
+                                  {plugin.category}
+                                </span>
+                              )}
+
+                              {/* Author */}
+                              <span className="text-[11px] text-[var(--text-muted)]">
+                                by {plugin.author || (isEquicord ? 'Equicord' : 'Community')}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                              {plugin.description}
+                            </p>
+
+                            {/* User Plugin Extra Info */}
+                            {isUser && plugin.codeUrl && (
+                              <div className="mt-1 flex items-center gap-1 text-[11px] text-cyan-400 truncate">
+                                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{plugin.codeUrl}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* Uninstall Button for User Plugins */}
+                            {isUser && (
+                              <button
+                                onClick={() => handleUninstallPlugin(plugin.id, plugin.name)}
+                                title="Uninstall Plugin"
+                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Toggle Switch */}
+                            <button
+                              onClick={() => handleTogglePlugin(plugin.id, plugin.enabled)}
+                              className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                                plugin.enabled
+                                  ? isEquicord
+                                    ? 'bg-cyan-500'
+                                    : 'bg-[var(--status-online)]'
+                                  : 'bg-neutral-600'
+                              }`}
+                            >
+                              <div
+                                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                  plugin.enabled ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

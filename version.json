@@ -1,5 +1,6 @@
 {
-    "updatedAt":  "2026-09-26T19:57:45Z",
-    "version":  "1.7.0",
-    "buildTime":  1790452665212
+  "version": "1.8.0",
+  "updatedAt": "2026-10-04T15:51:00Z",
+  "buildTime": 1791136260000,
+  "changelog": "Equicord plugin engine support, official built-in plugins, custom user plugin loader via URL/code, and Equicord runtime sandbox"
 }

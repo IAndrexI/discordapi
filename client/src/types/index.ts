@@ -104,6 +104,12 @@ export interface VencordPlugin {
   description: string;
   enabled: boolean;
   author: string;
+  source?: 'vencord' | 'equicord' | 'user';
+  category?: 'chat' | 'media' | 'ui' | 'privacy' | 'utility';
+  codeUrl?: string;
+  code?: string;
+  version?: string;
+  hasSettings?: boolean;
 }
 
 export interface ThemeConfig {
