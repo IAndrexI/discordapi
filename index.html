@@ -17,16 +17,23 @@
       ""
     );
     console.log(
-      "%c[Theme Update]%c Synced with Protutech Obsidian Palette (#080c16, #00f2fe cyan, #7f00ff violet)\n%c[Changelog]%c Integrated unified suite design tokens, translucent Aero glass, & LXC auto-sync.",
+      "%c[Theme Update]%c Synced with Protutech Suite Themes (Obsidian, Adobe Classic, Cyber Emerald, Sunset Ember)\n%c[Changelog]%c Integrated unified suite design tokens, translucent Aero glass, & LXC auto-sync.",
       "color: #00f2fe; font-weight: bold;", "color: #f8fafc;",
       "color: #7f00ff; font-weight: bold;", "color: #94a3b8;"
     );
+    try {
+      const savedTheme = localStorage.getItem('protutech_theme_mode') || 'dark';
+      const savedPalette = localStorage.getItem('protutech_theme_palette') || 'protutech-obsidian';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      document.documentElement.setAttribute('data-palette', savedPalette);
+    } catch (e) {}
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
+      /* Protutech Obsidian (Default) */
       --midnight-base: #080c16;
       --midnight-surface: #0d1322;
       --midnight-card: #121a2d;
@@ -52,6 +59,85 @@
       --yellow: #f59e0b;
       --red: #ef4444;
       --cyan: #00f2fe;
+    }
+
+    [data-palette="adobe-classic"] {
+      --midnight-base: #18181b;
+      --midnight-surface: #202024;
+      --midnight-card: #27272a;
+      --midnight-elevated: #323238;
+      --midnight-border: rgba(56, 189, 248, 0.2);
+      --midnight-border-strong: rgba(56, 189, 248, 0.4);
+      --midnight-glow: rgba(56, 189, 248, 0.25);
+      --blurple: #38bdf8;
+      --blurple-hover: #7dd3fc;
+      --accent-secondary: #818cf8;
+      --accent-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+      --dark-hero: radial-gradient(ellipse at 50% 15%, #252836 0%, #202024 55%, #18181b 100%);
+      --dark-card: #27272a;
+      --dark-surface: #202024;
+      --dark-bg: #18181b;
+      --cyan: #38bdf8;
+    }
+
+    [data-palette="cyber-emerald"] {
+      --midnight-base: #05100e;
+      --midnight-surface: #091a17;
+      --midnight-card: #0f2824;
+      --midnight-elevated: #153832;
+      --midnight-border: rgba(16, 185, 129, 0.2);
+      --midnight-border-strong: rgba(16, 185, 129, 0.4);
+      --midnight-glow: rgba(16, 185, 129, 0.25);
+      --blurple: #10b981;
+      --blurple-hover: #34d399;
+      --accent-secondary: #06b6d4;
+      --accent-gradient: linear-gradient(135deg, #10b981, #06b6d4);
+      --dark-hero: radial-gradient(ellipse at 50% 15%, #0d2822 0%, #091a17 55%, #05100e 100%);
+      --dark-card: #0f2824;
+      --dark-surface: #091a17;
+      --dark-bg: #05100e;
+      --cyan: #10b981;
+    }
+
+    [data-palette="sunset-ember"] {
+      --midnight-base: #120910;
+      --midnight-surface: #1d0f1a;
+      --midnight-card: #291525;
+      --midnight-elevated: #381c32;
+      --midnight-border: rgba(245, 158, 11, 0.2);
+      --midnight-border-strong: rgba(245, 158, 11, 0.4);
+      --midnight-glow: rgba(245, 158, 11, 0.25);
+      --blurple: #f59e0b;
+      --blurple-hover: #fbbf24;
+      --accent-secondary: #f43f5e;
+      --accent-gradient: linear-gradient(135deg, #f59e0b, #f43f5e);
+      --dark-hero: radial-gradient(ellipse at 50% 15%, #2a1122 0%, #1d0f1a 55%, #120910 100%);
+      --dark-card: #291525;
+      --dark-surface: #1d0f1a;
+      --dark-bg: #120910;
+      --cyan: #f59e0b;
+    }
+
+    [data-theme="light"] {
+      --midnight-base: #f4f6f9;
+      --midnight-surface: #ffffff;
+      --midnight-card: #ffffff;
+      --midnight-elevated: #f8fafc;
+      --midnight-border: rgba(0, 0, 0, 0.08);
+      --midnight-border-strong: rgba(0, 0, 0, 0.15);
+      --midnight-glow: rgba(2, 132, 199, 0.15);
+      --blurple: #0284c7;
+      --blurple-hover: #0369a1;
+      --accent-secondary: #6366f1;
+      --accent-gradient: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
+      --dark-hero: radial-gradient(ellipse at 50% 15%, #e2e8f0 0%, #f1f5f9 55%, #f4f6f9 100%);
+      --dark-card: #ffffff;
+      --dark-surface: #ffffff;
+      --dark-bg: #f4f6f9;
+      --off-white: #0f172a;
+      --text-normal: #475569;
+      --text-muted: #64748b;
+      --text-header: #0f172a;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
