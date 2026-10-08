@@ -1,0 +1,30 @@
+name: Deploy discordapi to LXC
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Pull and restart discordapi in LXC
+        run: |
+          TARGET_DIR="/opt/discordapi"
+          if [ ! -d "$TARGET_DIR" ]; then
+            TARGET_DIR="/opt/mautrix-discord"
+          fi
+          if [ ! -d "$TARGET_DIR" ]; then
+            TARGET_DIR="$(pwd)"
+          fi
+          cd "$TARGET_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+          if systemctl is-active --quiet discordapi 2>/dev/null; then
+            systemctl restart discordapi
+          fi
+          if systemctl is-active --quiet mautrix-discord 2>/dev/null; then
+            systemctl restart mautrix-discord
+          fi
