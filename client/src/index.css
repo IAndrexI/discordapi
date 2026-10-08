@@ -1,30 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --bg-servers: #1e1f22;
-  --bg-channels: #2b2d31;
-  --bg-chat: #313338;
-  --bg-userpanel: #232428;
-  --bg-message-input: #383a40;
-  --bg-message-hover: rgba(2, 2, 2, 0.08);
-  --bg-item-hover: rgba(255, 255, 255, 0.07);
-  --bg-item-active: rgba(255, 255, 255, 0.12);
-  --bg-popout: #111214;
+  --bg-servers: #080c16;
+  --bg-channels: #0d1322;
+  --bg-chat: #121a2d;
+  --bg-userpanel: #0a0e19;
+  --bg-message-input: #090e1a;
+  --bg-message-hover: rgba(255, 255, 255, 0.04);
+  --bg-item-hover: rgba(0, 242, 254, 0.08);
+  --bg-item-active: rgba(0, 242, 254, 0.16);
+  --bg-popout: #0f1628;
   
-  --text-normal: #dbdee1;
-  --text-muted: #949ba4;
-  --text-header: #f2f3f5;
-  --text-link: #00a8fc;
+  --text-normal: #94a3b8;
+  --text-muted: #64748b;
+  --text-header: #f8fafc;
+  --text-link: #00f2fe;
   
-  --discord-blurple: #5865f2;
-  --discord-blurple-hover: #4752c4;
-  --status-online: #23a55a;
-  --status-idle: #f0b232;
-  --status-dnd: #f23f43;
-  --status-offline: #80848e;
+  --discord-blurple: #00f2fe;
+  --discord-blurple-hover: #38bdf8;
+  --status-online: #10b981;
+  --status-idle: #f59e0b;
+  --status-dnd: #ef4444;
+  --status-offline: #64748b;
 
-  --voice-connected: #23a55a;
-  --voice-rtc: #23a55a;
+  --voice-connected: #10b981;
+  --voice-rtc: #10b981;
 
   font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color-scheme: dark;
@@ -42,19 +42,19 @@ body.theme-midnight {
 
 /* Theme presets: Frosted Translucent (Aero Glass) */
 body.theme-translucent {
-  --bg-servers: rgba(7, 13, 34, 0.72);
-  --bg-channels: rgba(10, 18, 42, 0.65);
-  --bg-chat: rgba(13, 22, 54, 0.55);
-  --bg-userpanel: rgba(7, 13, 34, 0.8);
-  --bg-message-input: rgba(29, 78, 216, 0.22);
-  --bg-item-hover: rgba(56, 189, 248, 0.12);
-  --bg-item-active: rgba(56, 189, 248, 0.22);
-  --bg-popout: rgba(10, 18, 42, 0.88);
-  --text-normal: #e2e8f0;
-  --text-header: #ffffff;
-  --discord-blurple: #38bdf8;
-  --discord-blurple-hover: #0ea5e9;
-  background: radial-gradient(ellipse at 50% 20%, #0d1b40 0%, #050a18 60%, #02050d 100%) !important;
+  --bg-servers: rgba(8, 12, 22, 0.78);
+  --bg-channels: rgba(13, 19, 34, 0.72);
+  --bg-chat: rgba(18, 26, 45, 0.65);
+  --bg-userpanel: rgba(10, 14, 25, 0.85);
+  --bg-message-input: rgba(9, 14, 26, 0.5);
+  --bg-item-hover: rgba(0, 242, 254, 0.12);
+  --bg-item-active: rgba(0, 242, 254, 0.22);
+  --bg-popout: rgba(15, 22, 40, 0.92);
+  --text-normal: #94a3b8;
+  --text-header: #f8fafc;
+  --discord-blurple: #00f2fe;
+  --discord-blurple-hover: #38bdf8;
+  background: radial-gradient(ellipse at 50% 20%, #0d1a38 0%, #080c16 65%, #050810 100%) !important;
 }
 body.theme-translucent #root {
   background: transparent !important;
@@ -171,6 +171,22 @@ body.theme-solarized {
   --discord-blurple-hover: #d97706;
 }
 
+/* Theme presets: TeamSpeak Classic & Format */
+body.theme-teamspeak {
+  --bg-servers: #182230;
+  --bg-channels: #202c3d;
+  --bg-chat: #263447;
+  --bg-userpanel: #141c28;
+  --bg-message-input: #1b2636;
+  --bg-popout: #1c2737;
+  --text-normal: #e4eaf2;
+  --text-muted: #8fa2b8;
+  --text-header: #ffffff;
+  --discord-blurple: #2563eb;
+  --discord-blurple-hover: #1d4ed8;
+  --status-online: #22c55e;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -186,7 +202,7 @@ html, body, #root {
   user-select: none;
 }
 
-/* Custom scrollbars matching Discord */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -205,7 +221,7 @@ html, body, #root {
   background-color: rgba(0, 0, 0, 0.6);
 }
 
-/* Discord Tooltips and Animations */
+/* Tooltips and Animations */
 @keyframes pillPop {
   0% { transform: scale(0.6); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }

@@ -14,29 +14,31 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --midnight-base: #02040b;
-      --midnight-surface: #04080f;
-      --midnight-card: #070d1a;
-      --midnight-elevated: #0c1530;
-      --midnight-border: rgba(56, 189, 248, 0.12);
-      --midnight-border-strong: rgba(56, 189, 248, 0.25);
-      --midnight-glow: rgba(20, 40, 100, 0.35);
-      --blurple: #1a44c8;
-      --blurple-hover: #2256d4;
-      --blurple-dark: #162f8c;
-      --dark-hero: radial-gradient(ellipse at 50% 15%, #0e1e42 0%, #060d24 55%, #020409 100%);
-      --dark-card: #070d1a;
-      --dark-surface: #04080f;
-      --dark-bg: #020409;
+      --midnight-base: #080c16;
+      --midnight-surface: #0d1322;
+      --midnight-card: #121a2d;
+      --midnight-elevated: #18223b;
+      --midnight-border: rgba(0, 242, 254, 0.16);
+      --midnight-border-strong: rgba(0, 242, 254, 0.35);
+      --midnight-glow: rgba(0, 242, 254, 0.25);
+      --blurple: #00f2fe;
+      --blurple-hover: #38bdf8;
+      --blurple-dark: #0284c7;
+      --accent-secondary: #7f00ff;
+      --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #7f00ff 100%);
+      --dark-hero: radial-gradient(ellipse at 50% 15%, #0e1e42 0%, #0d1322 55%, #080c16 100%);
+      --dark-card: #121a2d;
+      --dark-surface: #0d1322;
+      --dark-bg: #080c16;
       --off-white: #f8fafc;
-      --text-normal: #b0bdd4;
-      --text-muted: #6e7f96;
-      --text-header: #e8edf5;
+      --text-normal: #94a3b8;
+      --text-muted: #64748b;
+      --text-header: #f8fafc;
       --green: #10b981;
       --green-hover: #059669;
       --yellow: #f59e0b;
       --red: #ef4444;
-      --cyan: #38bdf8;
+      --cyan: #00f2fe;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -354,6 +356,27 @@
     .btn-hero-primary:hover {
       background: #2563eb;
       box-shadow: 0 12px 30px rgba(37, 99, 235, 0.6);
+      transform: translateY(-2px);
+      color: #ffffff;
+    }
+    .btn-hero-store {
+      background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 16px 30px;
+      border-radius: 40px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    .btn-hero-store:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      box-shadow: 0 12px 30px rgba(14, 165, 233, 0.55);
       transform: translateY(-2px);
       color: #ffffff;
     }
@@ -1218,11 +1241,16 @@
       </p>
 
       <div class="hero-actions">
+        <a href="ms-windows-store://pdp/?productid=00013812596749763330" class="btn-hero-store" title="Download ProtutechChat from Microsoft Store">
+          <svg style="width:20px; height:20px; fill:currentColor;" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
+          <span>Microsoft Store</span>
+        </a>
+
         <a href="#downloadSection" class="btn-hero-primary">
           <svg style="width:20px; height:20px;" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
           </svg>
-          <span>Download Apps</span>
+          <span>Download Installers</span>
         </a>
 
         <a href="/chat/" target="protutech_webclient" rel="noreferrer" class="btn-hero-secondary">
@@ -1236,6 +1264,11 @@
       </div>
 
       <div class="hero-sublink" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
+        <span style="display:inline-flex; align-items:center; gap:5px;">
+          <svg style="width:14px; height:14px; fill:#38bdf8;" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
+          <span>Microsoft Store Verified</span>
+        </span>
+        <span>&bull;</span>
         <span>Windows 10/11</span>
         <span>&bull;</span>
         <span style="display:inline-flex; align-items:center; gap:5px;">
@@ -1291,17 +1324,27 @@
             </div>
           </div>
           <div style="margin-bottom: 20px; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5;">
-            Includes automatic updates, system tray integration, and native Discord RPC support.
+            Includes automatic updates, system tray integration, and ultra-low latency voice.
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <a href="/downloads/Protutech-Discord-Setup.exe" class="btn-download-primary">
-              <span>Download Setup Installer (.exe)</span>
-              <span class="badge-size">112 MB</span>
+            <a href="ms-windows-store://pdp/?productid=00013812596749763330" class="btn-download-primary" style="background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%); border-color: rgba(56,189,248,0.5); box-shadow: 0 4px 16px rgba(2,132,199,0.35);">
+              <span style="display:inline-flex; align-items:center; gap:8px;">
+                <svg style="width:18px; height:18px; fill:currentColor;" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/></svg>
+                <span>Get from Microsoft Store</span>
+              </span>
+              <span class="badge-size" style="background:rgba(255,255,255,0.25); color:#fff;">Store App</span>
             </a>
-            <a href="/downloads/Protutech-Discord-Portable.exe" class="btn-download-secondary">
-              <span>Portable Standalone (.exe)</span>
-              <span class="badge-size">100 MB</span>
-            </a>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <a href="/downloads/ProtutechChat-Setup.exe" class="btn-download-secondary" style="font-size:0.82rem; padding:10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                <span>Setup (.exe)</span>
+              </a>
+              <a href="/downloads/ProtutechChat-Portable.exe" class="btn-download-secondary" style="font-size:0.82rem; padding:10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                <span>Portable (.exe)</span>
+              </a>
+            </div>
+            <div style="text-align:center; margin-top:2px;">
+              <a href="https://apps.microsoft.com/detail/ProtutechChat" target="_blank" style="font-size:0.75rem; color:#38bdf8; text-decoration:underline;">Or browse via Microsoft Store Web &rarr;</a>
+            </div>
           </div>
         </div>
 
@@ -1323,7 +1366,7 @@
             Universal AppImage (runs anywhere with chmod +x), native Debian/Ubuntu .deb, and portable tar.gz.
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <a href="/downloads/Protutech-Discord.AppImage" class="btn-download-primary">
+            <a href="/downloads/ProtutechChat.AppImage" class="btn-download-primary">
               <span style="display:inline-flex; align-items:center; gap:8px;">
                 <svg style="width:18px; height:18px; flex-shrink:0;" viewBox="30 18 196 220"><use href="#tux-penguin-logo"/></svg>
                 <span>Universal Linux (.AppImage)</span>
@@ -1331,18 +1374,18 @@
               <span class="badge-size">118 MB</span>
             </a>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <a href="/downloads/Protutech-Discord.deb" class="btn-download-secondary" style="font-size: 0.82rem; padding: 10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+              <a href="/downloads/ProtutechChat.deb" class="btn-download-secondary" style="font-size: 0.82rem; padding: 10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                 <svg style="width:15px; height:15px; flex-shrink:0;" viewBox="30 18 196 220"><use href="#tux-penguin-logo"/></svg>
                 <span>Debian/Ubuntu (.deb)</span>
               </a>
-              <a href="/downloads/Protutech-Discord-linux.tar.gz" class="btn-download-secondary" style="font-size: 0.82rem; padding: 10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+              <a href="/downloads/ProtutechChat-linux.tar.gz" class="btn-download-secondary" style="font-size: 0.82rem; padding: 10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                 <svg style="width:15px; height:15px; flex-shrink:0;" viewBox="30 18 196 220"><use href="#tux-penguin-logo"/></svg>
                 <span>Tarball (.tar.gz)</span>
               </a>
             </div>
           </div>
           <div style="margin-top: 14px; background: #060a1c; border: 1px solid rgba(56,189,248,0.14); border-radius: 8px; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #38bdf8;">
-            curl -LO https://chat.protutech.vip/downloads/Protutech-Discord.AppImage &amp;&amp; chmod +x Protutech-Discord.AppImage &amp;&amp; ./Protutech-Discord.AppImage
+            curl -LO https://chat.protutech.vip/downloads/ProtutechChat.AppImage &amp;&amp; chmod +x ProtutechChat.AppImage &amp;&amp; ./ProtutechChat.AppImage
           </div>
         </div>
       </div>
@@ -1513,6 +1556,20 @@
           </div>
           <div style="height:12px; background:#060a18; border-radius:6px; overflow:hidden; border:1px solid rgba(16,185,129,0.3);">
             <div style="width:18%; height:100%; background:linear-gradient(90deg, #10b981, #34d399); border-radius:6px; box-shadow:0 0 12px #10b981;"></div>
+          </div>
+        </div>
+
+        <!-- Bar 2: TeamSpeak 3 / 5 -->
+        <div style="margin-bottom:22px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; margin-bottom:8px;">
+            <span style="color:#38bdf8; display:flex; align-items:center; gap:8px;">
+              <span style="width:8px; height:8px; border-radius:50%; background:#38bdf8;"></span>
+              TeamSpeak 3 / 5 (Direct UDP)
+            </span>
+            <span style="color:#38bdf8; font-family:'JetBrains Mono',monospace;">32 ms &bull; Fast Voice, but Outdated UI &amp; Paid Mobile</span>
+          </div>
+          <div style="height:12px; background:#060a18; border-radius:6px; overflow:hidden; border:1px solid rgba(56,189,248,0.3);">
+            <div style="width:32%; height:100%; background:linear-gradient(90deg, #0284c7, #38bdf8); border-radius:6px;"></div>
           </div>
         </div>
 
@@ -1880,64 +1937,80 @@
       <!-- END FULL TECHNICAL BREAKDOWN -->
 
       <!-- Feature-by-Feature Comparison Table -->
-      <div style="background:#030610; border:1px solid rgba(56,189,248,0.18); border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
-        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+      <div style="background:#030610; border:1px solid rgba(56,189,248,0.18); border-radius:16px; overflow-x:auto; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+        <table style="width:100%; min-width:840px; border-collapse:collapse; text-align:left; font-size:0.88rem;">
           <thead>
             <tr style="background:#010306; border-bottom:1px solid rgba(56,189,248,0.2);">
-              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Feature / Metric</th>
-              <th style="padding:16px 20px; color:#10b981; font-weight:800; background:rgba(16,185,129,0.08);">Protutech Platform</th>
-              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Discord (Free Tier)</th>
-              <th style="padding:16px 20px; color:#94a3b8; font-weight:700;">Discord Nitro ($9.99/mo)</th>
+              <th style="padding:16px 18px; color:#94a3b8; font-weight:700;">Feature / Metric</th>
+              <th style="padding:16px 18px; color:#10b981; font-weight:800; background:rgba(16,185,129,0.08);">Protutech Platform</th>
+              <th style="padding:16px 18px; color:#38bdf8; font-weight:800; background:rgba(56,189,248,0.06);">TeamSpeak 3 / 5</th>
+              <th style="padding:16px 18px; color:#94a3b8; font-weight:700;">Legacy Cloud (Free)</th>
+              <th style="padding:16px 18px; color:#94a3b8; font-weight:700;">Cloud Nitro ($9.99/mo)</th>
             </tr>
           </thead>
           <tbody>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Voice RTC Latency (Idle)</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">12 - 24 ms (Direct SFU)</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">55 - 95 ms</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">55 - 85 ms</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Voice RTC Latency (Idle)</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">12 - 24 ms (Direct SFU)</td>
+              <td style="padding:14px 18px; color:#38bdf8; font-weight:600; background:rgba(56,189,248,0.03);">25 - 45 ms (Direct UDP)</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">55 - 95 ms</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">55 - 85 ms</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1); background:rgba(239,68,68,0.04);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Voice Delay While Gaming (Load)</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.08);">&lt;20 ms (Zero Buffer Bloat)</td>
-              <td style="padding:14px 20px; color:#ef4444; font-weight:700;">1,000 - 2,000 ms (1-2s Delay)</td>
-              <td style="padding:14px 20px; color:#ef4444; font-weight:700;">1,000 - 2,000 ms (Same Cloud Delay)</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Voice Delay Under Gaming Load</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.08);">&lt;20 ms (Zero Buffer Bloat)</td>
+              <td style="padding:14px 18px; color:#38bdf8; font-weight:600; background:rgba(56,189,248,0.03);">35 - 75 ms (Fast, drops on congestion)</td>
+              <td style="padding:14px 18px; color:#ef4444; font-weight:700;">1,000 - 2,000 ms (1-2s Delay)</td>
+              <td style="padding:14px 18px; color:#ef4444; font-weight:700;">1,000 - 2,000 ms (Same Cloud Delay)</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">PTT &amp; Speech Trailing Hangover</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">Instantaneous Cutoff (0 ms)</td>
-              <td style="padding:14px 20px; color:#ef4444;">500 - 1,500 ms Lingering Delay</td>
-              <td style="padding:14px 20px; color:#ef4444;">500 - 1,500 ms Lingering Delay</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">PTT &amp; Speech Trailing Hangover</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">Instantaneous Cutoff (0 ms)</td>
+              <td style="padding:14px 18px; color:#38bdf8; font-weight:600; background:rgba(56,189,248,0.03);">20 - 40 ms Fast Cutoff</td>
+              <td style="padding:14px 18px; color:#ef4444;">500 - 1,500 ms Lingering Delay</td>
+              <td style="padding:14px 18px; color:#ef4444;">500 - 1,500 ms Lingering Delay</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Screen Share Resolution</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">1080p / 1440p / 4K Source</td>
-              <td style="padding:14px 20px; color:#ef4444;">720p (Capped)</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">1080p / 4K</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Screen Share Resolution &amp; FPS</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">1080p / 4K @ 60 FPS (Free)</td>
+              <td style="padding:14px 18px; color:#ef4444; background:rgba(56,189,248,0.03);">None (TS3) / 720p 30fps (TS5)</td>
+              <td style="padding:14px 18px; color:#ef4444;">720p @ 30 FPS (Capped)</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">1080p / 4K @ 60 FPS</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Screen Share Frame Rate</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">Smooth 60 FPS</td>
-              <td style="padding:14px 20px; color:#ef4444;">30 FPS (Capped)</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">60 FPS</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Rich Chat &amp; Community Channels</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">Full Markdown, Embeds &amp; Media</td>
+              <td style="padding:14px 18px; color:#ef4444; background:rgba(56,189,248,0.03);">Archaic Plain-Text (No rich embeds)</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Standard Rich Chat</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Standard Rich Chat</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Opus Audio Bitrate</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">96 - 128 kbps Studio Stereo</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">64 kbps Mono</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">Up to 384 kbps (Server Boosts)</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Server Licensing &amp; Slot Limits</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">100% Free &amp; Unlimited Slots</td>
+              <td style="padding:14px 18px; color:#ef4444; background:rgba(56,189,248,0.03);">Capped at 32 Slots (Paid Annual AAL)</td>
+              <td style="padding:14px 18px; color:#94a3b8;">Cannot Self-Host</td>
+              <td style="padding:14px 18px; color:#94a3b8;">Cannot Self-Host</td>
             </tr>
             <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">UI Customization</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">10 Built-In Themes + Custom CSS</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">Dark / Light Only</td>
-              <td style="padding:14px 20px; color:#cbd5e1;">Preset Gradients Only</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Mobile &amp; Web Applications</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">100% Free Web App &amp; Mobile</td>
+              <td style="padding:14px 18px; color:#ef4444; background:rgba(56,189,248,0.03);">Paid Mobile Apps ($0.99 - $1.99)</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Free (Ad/Telemetry backed)</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Included</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(56,189,248,0.1);">
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">UI Customization &amp; Theming</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">10 Themes + Custom CSS Engine</td>
+              <td style="padding:14px 18px; color:#94a3b8; background:rgba(56,189,248,0.03);">Rigid 2000s Qt Interface</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Dark / Light Only</td>
+              <td style="padding:14px 18px; color:#cbd5e1;">Preset Gradients Only</td>
             </tr>
             <tr>
-              <td style="padding:14px 20px; font-weight:600; color:#fff;">Data Privacy &amp; Telemetry</td>
-              <td style="padding:14px 20px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">100% Client-Side Zero-Knowledge</td>
-              <td style="padding:14px 20px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
-              <td style="padding:14px 20px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
+              <td style="padding:14px 18px; font-weight:600; color:#fff;">Data Privacy &amp; Encryption</td>
+              <td style="padding:14px 18px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.04);">100% Client-Side Zero-Knowledge</td>
+              <td style="padding:14px 18px; color:#38bdf8; background:rgba(56,189,248,0.03);">Self-Hosted (Closed-Source Binary)</td>
+              <td style="padding:14px 18px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
+              <td style="padding:14px 18px; color:#ef4444;">Centralized Ad &amp; Usage Tracking</td>
             </tr>
           </tbody>
         </table>
@@ -2302,11 +2375,12 @@
       <div class="footer-col">
         <h4>Downloads &amp; Apps</h4>
         <ul>
-          <li><a href="/downloads/Protutech-Discord-Setup.exe">Windows Setup (.exe)</a></li>
-          <li><a href="/downloads/Protutech-Discord-Portable.exe">Windows Portable (.exe)</a></li>
-          <li><a href="/downloads/Protutech-Discord.AppImage">Linux AppImage (.AppImage)</a></li>
-          <li><a href="/downloads/Protutech-Discord.deb">Debian / Ubuntu (.deb)</a></li>
-          <li><a href="/downloads/Protutech-Discord-linux.tar.gz">Linux Archive (.tar.gz)</a></li>
+          <li><a href="https://apps.microsoft.com/detail/ProtutechChat" target="_blank" style="color:#38bdf8; font-weight:700;">Microsoft Store (Windows 10/11)</a></li>
+          <li><a href="/downloads/ProtutechChat-Setup.exe">Windows Setup (.exe)</a></li>
+          <li><a href="/downloads/ProtutechChat-Portable.exe">Windows Portable (.exe)</a></li>
+          <li><a href="/downloads/ProtutechChat.AppImage">Linux AppImage (.AppImage)</a></li>
+          <li><a href="/downloads/ProtutechChat.deb">Debian / Ubuntu (.deb)</a></li>
+          <li><a href="/downloads/ProtutechChat-linux.tar.gz">Linux Archive (.tar.gz)</a></li>
         </ul>
       </div>
 
