@@ -1,4 +1,4 @@
-name: Deploy discordapi to LXC
+name: Deploy discordapi to Proxmox LXC
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 10
     steps:
-      - name: Pull and restart discordapi in LXC
+      - name: Pull, rebuild client, sync Caddyfile and restart Proxmox services
         run: |
           TARGET_DIR="/opt/discordapi"
           if [ ! -d "$TARGET_DIR" ]; then
@@ -22,9 +22,22 @@ jobs:
           cd "$TARGET_DIR"
           git fetch origin main
           git reset --hard origin/main
-          if systemctl is-active --quiet discordapi 2>/dev/null; then
-            systemctl restart discordapi
+          if [ -f "auto_setup_service.py" ] && [ -d "/opt/discord-auto-setup" ]; then
+            cp auto_setup_service.py /opt/discord-auto-setup/auto_setup_service.py
           fi
+          if [ -f "Caddyfile" ] && [ -d "/etc/caddy" ]; then
+            cp Caddyfile /etc/caddy/Caddyfile
+          fi
+          if [ -d "$TARGET_DIR/client" ] && command -v npm >/dev/null 2>&1; then
+            cd "$TARGET_DIR/client"
+            npm install --no-audit --no-fund
+            npm run build
+            mkdir -p /var/www/discord-client
+            cp -r dist/* /var/www/discord-client/
+          fi
+          systemctl restart protutech-backend 2>/dev/null || true
+          systemctl restart discord-auto-setup 2>/dev/null || systemctl restart discordapi 2>/dev/null || true
+          systemctl reload caddy 2>/dev/null || systemctl restart caddy 2>/dev/null || true
           if systemctl is-active --quiet mautrix-discord 2>/dev/null; then
             systemctl restart mautrix-discord
           fi

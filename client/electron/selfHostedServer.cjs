@@ -835,6 +835,25 @@ async function fetchDiscordApi(endpoint, token, options = {}) {
   }
 }
 
+async function proxyLocalBridgeApi(reqPath, method = 'GET', bodyObj = null, extraHeaders = {}) {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    };
+    const res = await fetch(`http://127.0.0.1:8089${reqPath}`, {
+      method,
+      headers,
+      body: bodyObj !== null && method !== 'GET' ? JSON.stringify(bodyObj) : undefined,
+      signal: AbortSignal.timeout(900),
+    });
+    const data = await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  }
+}
+
 function buildCuratedAndVideoResults(query, type) {
   const q = query.trim();
   const encoded = encodeURIComponent(q);
@@ -1285,6 +1304,21 @@ function createRequestHandler(dataDir) {
     }
 
     if (pathname === '/api/voice/token') {
+      const body = method === 'POST' ? await readJsonBody(req) : null;
+      const bridgeRes = await proxyLocalBridgeApi(
+        rawUrl.startsWith('/api/') ? rawUrl : '/api/voice/token',
+        method,
+        body
+      );
+      if (bridgeRes.ok && bridgeRes.data && bridgeRes.data.token) {
+        sendJson(res, 200, {
+          ok: true,
+          selfHosted: true,
+          ...bridgeRes.data,
+          url: bridgeRes.data.url || 'wss://chat.protutech.vip/rtc',
+        });
+        return;
+      }
       sendJson(res, 200, {
         ok: true,
         selfHosted: true,
@@ -1296,8 +1330,29 @@ function createRequestHandler(dataDir) {
 
     if (pathname === '/api/minecraft/rcon' && method === 'POST') {
       const body = await readJsonBody(req);
+      const bridgeRes = await proxyLocalBridgeApi('/api/minecraft/rcon', 'POST', body);
+      if (bridgeRes.ok && bridgeRes.data && bridgeRes.data.status === 'success') {
+        sendJson(res, 200, bridgeRes.data);
+        return;
+      }
       const response = simulateMinecraftRcon(body.command);
       sendJson(res, 200, { ok: true, server_id: body.server_id, response });
+      return;
+    }
+
+    if (pathname === '/api/auto-setup' || pathname.startsWith('/api/qr/')) {
+      const body = method === 'POST' ? await readJsonBody(req) : null;
+      const bridgeRes = await proxyLocalBridgeApi(rawUrl, method, body);
+      if (bridgeRes.ok && bridgeRes.data) {
+        sendJson(res, bridgeRes.status || 200, bridgeRes.data);
+        return;
+      }
+      sendJson(res, 200, {
+        status: 'success',
+        selfHosted: true,
+        mode: db.mode,
+        message: 'Self-hosted engine active without requiring remote Matrix setup.',
+      });
       return;
     }
 
@@ -1961,6 +2016,20 @@ function createRequestHandler(dataDir) {
           return;
         }
       }
+
+      const bridgeRes = await proxyLocalBridgeApi('/api/discord/guilds', 'GET');
+      if (bridgeRes.ok && Array.isArray(bridgeRes.data?.guilds) && bridgeRes.data.guilds.length > 0) {
+        const bridgeMap = new Map(bridgeRes.data.guilds.map((g) => [String(g.id), g]));
+        for (const g of db.discordCatalog.guilds) {
+          if (!bridgeMap.has(String(g.id))) bridgeMap.set(String(g.id), g);
+        }
+        sendJson(res, 200, {
+          guilds: Array.from(bridgeMap.values()),
+          source: 'proxmox_mautrix_hybrid',
+        });
+        return;
+      }
+
       sendJson(res, 200, { guilds: db.discordCatalog.guilds, source: 'hybrid_local' });
       return;
     }
@@ -1987,6 +2056,21 @@ function createRequestHandler(dataDir) {
           return;
         }
       }
+
+      if (guildId) {
+        const bridgeRes = await proxyLocalBridgeApi(
+          `/api/discord/channels?guild_id=${encodeURIComponent(guildId)}`,
+          'GET'
+        );
+        if (bridgeRes.ok && Array.isArray(bridgeRes.data?.channels) && bridgeRes.data.channels.length > 0) {
+          sendJson(res, 200, {
+            channels: bridgeRes.data.channels,
+            source: 'proxmox_mautrix_hybrid',
+          });
+          return;
+        }
+      }
+
       const channels = db.discordCatalog.channelsByGuild[guildId] || [];
       sendJson(res, 200, { channels, source: 'hybrid_local' });
       return;
@@ -2016,14 +2100,31 @@ function createRequestHandler(dataDir) {
           return;
         }
       }
+
+      const bridgeRes = await proxyLocalBridgeApi('/api/discord/dms', 'GET');
+      if (bridgeRes.ok && Array.isArray(bridgeRes.data?.dms) && bridgeRes.data.dms.length > 0) {
+        const dmMap = new Map(bridgeRes.data.dms.map((d) => [String(d.id), d]));
+        for (const d of db.discordCatalog.dms) {
+          if (!dmMap.has(String(d.id))) dmMap.set(String(d.id), d);
+        }
+        sendJson(res, 200, {
+          dms: Array.from(dmMap.values()),
+          source: 'proxmox_mautrix_hybrid',
+        });
+        return;
+      }
+
       sendJson(res, 200, { dms: db.discordCatalog.dms, source: 'hybrid_local' });
       return;
     }
 
     if (pathname === '/api/discord/bridge' && method === 'POST') {
       const body = await readJsonBody(req);
+      const bridgeRes = await proxyLocalBridgeApi('/api/discord/bridge', 'POST', body);
       const bridgeType = body.type || 'server';
-      const bridgedItems = [];
+      const bridgedItems = Array.isArray(bridgeRes.data?.bridged_items)
+        ? [...bridgeRes.data.bridged_items]
+        : [];
 
       if (bridgeType === 'dm' || bridgeType === 'group') {
         const targetId = String(body.target_id || body.channel_ids?.[0] || `dm_${Date.now()}`);
@@ -2175,7 +2276,10 @@ function createRequestHandler(dataDir) {
 
     if (pathname === '/api/discord/create-local-room' && method === 'POST') {
       const body = await readJsonBody(req);
-      const roomId = `!local_${Date.now()}_${crypto.randomBytes(3).toString('hex')}:local.protutech`;
+      const bridgeRes = await proxyLocalBridgeApi('/api/discord/create-local-room', 'POST', body);
+      const roomId =
+        bridgeRes.data?.room_id ||
+        `!local_${Date.now()}_${crypto.randomBytes(3).toString('hex')}:local.protutech`;
       const newRoom = {
         id: roomId,
         name: String(body.name || 'new-chat'),
@@ -2788,7 +2892,7 @@ function createRequestHandler(dataDir) {
   };
 }
 
-function startStandaloneServer(port = 4175, dataDir = DEFAULT_DATA_DIR) {
+function startStandaloneServer(port = 4175, dataDir = DEFAULT_DATA_DIR, host = '127.0.0.1') {
   const handler = createRequestHandler(dataDir);
   const server = http.createServer((req, res) => {
     void Promise.resolve(handler(req, res)).catch((err) => {
@@ -2807,8 +2911,8 @@ function startStandaloneServer(port = 4175, dataDir = DEFAULT_DATA_DIR) {
     }
   });
 
-  server.listen(port, '127.0.0.1', () => {
-    console.log(`[selfHostedServer] Listening on http://127.0.0.1:${port} (dataDir=${dataDir})`);
+  server.listen(port, host, () => {
+    console.log(`[selfHostedServer] Listening on http://${host}:${port} (dataDir=${dataDir})`);
   });
 
   return server;
@@ -2817,7 +2921,8 @@ function startStandaloneServer(port = 4175, dataDir = DEFAULT_DATA_DIR) {
 if (require.main === module) {
   const port = Number(process.env.PORT || 4175);
   const dataDir = process.env.DATA_DIR || DEFAULT_DATA_DIR;
-  startStandaloneServer(port, dataDir);
+  const host = process.env.HOST || '0.0.0.0';
+  startStandaloneServer(port, dataDir, host);
 }
 
 module.exports = {

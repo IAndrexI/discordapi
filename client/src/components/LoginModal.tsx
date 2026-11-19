@@ -170,6 +170,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <p className="text-xs text-[var(--text-muted)]">
             Choose your engine mode and sign in instantly to your self-hosted node.
           </p>
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 font-mono">
+            <Server className="w-3 h-3 text-emerald-400" />
+            <span>Proxmox Self-Hosted (https://chat.protutech.vip)</span>
+          </div>
         </div>
 
         {/* Engine Mode Selector */}

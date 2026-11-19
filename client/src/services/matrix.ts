@@ -115,11 +115,15 @@ export function getServerBaseUrl(): string {
 
   const { protocol, hostname } = window.location;
   if (protocol === 'file:' || protocol === 'tauri:' || !hostname) {
+    const customUrl = getCustomServerUrl();
+    if (customUrl) {
+      return customUrl;
+    }
     return electronUrl || FALLBACK_LOCAL_SERVER;
   }
 
   const customUrl = getCustomServerUrl();
-  if (customUrl && getEngineMode() === 'discord_proxy') {
+  if (customUrl) {
     return customUrl;
   }
 
