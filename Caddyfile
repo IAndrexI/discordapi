@@ -120,6 +120,12 @@
     handle /_matrix/* {
         reverse_proxy localhost:8007
     }
+    handle /_synapse/* {
+        reverse_proxy localhost:8007
+    }
+    handle /.well-known/* {
+        reverse_proxy localhost:8007
+    }
     handle /livekit/* {
         uri strip_prefix /livekit
         reverse_proxy localhost:7880
