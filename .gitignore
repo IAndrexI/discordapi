@@ -4,4 +4,11 @@ __pycache__/
 Thumbs.db
 node_modules/
 dist/
+dist-electron/
+server-data/
+downloads/*.exe
+downloads/*.appx
+downloads/*.AppImage
+downloads/*.deb
+downloads/*.tar.gz
 .vite/

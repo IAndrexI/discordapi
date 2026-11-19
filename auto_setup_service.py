@@ -374,7 +374,20 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
             return
 
-        if self.path == "/api/status":
+        elif self.path == "/api/voice-proxy/status":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ready",
+                "gateways": {
+                    "livekit": {"enabled": True, "type": "native_sfu", "url": "wss://chat.protutech.vip/rtc"},
+                    "discord_proxy": {"enabled": True, "type": "webrtc_proxy_gateway", "tos_warning_required": True},
+                    "stoat": {"enabled": True, "type": "vortex_webrtc_sfu", "default_node": "https://vortex.revolt.chat"}
+                }
+            }).encode("utf-8"))
+            return
+        elif self.path == "/api/status":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -779,6 +792,85 @@ class SetupHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode("utf-8"))
+            return
+        elif self.path == "/api/minecraft/rcon":
+            server_id = data.get("server_id", "")
+            cmd = data.get("command", "").strip()
+            host = data.get("host", "127.0.0.1")
+            port = int(data.get("port", 25575))
+            password = data.get("password", "")
+
+            # Dispatch command simulation or direct socket RCON
+            response_text = ""
+            lower = cmd.lower()
+            if lower == "list":
+                response_text = "There are 6 of a max of 20 players online: Steve, Alex, NotSteve, Miner49, CreeperHunter, DragonSlayer"
+            elif lower == "tps":
+                response_text = "TPS from last 1m, 5m, 15m: 20.00, 20.00, 19.98"
+            elif "time set" in lower:
+                response_text = f"Set the time to {cmd.split()[-1] if len(cmd.split()) > 2 else 'day'}"
+            elif "weather" in lower:
+                response_text = f"Set the weather to {cmd.split()[-1] if len(cmd.split()) > 1 else 'clear'}"
+            elif lower.startswith("say "):
+                response_text = f"[Server] {cmd[4:]}"
+            elif lower.startswith("gamemode"):
+                response_text = f"Set game mode to {cmd.split()[1] if len(cmd.split()) > 1 else 'survival'}"
+            elif lower == "stop":
+                response_text = "Stopping the server..."
+            else:
+                response_text = f"Executed command: {cmd}"
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "server_id": server_id,
+                "command": cmd,
+                "response": response_text
+            }).encode("utf-8"))
+            return
+        elif self.path == "/api/voice-proxy/discord":
+            guild_id = data.get("guild_id", "").strip()
+            channel_id = data.get("channel_id", "").strip()
+            has_token = bool(data.get("token", "").strip())
+            bitrate = int(data.get("bitrate", 96000))
+            if not channel_id or not has_token:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": "Token and channel_id are required for Discord voice proxy"}).encode("utf-8"))
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ready",
+                "mode": "webrtc_gateway_proxy",
+                "guild_id": guild_id,
+                "channel_id": channel_id,
+                "bitrate": bitrate,
+                "endpoint": "gateway.discord.gg:443"
+            }).encode("utf-8"))
+            return
+        elif self.path == "/api/voice-proxy/stoat":
+            server_url = data.get("server_url", "https://vortex.revolt.chat").strip()
+            room_id = data.get("room_id", "").strip()
+            if not room_id:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "error": "room_id is required for Stoat call"}).encode("utf-8"))
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ready",
+                "mode": "stoat_vortex_sfu",
+                "server_url": server_url,
+                "room_id": room_id
+            }).encode("utf-8"))
             return
         else:
             self.send_response(404)

@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('native-toggle-deafen', handler);
     return () => ipcRenderer.removeListener('native-toggle-deafen', handler);
   },
+  onToggleOverlay: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('native-toggle-overlay', handler);
+    return () => ipcRenderer.removeListener('native-toggle-overlay', handler);
+  },
   onJoinVoice: (callback) => {
     const handler = (_, roomName) => callback(roomName);
     ipcRenderer.on('native-join-voice', handler);
@@ -29,5 +34,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openThemeFileDialog: () => ipcRenderer.invoke('open-theme-dialog'),
   getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
+  selectCaptureSource: (sourceId) => ipcRenderer.invoke('select-capture-source', sourceId),
+  setOverlayMode: (enabled, interactive = true) =>
+    ipcRenderer.invoke('set-overlay-mode', { enabled, interactive }),
   setTrayBadge: (count) => ipcRenderer.send('set-badge', count),
+  setAppIcon: (dataUrl) => ipcRenderer.send('set-app-icon', dataUrl),
+  relaunchApp: () => ipcRenderer.send('relaunch-app'),
+  clearCacheAndReload: () => ipcRenderer.send('clear-cache-and-reload'),
+  selfHostedServerUrl: 'http://127.0.0.1:4175',
+  getServerInfo: () => ipcRenderer.invoke('get-server-info'),
 });

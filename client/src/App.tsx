@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { ServerRail } from './components/ServerRail';
 import { ChannelSidebar } from './components/ChannelSidebar';
@@ -6,160 +6,1021 @@ import { ChatArea } from './components/ChatArea';
 import { VoicePanel } from './components/VoicePanel';
 import { UserBar } from './components/UserBar';
 import { VoiceStage } from './components/VoiceStage';
+import { SharedBrowserStage } from './components/SharedBrowserStage';
 import { MemberList } from './components/MemberList';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, type SettingsTab } from './components/SettingsModal';
 import { LoginModal } from './components/LoginModal';
 import { AddConversationModal, type AddModalTab } from './components/AddConversationModal';
+import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { MinecraftConsoleModal } from './components/MinecraftConsoleModal';
+import { VoiceProxyModal } from './components/VoiceProxyModal';
+import { InGameOverlay } from './components/InGameOverlay';
+import { MicrosoftStoreModal } from './components/MicrosoftStoreModal';
+import { DiscordHubModal, type DiscordHubTab } from './components/DiscordHubModal';
+import { EquicordModal } from './components/EquicordModal';
+import { ScriptingModal } from './components/ScriptingModal';
+import { LargeFileShareModal } from './components/LargeFileShareModal';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
+import { Plus, Hash, Volume2, X, Sparkles, AlertCircle } from 'lucide-react';
 
 import { matrix } from './services/matrix';
 import { livekit } from './services/livekit';
-import type { MatrixRoom, DiscordGuild, MatrixMessage, VoiceParticipant } from './types';
+import { voiceProxy } from './services/voiceProxy';
+import { desktopBridge } from './services/desktopBridge';
+import { overlayService } from './services/overlay';
+import { userProfileService, type UserProfileCustomizations } from './services/userProfile';
+import { vencord } from './services/vencord';
+import { scriptEngine } from './services/scriptEngine';
+import type {
+  MatrixRoom,
+  DiscordGuild,
+  MatrixMessage,
+  VoiceParticipant,
+  MatrixUser,
+  EngineMode,
+} from './types';
+
+interface MatrixModeBridge {
+  getEngineMode?: () => EngineMode;
+  setEngineMode?: (mode: EngineMode) => void;
+}
+
+function readInitialEngineMode(): EngineMode {
+  try {
+    const ext = matrix as unknown as MatrixModeBridge;
+    const fromMatrix = ext.getEngineMode?.();
+    if (fromMatrix) return fromMatrix;
+    const saved = localStorage.getItem('protutech_engine_mode') as EngineMode | null;
+    if (saved === 'hybrid' || saved === 'proprietary' || saved === 'discord_proxy') {
+      return saved;
+    }
+  } catch {
+    // Ignore storage failures
+  }
+  return 'hybrid';
+}
+
+const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
+  {
+    id: 'guest_welcome',
+    name: 'welcome-sandbox',
+    topic: 'Sample real-time texting in Protutech. Send any message or /ping below!',
+    isDirect: false,
+    isGroupChat: false,
+    serverKind: 'proprietary',
+    members: [
+      {
+        userId: '@protutech_bot:local.protutech',
+        displayName: 'Protutech Assistant',
+        presence: 'online',
+        statusMsg: 'Echo Test Bot (8ms)',
+      },
+      {
+        userId: '@guest:local.protutech',
+        displayName: 'Guest Sampler (You)',
+        presence: 'online',
+        statusMsg: 'Sampling Protutech Sandbox',
+      },
+    ],
+  },
+  {
+    id: 'guest_voice_loopback',
+    name: '🎙️-voice-loopback-test',
+    topic: 'Test microphone loopback, camera video, 1080p60 screen share, and Co-Browse.',
+    isDirect: false,
+    isGroupChat: false,
+    isVoice: true,
+    serverKind: 'proprietary',
+    members: [
+      {
+        userId: '@guest:local.protutech',
+        displayName: 'Guest Sampler (You)',
+        presence: 'online',
+      },
+    ],
+  },
+  {
+    id: 'guest_video_test',
+    name: '📹-video-test',
+    topic: 'Test live camera video feed, mirror orientation, and virtual background presets.',
+    isDirect: false,
+    isGroupChat: false,
+    isVoice: true,
+    serverKind: 'proprietary',
+    members: [
+      {
+        userId: '@guest:local.protutech',
+        displayName: 'Guest Sampler (You)',
+        presence: 'online',
+      },
+    ],
+  },
+];
+
+const DEFAULT_GUEST_GUILD: DiscordGuild = {
+  id: 'guest_demo_server',
+  name: 'Protutech Guest Sandbox',
+  channels: DEFAULT_GUEST_ROOMS,
+  hasVoice: true,
+  serverKind: 'proprietary',
+  isProprietary: true,
+};
+
+const DEFAULT_GUEST_MESSAGES: MatrixMessage[] = [
+  {
+    id: 'gmsg_1',
+    roomId: 'guest_welcome',
+    sender: '@protutech_bot:local.protutech',
+    senderName: 'Protutech Assistant',
+    body: '👋 Welcome to Protutech! You are viewing the client in Guest Mode with full local voice, camera, screen share, scripts, and large file transfer enabled.',
+    timestamp: Date.now() - 30000,
+    source: 'app',
+  },
+  {
+    id: 'gmsg_2',
+    roomId: 'guest_welcome',
+    sender: '@protutech_bot:local.protutech',
+    senderName: 'Protutech Assistant',
+    body: '💬 Try `/ping`, `/roll 20`, `/mc list`, or click **Scripts/MC API**, **Co-Browse Search**, **Quests & Hub**, or **📦 Large File**!',
+    timestamp: Date.now() - 15000,
+    source: 'app',
+  },
+];
+
+function isProprietaryGuild(guild: DiscordGuild): boolean {
+  if (guild.serverKind === 'proprietary' || guild.isProprietary) return true;
+  if (guild.serverKind === 'discord' || guild.isAlwaysSynced) return false;
+  const lower = `${guild.id} ${guild.name}`.toLowerCase();
+  return !lower.includes('discord') && !lower.includes('bridged');
+}
+
+function buildTempRoom(
+  name: string,
+  channelType: 'text' | 'voice',
+  guildId: string
+): MatrixRoom {
+  return {
+    id: `temp_${Date.now()}`,
+    name,
+    topic: 'Ephemeral channel — will disappear when this browser tab is closed',
+    isDirect: false,
+    isGroupChat: false,
+    isVoice: channelType === 'voice',
+    guildId,
+    guildName: 'Temporary Session',
+    serverKind: 'proprietary',
+    members: [
+      {
+        userId: '@guest:local.protutech',
+        displayName: 'Guest Sampler (You)',
+        presence: 'online',
+      },
+    ],
+  };
+}
+
+function getInitialHydration(): {
+  rooms: MatrixRoom[];
+  guilds: DiscordGuild[];
+  activeGuildId: string | null;
+  activeRoomId: string | null;
+  messages: MatrixMessage[];
+} {
+  const isGuest =
+    typeof sessionStorage !== 'undefined' &&
+    sessionStorage.getItem('protutech_guest_mode') === 'true';
+
+  if (isGuest) {
+    const savedTempRooms = sessionStorage.getItem('protutech_temp_rooms');
+    const tempRooms: MatrixRoom[] = savedTempRooms ? JSON.parse(savedTempRooms) : [];
+    const allRooms = [...DEFAULT_GUEST_ROOMS, ...tempRooms];
+    return {
+      rooms: allRooms,
+      guilds: [{ ...DEFAULT_GUEST_GUILD, channels: allRooms }],
+      activeGuildId: 'guest_demo_server',
+      activeRoomId: 'guest_welcome',
+      messages: DEFAULT_GUEST_MESSAGES,
+    };
+  }
+
+  if (!matrix.isAuthenticated()) {
+    return {
+      rooms: [],
+      guilds: [],
+      activeGuildId: null,
+      activeRoomId: null,
+      messages: [],
+    };
+  }
+
+  const cached = matrix.getCachedRooms();
+  const initialRoomId = cached.rooms[0]?.id || null;
+  const initialGuildId =
+    cached.rooms[0]?.guildId ||
+    cached.guilds.find(g => g.channels.some(c => c.id === initialRoomId))?.id ||
+    cached.guilds[0]?.id ||
+    null;
+  const initialMessages = initialRoomId ? matrix.getCachedMessages(initialRoomId) : [];
+
+  return {
+    rooms: cached.rooms,
+    guilds: cached.guilds,
+    activeGuildId: initialGuildId,
+    activeRoomId: initialRoomId,
+    messages: initialMessages,
+  };
+}
 
 export const App: React.FC = () => {
+  const [initialHydration] = useState(getInitialHydration);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(matrix.isAuthenticated());
-  const [rooms, setRooms] = useState<MatrixRoom[]>([]);
-  const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
-  const [activeGuildId, setActiveGuildId] = useState<string | null>(null);
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<MatrixMessage[]>([]);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(() => {
+    return (
+      typeof sessionStorage !== 'undefined' &&
+      sessionStorage.getItem('protutech_guest_mode') === 'true'
+    );
+  });
+  const [engineMode, setEngineMode] = useState<EngineMode>(readInitialEngineMode);
+
+  const [isCreateTempChannelOpen, setIsCreateTempChannelOpen] = useState(false);
+  const [tempChannelName, setTempChannelName] = useState('');
+  const [tempChannelType, setTempChannelType] = useState<'text' | 'voice'>('text');
+  const [tempChannelError, setTempChannelError] = useState<string | null>(null);
+
+  const [rooms, setRooms] = useState<MatrixRoom[]>(initialHydration.rooms);
+  const [guilds, setGuilds] = useState<DiscordGuild[]>(initialHydration.guilds);
+  const [activeGuildId, setActiveGuildId] = useState<string | null>(initialHydration.activeGuildId);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(initialHydration.activeRoomId);
+  const [messages, setMessages] = useState<MatrixMessage[]>(initialHydration.messages);
 
   // Voice state
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipant[]>([]);
-  const [rtcPing, setRtcPing] = useState<number>(24);
+  const [rtcPing, setRtcPing] = useState<number>(14);
   const [activeVoiceRoom, setActiveVoiceRoom] = useState<string | null>(null);
+
+  // Profile state
+  const [userProfile, setUserProfile] = useState<UserProfileCustomizations>(() =>
+    userProfileService.getProfile()
+  );
 
   // UI toggles & Modals
   const [showMemberList, setShowMemberList] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('themes');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalTab, setAddModalTab] = useState<AddModalTab>('server');
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [activeActivity, setActiveActivity] = useState<ActivityItem | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<MatrixUser | null>(null);
+  const [isMinecraftConsoleOpen, setIsMinecraftConsoleOpen] = useState(false);
+  const [isVoiceProxyOpen, setIsVoiceProxyOpen] = useState(false);
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
 
-  // Real-time live auto-update sentinel
-  const { updateAvailable, newVersion } = useAutoUpdater();
+  // Newly wired Hubs, Scripts, Large Files, & Co-Browse
+  const [isDiscordHubOpen, setIsDiscordHubOpen] = useState(false);
+  const [discordHubTab, setDiscordHubTab] = useState<DiscordHubTab>('quests');
+  const [isEquicordOpen, setIsEquicordOpen] = useState(false);
+  const [isScriptsOpen, setIsScriptsOpen] = useState(false);
+  const [isLargeFileModalOpen, setIsLargeFileModalOpen] = useState(false);
+  const [isCoBrowseOpen, setIsCoBrowseOpen] = useState(false);
+  const [coBrowseInitialQuery, setCoBrowseInitialQuery] = useState<string | undefined>(undefined);
 
-  // Native Electron Shortcuts Listener
+  const activeRoomIdRef = useRef<string | null>(activeRoomId);
+  const roomsRef = useRef<MatrixRoom[]>(rooms);
+  const locallyDeletedIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (!window.electronAPI) return;
-    const unsubMute = window.electronAPI.onToggleMute?.(() => {
-      // Toggle mute
-      livekit.setMute(!livekit.isMuted);
-    });
-    const unsubDeafen = window.electronAPI.onToggleDeafen?.(() => {
-      livekit.setDeafened(!livekit.isDeafened);
-    });
-    const unsubVoice = window.electronAPI.onJoinVoice?.((roomName: string) => {
-      const userId = matrix.getUserId() || '@andrex:chat.protutech.vip';
-      const displayName = userId.split(':')[0].replace('@', '');
-      livekit.joinVoice(roomName, userId, displayName);
-      setActiveVoiceRoom(roomName);
-    });
+    activeRoomIdRef.current = activeRoomId;
+  }, [activeRoomId]);
 
-    return () => {
-      unsubMute?.();
-      unsubDeafen?.();
-      unsubVoice?.();
-    };
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
+
+  // Real-time live auto-update sentinel with Discord-style restart
+  const { updateAvailable, newVersion, restartAndApplyUpdate } = useAutoUpdater();
+
+  // Subscribe to User Profile customizations
+  useEffect(() => {
+    const unsub = userProfileService.subscribe(setUserProfile);
+    return unsub;
   }, []);
 
-  const loadData = async (targetId?: string) => {
-    const data = await matrix.loadInitialRooms();
-    setRooms(data.rooms);
-    setGuilds(data.guilds);
-
-    if (targetId) {
-      const foundGuild = data.guilds.find(g => g.id === targetId);
-      if (foundGuild) {
-        setActiveGuildId(foundGuild.id);
-        if (foundGuild.channels.length > 0) {
-          setActiveRoomId(foundGuild.channels[0].id);
-        }
-      } else {
-        setActiveRoomId(targetId);
-      }
-    } else if (data.rooms.length > 0 && !activeRoomId) {
-      setActiveRoomId(data.rooms[0].id);
-    }
-  };
-
-  // Initialize data on auth
+  // Sync Overlay config changes to native DesktopBridge (Electron / Tauri)
   useEffect(() => {
-    if (!isAuthenticated) return;
-    loadData();
-
-    // Subscribe to incoming messages
-    const unsubscribeMessages = matrix.onMessage((rId, newMsg) => {
-      setMessages(prev => (rId === activeRoomId ? [...prev, newMsg] : prev));
+    const unsub = overlayService.subscribe(cfg => {
+      if (desktopBridge.isDesktopApp()) {
+        void desktopBridge.setOverlayMode(cfg.enabled, cfg.isInteractive);
+      }
     });
+    return unsub;
+  }, []);
 
-    // Subscribe to LiveKit voice state
+  // Always subscribe to LiveKit & VoiceProxy regardless of Guest, Proprietary, or Hybrid mode!
+  useEffect(() => {
     const unsubscribeVoice = livekit.subscribe((participants, ping) => {
+      if (voiceProxy.getSession().status === 'connected') return;
       setVoiceParticipants(participants);
       setRtcPing(ping);
       setActiveVoiceRoom(livekit.getActiveRoom());
     });
 
+    const unsubscribeVoiceProxy = voiceProxy.subscribe(session => {
+      if (session.status === 'connected') {
+        setActiveVoiceRoom(session.targetName);
+        setVoiceParticipants(session.participants);
+        setRtcPing(session.ping);
+      } else if (session.status === 'disconnected') {
+        if (voiceProxy.getConfig().activeProvider !== 'native_livekit') {
+          setActiveVoiceRoom(livekit.getActiveRoom());
+        }
+      }
+    });
+
     return () => {
-      unsubscribeMessages();
       unsubscribeVoice();
+      unsubscribeVoiceProxy();
     };
-  }, [isAuthenticated, activeRoomId]);
+  }, []);
 
-  // Load messages when active room changes
+  // Auto-Idle Inactivity Detector (5 minutes idle timeout)
   useEffect(() => {
-    if (!activeRoomId || !isAuthenticated) return;
+    let idleTimer: number;
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
-    const fetchMsgs = async () => {
-      const list = await matrix.fetchMessages(activeRoomId);
-      setMessages(list);
+    const resetIdleTimer = () => {
+      const savedPref = localStorage.getItem('protutech_user_presence');
+      if (savedPref === 'auto_idle') {
+        localStorage.setItem('protutech_user_presence', 'online');
+        matrix.setPresence('online');
+      }
+
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        const currentPref = localStorage.getItem('protutech_user_presence');
+        if (currentPref === 'online' || !currentPref) {
+          localStorage.setItem('protutech_user_presence', 'auto_idle');
+          matrix.setPresence('idle', 'Away from keyboard (Auto-Idle)');
+        }
+      }, IDLE_TIMEOUT_MS);
     };
 
-    fetchMsgs();
-  }, [activeRoomId, isAuthenticated]);
+    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    activityEvents.forEach(evt => window.addEventListener(evt, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      window.clearTimeout(idleTimer);
+      activityEvents.forEach(evt => window.removeEventListener(evt, resetIdleTimer));
+    };
+  }, []);
+
+  // Native Desktop Shortcuts Listener (Electron & Tauri via desktopBridge + Web fallback hotkey)
+  useEffect(() => {
+    const unsubMute = desktopBridge.onToggleMute(() => {
+      if (voiceProxy.getSession().status === 'connected') {
+        const next = !livekit.isMuted;
+        livekit.isMuted = next;
+        voiceProxy.setMute(next);
+      } else {
+        void livekit.setMute(!livekit.isMuted);
+      }
+    });
+
+    const unsubDeafen = desktopBridge.onToggleDeafen(() => {
+      if (voiceProxy.getSession().status === 'connected') {
+        const next = !livekit.isDeafened;
+        livekit.isDeafened = next;
+        voiceProxy.setDeafen(next);
+      } else {
+        livekit.setDeafened(!livekit.isDeafened);
+      }
+    });
+
+    const unsubVoice = desktopBridge.onJoinVoice((roomName: string) => {
+      const userId = matrix.getUserId() || '@andrex:local.protutech';
+      const profile = userProfileService.getProfile();
+      const displayName =
+        profile.displayName.trim() || userId.split(':')[0].replace('@', '');
+      void livekit.joinVoice(roomName, userId, displayName);
+      setActiveVoiceRoom(roomName);
+    });
+
+    const unsubOverlay = desktopBridge.onToggleOverlay(() => {
+      overlayService.toggleEnabled();
+    });
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (desktopBridge.isDesktopApp()) return;
+      if (e.shiftKey && (e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        overlayService.toggleEnabled();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      unsubMute();
+      unsubDeafen();
+      unsubVoice();
+      unsubOverlay();
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  const handleInjectedMessage = useCallback((msg: MatrixMessage) => {
+    if (msg.roomId === activeRoomIdRef.current) {
+      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
+    }
+  }, []);
+
+  const handleEnterGuestMode = () => {
+    sessionStorage.setItem('protutech_guest_mode', 'true');
+    setIsGuestMode(true);
+    const savedTempRooms = sessionStorage.getItem('protutech_temp_rooms');
+    const tempRooms: MatrixRoom[] = savedTempRooms ? JSON.parse(savedTempRooms) : [];
+    const allRooms = [...DEFAULT_GUEST_ROOMS, ...tempRooms];
+    setRooms(allRooms);
+    setGuilds([
+      {
+        ...DEFAULT_GUEST_GUILD,
+        channels: allRooms,
+      },
+    ]);
+    setActiveGuildId('guest_demo_server');
+    setActiveRoomId('guest_welcome');
+    setMessages(DEFAULT_GUEST_MESSAGES);
+  };
+
+  const handleExitGuestMode = () => {
+    sessionStorage.removeItem('protutech_guest_mode');
+    sessionStorage.removeItem('protutech_temp_rooms');
+    void livekit.leaveVoice();
+    setActiveVoiceRoom(null);
+    setVoiceParticipants([]);
+    setIsGuestMode(false);
+    setRooms([]);
+    setGuilds([]);
+    setActiveRoomId(null);
+    setMessages([]);
+  };
+
+  const handleCreateTempChannel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tempChannelName.trim()) {
+      setTempChannelError('Channel name is required.');
+      return;
+    }
+
+    const cleanName =
+      tempChannelType === 'text' && !tempChannelName.startsWith('#')
+        ? `#${tempChannelName.trim().toLowerCase().replace(/\s+/g, '-')}`
+        : tempChannelName.trim();
+
+    const newRoom = buildTempRoom(
+      cleanName,
+      tempChannelType,
+      activeGuildId || 'guest_demo_server'
+    );
+
+    const savedTempRooms = sessionStorage.getItem('protutech_temp_rooms');
+    const existingTemps: MatrixRoom[] = savedTempRooms ? JSON.parse(savedTempRooms) : [];
+    const updatedTemps = [...existingTemps, newRoom];
+    sessionStorage.setItem('protutech_temp_rooms', JSON.stringify(updatedTemps));
+
+    const updatedRooms = [...rooms, newRoom];
+    setRooms(updatedRooms);
+
+    setGuilds(prevGuilds =>
+      prevGuilds.map(g =>
+        g.id === (activeGuildId || 'guest_demo_server')
+          ? { ...g, channels: [...g.channels, newRoom] }
+          : g
+      )
+    );
+
+    setActiveRoomId(newRoom.id);
+    if (tempChannelType === 'voice') {
+      void handleJoinVoice(newRoom);
+    }
+
+    setIsCreateTempChannelOpen(false);
+    setTempChannelName('');
+    setTempChannelError(null);
+  };
+
+  const loadData = useCallback(
+    async (targetId?: string, overrideMode?: EngineMode) => {
+      const effectiveMode = overrideMode || engineMode;
+
+      if (isGuestMode) {
+        const savedTempRooms = sessionStorage.getItem('protutech_temp_rooms');
+        const tempRooms: MatrixRoom[] = savedTempRooms ? JSON.parse(savedTempRooms) : [];
+        const allRooms = [...DEFAULT_GUEST_ROOMS, ...tempRooms];
+        setRooms(allRooms);
+        setGuilds([
+          {
+            ...DEFAULT_GUEST_GUILD,
+            channels: allRooms,
+          },
+        ]);
+        setActiveGuildId('guest_demo_server');
+        if (targetId) {
+          setActiveRoomId(targetId);
+        } else if (!activeRoomIdRef.current) {
+          setActiveRoomId('guest_welcome');
+        }
+        return;
+      }
+
+      // 1. Instant cache hydration before network finishes
+      const cached = matrix.getCachedRooms();
+      if (cached.rooms.length > 0 || cached.guilds.length > 0) {
+        setRooms(prev => (prev.length === 0 ? cached.rooms : prev));
+        setGuilds(prev => (prev.length === 0 ? cached.guilds : prev));
+        if (!activeRoomIdRef.current && cached.rooms.length > 0) {
+          const firstRoom = cached.rooms[0];
+          setActiveRoomId(firstRoom.id);
+          setMessages(matrix.getCachedMessages(firstRoom.id));
+        }
+      }
+
+      // 2. Network sync
+      const data = await matrix.loadInitialRooms();
+      setRooms(data.rooms);
+      setGuilds(data.guilds);
+
+      if (targetId) {
+        const foundGuild = data.guilds.find(g => g.id === targetId);
+        if (foundGuild) {
+          setActiveGuildId(foundGuild.id);
+          if (foundGuild.channels.length > 0) {
+            setActiveRoomId(foundGuild.channels[0].id);
+          }
+        } else {
+          setActiveRoomId(targetId);
+        }
+      } else {
+        const visibleGuilds =
+          effectiveMode === 'proprietary'
+            ? data.guilds.filter(isProprietaryGuild)
+            : data.guilds;
+
+        setActiveGuildId(prevGuildId => {
+          if (prevGuildId && visibleGuilds.some(g => g.id === prevGuildId)) {
+            return prevGuildId;
+          }
+          return visibleGuilds[0]?.id || null;
+        });
+
+        const currentActiveRoomValid =
+          activeRoomIdRef.current &&
+          data.rooms.some(r => r.id === activeRoomIdRef.current) &&
+          (effectiveMode !== 'proprietary' ||
+            (() => {
+              const r = data.rooms.find(rm => rm.id === activeRoomIdRef.current);
+              if (!r?.guildId) return true;
+              const g = data.guilds.find(gd => gd.id === r.guildId);
+              return g ? isProprietaryGuild(g) : true;
+            })());
+
+        if (!currentActiveRoomValid) {
+          const firstVisibleChannel =
+            visibleGuilds[0]?.channels.find(c => !c.isVoice && c.id !== 'livekit_lounge') ||
+            visibleGuilds[0]?.channels[0] ||
+            data.rooms[0];
+          if (firstVisibleChannel) {
+            setActiveRoomId(firstVisibleChannel.id);
+          }
+        }
+      }
+    },
+    [isGuestMode, engineMode]
+  );
+
+  // Initialize rooms & real-time subscriptions once per auth session
+  useEffect(() => {
+    if (isGuestMode) {
+      return;
+    }
+
+    if (!isAuthenticated) return;
+    let disposed = false;
+
+    const initSession = async () => {
+      if (!disposed) {
+        await loadData();
+      }
+    };
+    void initSession();
+
+    const unsubscribeMessages = matrix.onMessage((rId, incomingMsg) => {
+      const vencordExt = vencord as unknown as {
+        executeMessageReceiveHooks?: (m: MatrixMessage) => MatrixMessage;
+      };
+      const newMsg =
+        typeof vencordExt.executeMessageReceiveHooks === 'function'
+          ? vencordExt.executeMessageReceiveHooks(incomingMsg)
+          : incomingMsg;
+
+      if (rId === activeRoomIdRef.current) {
+        setMessages(prev => (prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]));
+      }
+
+      const targetRoom = roomsRef.current.find(r => r.id === rId);
+      const myUserId = matrix.getUserId();
+      if (newMsg.sender !== myUserId) {
+        void scriptEngine.processIncomingMessage(newMsg, targetRoom?.name, handleInjectedMessage);
+      }
+
+      const overlayCfg = overlayService.getConfig();
+      if (overlayCfg.enabled && overlayCfg.showChatToasts && newMsg.sender !== myUserId) {
+        overlayService.pushToast({
+          id: newMsg.id,
+          roomId: rId,
+          roomName: targetRoom?.name || 'channel',
+          senderName: newMsg.senderName,
+          body: newMsg.body || (newMsg.mediaType ? `[${newMsg.mediaType} attachment]` : ''),
+          source: newMsg.source || 'app',
+          timestamp: newMsg.timestamp,
+        });
+      }
+    });
+
+    const unsubscribeEdits = matrix.onEdit((rId, eventId, newBody) => {
+      if (rId === activeRoomIdRef.current) {
+        setMessages(prev =>
+          prev.map(m => (m.id === eventId ? { ...m, body: newBody, isEdited: true } : m))
+        );
+      }
+    });
+
+    const unsubscribeReactions = matrix.onReaction((rId, eventId, emoji, sender) => {
+      if (rId === activeRoomIdRef.current) {
+        setMessages(prev =>
+          prev.map(m => {
+            if (m.id !== eventId) return m;
+            const currentReactions = m.reactions ? { ...m.reactions } : {};
+            const existingUsers = currentReactions[emoji] || [];
+            if (existingUsers.includes(sender)) return m;
+            currentReactions[emoji] = [...existingUsers, sender];
+            return { ...m, reactions: currentReactions };
+          })
+        );
+      }
+    });
+
+    const unsubscribeRedactions = matrix.onRedaction((rId, eventId) => {
+      if (rId !== activeRoomIdRef.current) return;
+      const isLocallyDeleted = locallyDeletedIdsRef.current.has(eventId);
+      if (isLocallyDeleted) {
+        locallyDeletedIdsRef.current.delete(eventId);
+        setMessages(prev => prev.filter(m => m.id !== eventId));
+        return;
+      }
+
+      if (vencord.isPluginEnabled('messageLogger')) {
+        setMessages(prev =>
+          prev.map(m => (m.id === eventId ? { ...m, isDeleted: true } : m))
+        );
+      } else {
+        setMessages(prev => prev.filter(m => m.id !== eventId));
+      }
+    });
+
+    const unsubscribePresence = matrix.onPresence((uId, presence) => {
+      setRooms(prevRooms =>
+        prevRooms.map(r => ({
+          ...r,
+          members: r.members.map(m => (m.userId === uId ? { ...m, presence } : m)),
+        }))
+      );
+    });
+
+    const unsubscribeRoomsUpdated =
+      typeof (matrix as unknown as { onRoomsUpdated?: (cb: (data: { rooms: MatrixRoom[]; guilds: DiscordGuild[] }) => void) => () => void }).onRoomsUpdated === 'function'
+        ? (matrix as unknown as { onRoomsUpdated: (cb: (data: { rooms: MatrixRoom[]; guilds: DiscordGuild[] }) => void) => () => void }).onRoomsUpdated(
+            data => {
+              setRooms(data.rooms);
+              setGuilds(data.guilds);
+            }
+          )
+        : () => {};
+
+    return () => {
+      disposed = true;
+      unsubscribeMessages();
+      unsubscribeEdits();
+      unsubscribeReactions();
+      unsubscribeRedactions();
+      unsubscribePresence();
+      unsubscribeRoomsUpdated();
+    };
+  }, [isAuthenticated, isGuestMode, loadData, handleInjectedMessage]);
+
+  // Refresh room messages from network when activeRoomId changes
+  useEffect(() => {
+    if (isGuestMode || !activeRoomId || !isAuthenticated) return;
+
+    let cancelled = false;
+    const fetchMsgs = async () => {
+      const cachedMsgs = matrix.getCachedMessages(activeRoomId);
+      if (cachedMsgs.length > 0 && !cancelled) {
+        setMessages(cachedMsgs);
+      }
+      const list = await matrix.fetchMessages(activeRoomId);
+      if (!cancelled) {
+        setMessages(list);
+      }
+    };
+
+    void fetchMsgs();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoomId, isAuthenticated, isGuestMode]);
 
   const handleLogin = async (u: string, p: string) => {
     const success = await matrix.login(u, p);
     if (success) {
+      setEngineMode(readInitialEngineMode());
       setIsAuthenticated(true);
+      setIsGuestMode(false);
     }
     return success;
   };
 
   const handleLogout = () => {
-    livekit.leaveVoice();
+    if (isGuestMode) {
+      handleExitGuestMode();
+      return;
+    }
+    void livekit.leaveVoice();
     matrix.logout();
+    setActiveVoiceRoom(null);
+    setVoiceParticipants([]);
     setIsAuthenticated(false);
     setRooms([]);
     setGuilds([]);
     setActiveRoomId(null);
+    setMessages([]);
   };
 
-  const handleSendMessage = async (text: string) => {
-    if (!activeRoomId) return;
-    const sent = await matrix.sendMessage(activeRoomId, text);
-    if (sent) {
-      setMessages(prev => [...prev, sent]);
+  const handleToggleEngineMode = useCallback(() => {
+    const nextMode: EngineMode = engineMode === 'proprietary' ? 'hybrid' : 'proprietary';
+    setEngineMode(nextMode);
+    try {
+      localStorage.setItem('protutech_engine_mode', nextMode);
+      const ext = matrix as unknown as MatrixModeBridge;
+      ext.setEngineMode?.(nextMode);
+    } catch {
+      // Ignore storage errors
     }
+
+    if (nextMode === 'proprietary') {
+      const firstPropGuild = guilds.find(isProprietaryGuild);
+      if (firstPropGuild) {
+        setActiveGuildId(firstPropGuild.id);
+        const firstChannel =
+          firstPropGuild.channels.find(c => !c.isVoice && c.id !== 'livekit_lounge') ||
+          firstPropGuild.channels[0];
+        if (firstChannel) {
+          setActiveRoomId(firstChannel.id);
+          if (!isGuestMode && isAuthenticated) {
+            setMessages(matrix.getCachedMessages(firstChannel.id));
+          }
+        }
+      }
+    }
+
+    if (!isGuestMode && isAuthenticated) {
+      void loadData(undefined, nextMode);
+    }
+  }, [engineMode, guilds, isGuestMode, isAuthenticated, loadData]);
+
+  const handleSendMessage = useCallback(
+    async (text: string, replyTo?: { id: string; sender: string; body: string }) => {
+      const targetRoomId = activeRoomIdRef.current;
+      if (!targetRoomId) return;
+      const targetRoom = roomsRef.current.find(r => r.id === targetRoomId);
+
+      if (isGuestMode) {
+        const userMsg: MatrixMessage = {
+          id: `guest_msg_${Date.now()}`,
+          roomId: targetRoomId,
+          sender: '@guest:local.protutech',
+          senderName: userProfile.displayName.trim() || 'Guest Sampler (You)',
+          avatarUrl: userProfile.avatarUrl.trim() || undefined,
+          body: text,
+          timestamp: Date.now(),
+          replyTo,
+          source: 'app',
+        };
+        setMessages(prev => [...prev, userMsg]);
+        void scriptEngine.processIncomingMessage(userMsg, targetRoom?.name, handleInjectedMessage);
+
+        if (!text.trim().startsWith('!mc ')) {
+          setTimeout(() => {
+            const pingTime = Math.floor(Math.random() * 8) + 8;
+            const botReplies = [
+              `⚡ **Latency Benchmark:** Delivered in **${pingTime}ms** RTC!`,
+              `🚀 **Protutech Assistant:** Received "${text.slice(0, 32)}${
+                text.length > 32 ? '...' : ''
+              }" in **${pingTime}ms**.`,
+            ];
+            const randomReply = botReplies[Math.floor(Math.random() * botReplies.length)];
+
+            const botMsg: MatrixMessage = {
+              id: `bot_msg_${Date.now()}`,
+              roomId: targetRoomId,
+              sender: '@protutech_bot:local.protutech',
+              senderName: 'Protutech Assistant',
+              body: randomReply,
+              timestamp: Date.now(),
+              source: 'app',
+            };
+            if (activeRoomIdRef.current === targetRoomId) {
+              setMessages(prev => [...prev, botMsg]);
+            }
+            const overlayCfg = overlayService.getConfig();
+            if (overlayCfg.enabled && overlayCfg.showChatToasts) {
+              overlayService.pushToast({
+                id: botMsg.id,
+                roomId: targetRoomId,
+                roomName: targetRoom?.name || 'welcome-sandbox',
+                senderName: botMsg.senderName,
+                body: botMsg.body,
+                source: 'app',
+                timestamp: botMsg.timestamp,
+              });
+            }
+          }, 250);
+        }
+        return;
+      }
+
+      const sent = replyTo
+        ? await matrix.sendReplyMessage(targetRoomId, text, replyTo)
+        : await matrix.sendMessage(targetRoomId, text);
+      if (sent) {
+        if (activeRoomIdRef.current === targetRoomId) {
+          setMessages(prev => (prev.some(m => m.id === sent.id) ? prev : [...prev, sent]));
+        }
+        void scriptEngine.processIncomingMessage(sent, targetRoom?.name, handleInjectedMessage);
+      }
+    },
+    [isGuestMode, userProfile.displayName, userProfile.avatarUrl, handleInjectedMessage]
+  );
+
+  const handleMediaSent = useCallback((sent: MatrixMessage) => {
+    if (sent.roomId === activeRoomIdRef.current) {
+      setMessages(prev => (prev.some(m => m.id === sent.id) ? prev : [...prev, sent]));
+    }
+  }, []);
+
+  const handleSendMediaGuest = useCallback(
+    async (roomId: string, file: File) => {
+      const objectUrl = URL.createObjectURL(file);
+      const mime = file.type.toLowerCase();
+      const mediaType: MatrixMessage['mediaType'] = mime.startsWith('image/')
+        ? 'image'
+        : mime.startsWith('video/')
+        ? 'video'
+        : mime.startsWith('audio/')
+        ? 'audio'
+        : 'file';
+
+      const guestMediaMsg: MatrixMessage = {
+        id: `guest_media_${Date.now()}`,
+        roomId,
+        sender: '@guest:local.protutech',
+        senderName: userProfile.displayName.trim() || 'Guest Sampler (You)',
+        avatarUrl: userProfile.avatarUrl.trim() || undefined,
+        body: file.name,
+        timestamp: Date.now(),
+        mediaUrl: objectUrl,
+        mediaType,
+        source: 'app',
+      };
+      if (roomId === activeRoomIdRef.current) {
+        setMessages(prev => [...prev, guestMediaMsg]);
+      }
+    },
+    [userProfile.displayName, userProfile.avatarUrl]
+  );
+
+  const handleEditMessage = useCallback(
+    async (roomId: string, messageId: string, newText: string) => {
+      setMessages(prev =>
+        prev.map(m => (m.id === messageId ? { ...m, body: newText, isEdited: true } : m))
+      );
+      if (!isGuestMode) {
+        await matrix.editMessage(roomId, messageId, newText);
+      }
+    },
+    [isGuestMode]
+  );
+
+  const handleAddReaction = useCallback(
+    async (roomId: string, messageId: string, emoji: string) => {
+      const actor = isGuestMode
+        ? '@guest:local.protutech'
+        : matrix.getUserId() || '@andrex:local.protutech';
+
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.id !== messageId) return m;
+          const nextReactions = m.reactions ? { ...m.reactions } : {};
+          const existing = nextReactions[emoji] || [];
+          if (existing.includes(actor)) {
+            if (isGuestMode) {
+              const filtered = existing.filter(u => u !== actor);
+              if (filtered.length === 0) {
+                delete nextReactions[emoji];
+              } else {
+                nextReactions[emoji] = filtered;
+              }
+            }
+          } else {
+            nextReactions[emoji] = [...existing, actor];
+          }
+          return { ...m, reactions: nextReactions };
+        })
+      );
+
+      if (!isGuestMode) {
+        await matrix.sendReaction(roomId, messageId, emoji);
+      }
+    },
+    [isGuestMode]
+  );
+
+  const handleDeleteMessage = useCallback(
+    async (roomId: string, messageId: string) => {
+      locallyDeletedIdsRef.current.add(messageId);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      if (!isGuestMode) {
+        await matrix.redactMessage(roomId, messageId);
+      }
+    },
+    [isGuestMode]
+  );
+
+  const effectiveUserId = isGuestMode
+    ? '@guest:local.protutech'
+    : matrix.getUserId() || '@andrex:local.protutech';
+  const effectiveDisplayName =
+    userProfile.displayName.trim() ||
+    (isGuestMode
+      ? 'Guest Sampler'
+      : matrix.getUserId()?.split(':')[0].replace('@', '') || 'andrex');
+
+  // CRITICAL FIX: Always connect LiveKit Dual-Mode Engine across Guest, Proprietary, and Hybrid modes!
+  const handleJoinVoice = async (room: MatrixRoom) => {
+    await livekit.joinVoice(room.name, effectiveUserId, effectiveDisplayName);
+    setActiveVoiceRoom(livekit.getActiveRoom() || room.name);
+    setVoiceParticipants(livekit.getParticipants());
   };
 
-  const handleJoinVoice = async (room: MatrixRoom) => {
-    const userId = matrix.getUserId() || '@andrex:chat.protutech.vip';
-    const displayName = userId.split(':')[0].replace('@', '');
-    await livekit.joinVoice(room.name, userId, displayName);
-    setActiveVoiceRoom(room.name);
+  const handleJoinDiscordCall = async (room: MatrixRoom) => {
+    const ok = await voiceProxy.quickJoinDiscordChannel(room);
+    if (ok) {
+      setActiveVoiceRoom(
+        livekit.getActiveRoom() || voiceProxy.getSession().targetName || room.name
+      );
+      if (livekit.isConnected()) {
+        setVoiceParticipants(livekit.getParticipants());
+      }
+      return;
+    }
+    await handleJoinVoice(room);
   };
 
   const handleDisconnectVoice = async () => {
+    if (voiceProxy.getSession().status === 'connected') {
+      await voiceProxy.disconnect();
+    }
     await livekit.leaveVoice();
     setActiveVoiceRoom(null);
+    setVoiceParticipants([]);
+    if (isGuestMode && (activeRoomId === 'guest_voice_loopback' || activeRoomId === 'guest_video_test')) {
+      setActiveRoomId('guest_welcome');
+    }
   };
 
   const handleOpenAddModal = (tab: AddModalTab = 'server') => {
+    if (isGuestMode) {
+      setIsCreateTempChannelOpen(true);
+      return;
+    }
     setAddModalTab(tab);
     setIsAddModalOpen(true);
   };
 
   const handleOpenSyncLater = (room: MatrixRoom) => {
+    if (isGuestMode) return;
     if (room.isGroupChat) {
       setAddModalTab('group');
     } else if (room.isDirect) {
@@ -170,49 +1031,133 @@ export const App: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  if (!isAuthenticated) {
+  const selectRoom = useCallback(
+    (roomId: string) => {
+      setActiveRoomId(roomId);
+      if (!isGuestMode && isAuthenticated) {
+        setMessages(matrix.getCachedMessages(roomId));
+      }
+    },
+    [isGuestMode, isAuthenticated]
+  );
+
+  const openSettingsTab = (tab: SettingsTab = 'themes') => {
+    setSettingsInitialTab(tab);
+    setIsSettingsOpen(true);
+  };
+
+  const openDiscordHub = (tab: DiscordHubTab = 'quests') => {
+    setDiscordHubTab(tab);
+    setIsDiscordHubOpen(true);
+  };
+
+  if (!isAuthenticated && !isGuestMode) {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090d16]">
-        <TitleBar />
+        <TitleBar
+          engineMode={engineMode}
+          onToggleEngineMode={handleToggleEngineMode}
+          onToggleOverlay={() => overlayService.toggleEnabled()}
+          onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+        />
         <div className="flex-1 overflow-auto">
-          <LoginModal onLogin={handleLogin} />
+          <LoginModal
+            onLogin={handleLogin}
+            onSampleGuest={handleEnterGuestMode}
+            onModeChange={nextMode => setEngineMode(nextMode)}
+          />
         </div>
+        <MicrosoftStoreModal
+          isOpen={isStoreModalOpen}
+          onClose={() => setIsStoreModalOpen(false)}
+        />
       </div>
     );
   }
 
   const activeGuild = activeGuildId ? guilds.find(g => g.id === activeGuildId) || null : null;
-  const currentRoom = rooms.find(r => r.id === activeRoomId) || rooms[0] || {
-    id: 'placeholder',
-    name: 'general',
-    isDirect: false,
-    isGroupChat: false,
-    members: [],
-  };
+  const currentRoom =
+    rooms.find(r => r.id === activeRoomId) ||
+    rooms[0] || {
+      id: 'placeholder',
+      name: 'general',
+      isDirect: false,
+      isGroupChat: false,
+      members: [],
+    };
 
   const isCurrentRoomVoice = activeVoiceRoom !== null;
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-chat)] relative">
-      <TitleBar />
-      <div className="flex flex-1 w-full h-[calc(100%-30px)] overflow-hidden">
+      <TitleBar
+        engineMode={engineMode}
+        onToggleEngineMode={handleToggleEngineMode}
+        onOpenDiscordHub={() => openDiscordHub('quests')}
+        onOpenEquicord={() => setIsEquicordOpen(true)}
+        onOpenScripts={() => setIsScriptsOpen(true)}
+        onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+        isCoBrowsing={isCoBrowseOpen}
+        onToggleOverlay={() => overlayService.toggleEnabled()}
+        onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+      />
+
+      {/* Guest Mode Notice Banner */}
+      {isGuestMode && (
+        <div className="bg-gradient-to-r from-emerald-950/95 via-cyan-950/95 to-slate-950/95 border-b border-cyan-500/30 px-4 py-1.5 flex items-center justify-between text-xs text-white z-20 shadow-md flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-cyan-300">🧪 Guest Sampling Sandbox:</span>
+            <span className="text-gray-300 hidden sm:inline">
+              Full local voice, webcam, 1080p60 screenshare, Co-Browse, scripts, and large file transfer enabled.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setTempChannelName('');
+                setTempChannelError(null);
+                setIsCreateTempChannelOpen(true);
+              }}
+              className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Temp Channel</span>
+            </button>
+            <button
+              onClick={handleExitGuestMode}
+              className="bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white px-2.5 py-1 rounded text-xs transition-colors cursor-pointer border border-white/10"
+            >
+              <span>Exit Guest / Sign In</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 w-full h-[calc(100%-32px)] overflow-hidden">
         {/* 1. Left Guild Rail */}
         <ServerRail
           guilds={guilds}
           activeGuildId={activeGuildId}
+          engineMode={engineMode}
           onSelectGuild={id => {
             setActiveGuildId(id);
             if (id === null) {
               const firstDM = rooms.find(r => r.isDirect);
-              if (firstDM) setActiveRoomId(firstDM.id);
+              if (firstDM) selectRoom(firstDM.id);
             } else {
               const guild = guilds.find(g => g.id === id);
               if (guild && guild.channels.length > 0) {
-                setActiveRoomId(guild.channels[0].id);
+                const firstText =
+                  guild.channels.find(c => !c.isVoice && c.id !== 'livekit_lounge') ||
+                  guild.channels[0];
+                selectRoom(firstText.id);
               }
             }
           }}
           onOpenAddModal={() => handleOpenAddModal('server')}
+          onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
+          onOpenEquicord={() => setIsEquicordOpen(true)}
         />
 
         {/* 2. Channel & DM Sidebar */}
@@ -221,10 +1166,12 @@ export const App: React.FC = () => {
             activeGuild={activeGuild}
             rooms={rooms}
             activeRoomId={activeRoomId}
-            onSelectRoom={id => setActiveRoomId(id)}
+            onSelectRoom={selectRoom}
             onJoinVoice={handleJoinVoice}
+            onJoinDiscordCall={handleJoinDiscordCall}
             activeVoiceRoomId={activeVoiceRoom}
             onOpenAddModal={handleOpenAddModal}
+            onOpenVoiceProxy={() => setIsVoiceProxyOpen(true)}
           />
 
           {/* Bottom Voice Panel (if connected) */}
@@ -233,25 +1180,60 @@ export const App: React.FC = () => {
               roomName={activeVoiceRoom}
               rtcPing={rtcPing}
               onDisconnect={handleDisconnectVoice}
+              onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+              isCoBrowsing={isCoBrowseOpen}
             />
           )}
 
           {/* Bottom User Controls Bar */}
           <UserBar
-            userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
-            displayName={matrix.getUserId()?.split(':')[0].replace('@', '') || 'andrex'}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            userId={effectiveUserId}
+            displayName={effectiveDisplayName}
+            avatarUrl={userProfile.avatarUrl.trim() || undefined}
+            onOpenSettings={() => openSettingsTab('themes')}
+            onOpenProfile={() => openSettingsTab('profile')}
+            onToggleOverlay={() => overlayService.toggleEnabled()}
+            onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
           />
         </div>
 
-        {/* 3. Main Chat & Voice Stage Area */}
+        {/* 3. Main Chat, Voice, & Co-Browse Stage Area */}
         <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
-          {/* Voice Stage when in a voice call */}
-          {isCurrentRoomVoice && (
-            <VoiceStage
-              participants={voiceParticipants}
-              roomName={activeVoiceRoom || 'Voice Channel'}
-            />
+          {(isCoBrowseOpen || isCurrentRoomVoice || activeActivity) && (
+            <div className="max-h-[60vh] overflow-y-auto flex-shrink-0 flex flex-col">
+              {/* Synchronized Co-Browser & Built-In Search Engine */}
+              {isCoBrowseOpen && (
+                <SharedBrowserStage
+                  isOpen={isCoBrowseOpen}
+                  roomName={activeVoiceRoom || currentRoom.name}
+                  roomId={currentRoom.id}
+                  initialQueryOrUrl={coBrowseInitialQuery}
+                  onClose={() => {
+                    setIsCoBrowseOpen(false);
+                    setCoBrowseInitialQuery(undefined);
+                  }}
+                  onShareToChat={text => void handleSendMessage(text)}
+                />
+              )}
+
+              {/* LiveKit Dual-Mode Voice / Video / Screen Share Stage */}
+              {isCurrentRoomVoice && (
+                <VoiceStage
+                  participants={voiceParticipants}
+                  roomName={activeVoiceRoom || 'Voice Channel'}
+                  onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+                  isCoBrowsing={isCoBrowseOpen}
+                />
+              )}
+
+              {/* Embedded Synchronized Activity Stage (Mini-Games, YouTube, Web Browser) */}
+              {activeActivity && (
+                <EmbeddedActivityStage
+                  activity={activeActivity}
+                  onClose={() => setActiveActivity(null)}
+                />
+              )}
+            </div>
           )}
 
           {/* Chat Area */}
@@ -259,25 +1241,151 @@ export const App: React.FC = () => {
             room={currentRoom}
             messages={messages}
             onSendMessage={handleSendMessage}
+            onMediaSent={handleMediaSent}
+            onSendMediaGuest={handleSendMediaGuest}
+            onEditMessage={handleEditMessage}
+            onAddReaction={handleAddReaction}
+            onDeleteMessage={handleDeleteMessage}
             onJoinVoice={handleJoinVoice}
             isVoiceActive={isCurrentRoomVoice}
             onToggleMemberList={() => setShowMemberList(!showMemberList)}
             showMemberList={showMemberList}
             onOpenSyncLater={handleOpenSyncLater}
+            onOpenActivity={() => setIsActivityModalOpen(true)}
+            onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
+            onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+            onOpenScripts={() => setIsScriptsOpen(true)}
+            onMessageInjected={handleInjectedMessage}
+            currentUserId={effectiveUserId}
+            currentUserName={effectiveDisplayName}
+            isGuestMode={isGuestMode}
           />
         </div>
 
         {/* 4. Right Member Sidebar */}
         {showMemberList && (
-          <MemberList members={currentRoom.members} />
+          <MemberList
+            members={currentRoom.members}
+            onSelectUser={user => setSelectedProfileUser(user)}
+          />
         )}
 
-        {/* Settings & Vencord Customization Modal */}
+        {/* User Profile Modal */}
+        <UserProfileModal
+          user={selectedProfileUser}
+          onClose={() => setSelectedProfileUser(null)}
+          onSendGameInvite={inviteMsg => void handleSendMessage(inviteMsg)}
+          isOwnProfile={selectedProfileUser?.userId === effectiveUserId}
+          onOpenProfileCustomization={() => {
+            setSelectedProfileUser(null);
+            openSettingsTab('profile');
+          }}
+        />
+
+        {/* Minecraft RCON Console & Logs Modal */}
+        <MinecraftConsoleModal
+          isOpen={isMinecraftConsoleOpen}
+          onClose={() => setIsMinecraftConsoleOpen(false)}
+        />
+
+        {/* Mini-Games & Shared Web Activity Modal */}
+        <ActivityModal
+          isOpen={isActivityModalOpen}
+          room={currentRoom}
+          onClose={() => setIsActivityModalOpen(false)}
+          onLaunchActivity={activity => {
+            setActiveActivity(activity);
+            setIsActivityModalOpen(false);
+          }}
+          onOpenCoBrowse={initialQuery => {
+            setCoBrowseInitialQuery(initialQuery);
+            setIsCoBrowseOpen(true);
+          }}
+        />
+
+        {/* Settings & Customization Modal */}
         <SettingsModal
+          key={isSettingsOpen ? `open-${settingsInitialTab}` : 'closed'}
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          userId={matrix.getUserId() || '@andrex:chat.protutech.vip'}
+          userId={effectiveUserId}
           onLogout={handleLogout}
+          initialTab={settingsInitialTab}
+          onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+          onOpenDiscordHub={tab => {
+            setIsSettingsOpen(false);
+            openDiscordHub(tab || 'quests');
+          }}
+          onOpenEquicord={() => {
+            setIsSettingsOpen(false);
+            setIsEquicordOpen(true);
+          }}
+        />
+
+        {/* Discord Hub Modal (Quests, Friends, Nitro, Inbox, Discover) */}
+        <DiscordHubModal
+          isOpen={isDiscordHubOpen}
+          onClose={() => setIsDiscordHubOpen(false)}
+          initialTab={discordHubTab}
+          onSelectChannelByName={channelName => {
+            const target = rooms.find(
+              r => r.name.toLowerCase() === channelName.toLowerCase() || r.id === channelName
+            );
+            if (target) {
+              if (target.guildId) setActiveGuildId(target.guildId);
+              selectRoom(target.id);
+            }
+            setIsDiscordHubOpen(false);
+          }}
+          onStartVoiceCall={targetName => {
+            void livekit.joinVoice(targetName, effectiveUserId, effectiveDisplayName);
+            setActiveVoiceRoom(livekit.getActiveRoom() || targetName);
+            setVoiceParticipants(livekit.getParticipants());
+            setIsDiscordHubOpen(false);
+          }}
+        />
+
+        {/* Equicord Plugins & Custom Mod Manager Modal */}
+        <EquicordModal
+          isOpen={isEquicordOpen}
+          onClose={() => setIsEquicordOpen(false)}
+        />
+
+        {/* Scripts, Webhooks & Minecraft Chat Bridge API Modal */}
+        <ScriptingModal
+          isOpen={isScriptsOpen}
+          onClose={() => setIsScriptsOpen(false)}
+          activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId}
+          activeRoomName={currentRoom.name}
+          onMessageInjected={handleInjectedMessage}
+        />
+
+        {/* Zero-Size-Cap Large File Transfer Modal */}
+        <LargeFileShareModal
+          isOpen={isLargeFileModalOpen}
+          onClose={() => setIsLargeFileModalOpen(false)}
+          activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId || 'general'}
+          senderId={effectiveUserId}
+          senderName={effectiveDisplayName}
+          onShareComplete={handleInjectedMessage}
+        />
+
+        {/* Voice Gateway & Call Proxy Modal (Discord / Stoat) */}
+        <VoiceProxyModal
+          isOpen={isVoiceProxyOpen}
+          onClose={() => setIsVoiceProxyOpen(false)}
+          availableChannels={rooms.map(r => ({
+            id: r.discordChannelId || r.id,
+            name: r.name,
+            type: r.isVoice ? 'voice' : 'text',
+            guildId: r.discordGuildId || r.guildId,
+          }))}
+        />
+
+        {/* Microsoft Store Install & Publishing Hub Modal */}
+        <MicrosoftStoreModal
+          isOpen={isStoreModalOpen}
+          onClose={() => setIsStoreModalOpen(false)}
         />
 
         {/* Add / Sync Conversation Modal */}
@@ -286,9 +1394,164 @@ export const App: React.FC = () => {
           initialTab={addModalTab}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={targetId => {
-            loadData(targetId);
+            void loadData(targetId);
           }}
         />
+
+        {/* Optional In-Game Overlay HUD */}
+        <InGameOverlay
+          participants={voiceParticipants}
+          activeVoiceRoom={activeVoiceRoom}
+          rtcPing={rtcPing}
+          onToggleMute={() => {
+            if (voiceProxy.getSession().status === 'connected') {
+              const next = !livekit.isMuted;
+              livekit.isMuted = next;
+              voiceProxy.setMute(next);
+            } else {
+              void livekit.setMute(!livekit.isMuted);
+            }
+          }}
+          onToggleDeafen={() => {
+            if (voiceProxy.getSession().status === 'connected') {
+              const next = !livekit.isDeafened;
+              livekit.isDeafened = next;
+              voiceProxy.setDeafen(next);
+            } else {
+              livekit.setDeafened(!livekit.isDeafened);
+            }
+          }}
+          onDisconnectVoice={handleDisconnectVoice}
+          onQuickReply={async (roomId, text) => {
+            if (isGuestMode) {
+              const qrMsg: MatrixMessage = {
+                id: `guest_qr_${Date.now()}`,
+                roomId,
+                sender: '@guest:local.protutech',
+                senderName: effectiveDisplayName,
+                avatarUrl: userProfile.avatarUrl.trim() || undefined,
+                body: text,
+                timestamp: Date.now(),
+                source: 'app',
+              };
+              if (roomId === activeRoomIdRef.current) {
+                setMessages(prev => [...prev, qrMsg]);
+              }
+              return;
+            }
+            const sent = await matrix.sendMessage(roomId, text);
+            if (sent && roomId === activeRoomIdRef.current) {
+              setMessages(prev => (prev.some(m => m.id === sent.id) ? prev : [...prev, sent]));
+            }
+          }}
+        />
+
+        {/* Create Temporary Channel Modal */}
+        {isCreateTempChannelOpen && (
+          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="w-full max-w-md bg-[#313338] rounded-xl shadow-2xl p-6 border border-white/10 relative">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-cyan-400" />
+                  <h3 className="font-bold text-white text-base">Create Temporary Channel</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateTempChannelOpen(false)}
+                  className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateTempChannel} className="space-y-4 mt-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                    Channel Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTempChannelType('text')}
+                      className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
+                        tempChannelType === 'text'
+                          ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 shadow-md'
+                          : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Hash className="w-4 h-4 text-cyan-400" />
+                      <div className="text-left">
+                        <div className="text-white font-bold">Text Channel</div>
+                        <div className="text-[10px] text-gray-400">Instant test chat</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTempChannelType('voice')}
+                      className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
+                        tempChannelType === 'voice'
+                          ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 shadow-md'
+                          : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Volume2 className="w-4 h-4 text-cyan-400" />
+                      <div className="text-left">
+                        <div className="text-white font-bold">Voice Channel</div>
+                        <div className="text-[10px] text-gray-400">Mic, camera &amp; share</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                    Channel Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={tempChannelName}
+                      onChange={e => setTempChannelName(e.target.value)}
+                      placeholder={tempChannelType === 'text' ? 'e.g. testing-lounge' : 'e.g. squad-voice'}
+                      className="w-full bg-[#1e1f22] border border-black/40 rounded px-3 py-2 text-sm text-white outline-none focus:border-cyan-400 transition-colors"
+                      autoFocus
+                    />
+                  </div>
+                  {tempChannelError && (
+                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{tempChannelError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>
+                    <b>Ephemeral:</b> Exists strictly in this browser tab's memory and automatically vanishes when closed.
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateTempChannelOpen(false)}
+                    className="px-3.5 py-2 text-xs font-semibold rounded text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-xs font-bold rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors cursor-pointer shadow-md"
+                  >
+                    Create Temp Channel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Real-time live auto-update toast banner */}
@@ -296,15 +1559,17 @@ export const App: React.FC = () => {
         <div className="fixed bottom-5 right-5 z-[999999] bg-[#0c132c] border border-cyan-400/80 shadow-2xl rounded-2xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
           <div className="text-xs text-white">
-            <span className="font-bold text-cyan-300 block">Protutech Update Live</span>
-            <span>Version {newVersion || 'latest'} deployed. Refreshing app...</span>
+            <span className="font-bold text-cyan-300 block">
+              Update Ready ({newVersion || 'latest'})
+            </span>
+            <span>Update downloaded in background. Restart application to apply.</span>
           </div>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="ml-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-md transition-all cursor-pointer"
+            onClick={restartAndApplyUpdate}
+            className="ml-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
           >
-            Reload Now
+            <span>Restart to Update</span>
           </button>
         </div>
       )}
@@ -313,4 +1578,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

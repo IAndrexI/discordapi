@@ -38,11 +38,6 @@ export function useAutoUpdater() {
           console.log(`[AutoUpdater] Newer build detected: ${data.buildTime} > ${initialBuildTimeRef.current}`);
           setUpdateAvailable(true);
           setNewVersion(data.version);
-
-          // Auto-reload after brief countdown to ensure seamless freshness
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
         }
       } catch {
         // Offline or transient network issue
@@ -71,5 +66,20 @@ export function useAutoUpdater() {
     };
   }, []);
 
-  return { updateAvailable, newVersion };
+  const restartAndApplyUpdate = () => {
+    // If running inside desktop Electron app, call relaunchApp IPC
+    if (typeof window !== 'undefined' && window.electronAPI?.relaunchApp) {
+      window.electronAPI.relaunchApp();
+    } else {
+      // Web client: clear service caches and perform hard reload
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      window.location.reload();
+    }
+  };
+
+  return { updateAvailable, newVersion, restartAndApplyUpdate };
 }

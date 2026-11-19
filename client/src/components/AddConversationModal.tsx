@@ -184,7 +184,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
 
           setStatusMessage({
             type: 'ok',
-            text: 'Group chat created successfully! You can link with Discord anytime.',
+            text: 'Group chat created successfully!',
           });
 
           setTimeout(() => {
@@ -192,15 +192,15 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
             onClose();
           }, 1000);
         } else {
-          // Sync existing Discord Group DM
-          if (!selectedGroupDMId) throw new Error('Please select a Discord group chat to sync.');
+          // Sync existing Group Chat
+          if (!selectedGroupDMId) throw new Error('Please select a group chat to sync.');
 
           const res = await discordSync.syncDMOrGroup(selectedGroupDMId, 'group');
-          if (res.status === 'error') throw new Error(res.error || 'Failed to sync group DM.');
+          if (res.status === 'error') throw new Error(res.error || 'Failed to sync group chat.');
 
           setStatusMessage({
             type: 'ok',
-            text: 'Discord Group DM synced successfully!',
+            text: 'Group chat synced successfully!',
           });
 
           setTimeout(() => {
@@ -234,15 +234,15 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
             onClose();
           }, 1000);
         } else {
-          // Sync Discord friend DM
-          if (!selectedDMId) throw new Error('Please select a Discord DM to sync.');
+          // Sync contact chat
+          if (!selectedDMId) throw new Error('Please select a conversation to sync.');
 
           const res = await discordSync.syncDMOrGroup(selectedDMId, 'dm');
-          if (res.status === 'error') throw new Error(res.error || 'Failed to sync DM.');
+          if (res.status === 'error') throw new Error(res.error || 'Failed to sync conversation.');
 
           setStatusMessage({
             type: 'ok',
-            text: 'Discord Direct Message synced successfully!',
+            text: 'Direct conversation synced successfully!',
           });
 
           setTimeout(() => {
@@ -350,9 +350,9 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                   <strong className="block text-emerald-400 font-bold text-sm mb-0.5">
                     Full Server Mirror &bull; Always Synced
                   </strong>
-                  Selecting a Discord server clones the complete channel structure including all
+                  Selecting a community server clones the complete channel structure including all
                   categories, text channels, and dedicated voice lounges. This server will remain
-                  continuously and automatically synchronized with Discord in real time.
+                  continuously and automatically synchronized in real time.
                 </div>
               </div>
 
@@ -389,7 +389,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
                   type="text"
-                  placeholder="Search Discord servers by name or ID..."
+                  placeholder="Search servers by name or ID..."
                   value={guildSearch}
                   onChange={e => setGuildSearch(e.target.value)}
                   className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -399,7 +399,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
               {/* Server List */}
               <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30">
                 <div className="px-3 py-2 bg-black/40 border-b border-white/10 text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
-                  <span>Available Discord Servers ({filteredGuilds.length})</span>
+                  <span>Available Community Servers ({filteredGuilds.length})</span>
                   {selectedGuildId && <span className="text-cyan-400">1 selected</span>}
                 </div>
 
@@ -407,7 +407,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                   {loadingGuilds ? (
                     <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm">
                       <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                      <span>Loading Discord servers...</span>
+                      <span>Loading servers...</span>
                     </div>
                   ) : filteredGuilds.length === 0 ? (
                     <div className="py-8 text-center text-slate-400 text-sm">
@@ -571,7 +571,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                   }`}
                 >
                   <LinkIcon className="w-4 h-4" />
-                  <span>Sync Discord Group DM</span>
+                  <span>Sync Group Chat</span>
                 </button>
               </div>
 
@@ -609,26 +609,26 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                     <div>
                       <strong>Sync Option Available Later:</strong> This group chat will be created as a native,
                       ultra-low latency Protutech chat. You can link or synchronize this group with any
-                      Discord channel later at any time from the chat header.
+                      channel later at any time from the chat header.
                     </div>
                   </div>
                 </div>
               ) : (
-                /* Sync Discord Group DM */
+                /* Sync Group Chat */
                 <div className="space-y-3">
                   <div className="text-xs text-slate-400">
-                    Select a multi-person Discord Group DM to synchronize:
+                    Select a multi-person group chat to synchronize:
                   </div>
 
                   <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 max-h-56 overflow-y-auto divide-y divide-white/5">
                     {loadingDMs ? (
                       <div className="py-8 flex justify-center items-center gap-2 text-slate-400 text-sm">
                         <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                        <span>Loading Discord group chats...</span>
+                        <span>Loading group chats...</span>
                       </div>
                     ) : groupDMs.length === 0 ? (
                       <div className="py-8 text-center text-slate-400 text-sm">
-                        No Discord group DMs detected.
+                        No group chats detected.
                       </div>
                     ) : (
                       groupDMs.map(gdm => {
@@ -685,7 +685,7 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                   }`}
                 >
                   <LinkIcon className="w-4 h-4" />
-                  <span>Sync Discord Friend DM</span>
+                  <span>Sync Contact Chat</span>
                 </button>
               </div>
 
@@ -708,26 +708,26 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                     <Radio className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <strong>Sync Option Available Later:</strong> Once started, you can link this direct
-                      message to any Discord friend or private conversation later from the chat top bar.
+                      message to any contact or private conversation later from the chat top bar.
                     </div>
                   </div>
                 </div>
               ) : (
-                /* Sync Discord Friend DM */
+                /* Sync Contact DM */
                 <div className="space-y-3">
                   <div className="text-xs text-slate-400">
-                    Select a Discord friend to synchronize directly into your DMs:
+                    Select a contact to synchronize directly into your DMs:
                   </div>
 
                   <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 max-h-56 overflow-y-auto divide-y divide-white/5">
                     {loadingDMs ? (
                       <div className="py-8 flex justify-center items-center gap-2 text-slate-400 text-sm">
                         <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                        <span>Loading Discord DMs...</span>
+                        <span>Loading contacts...</span>
                       </div>
                     ) : singleDMs.length === 0 ? (
                       <div className="py-8 text-center text-slate-400 text-sm">
-                        No Discord direct messages found.
+                        No direct messages found.
                       </div>
                     ) : (
                       singleDMs.map(dm => {

@@ -75,9 +75,9 @@
     banner.innerHTML = [
       '<div style="display:flex; align-items:center; gap:10px;">',
       '  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>',
-      '  <span><strong>Protutech Updated</strong> &bull; Version ' + (data && data.version ? data.version : 'latest') + ' is live. Reloading...</span>',
+      '  <span><strong>Update Ready</strong> &bull; Version ' + (data && data.version ? data.version : 'latest') + ' installed in background.</span>',
       '</div>',
-      '<button type="button" id="protutech-reload-btn" style="background:#1d4ed8; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer;">Refresh Now</button>'
+      '<button type="button" id="protutech-reload-btn" style="background:#5865f2; color:#ffffff; border:none; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer;">Restart to Update</button>'
     ].join('');
 
     document.body.appendChild(banner);
@@ -85,14 +85,13 @@
     const btn = document.getElementById('protutech-reload-btn');
     if (btn) {
       btn.addEventListener('click', function() {
-        window.location.reload(true);
+        if (window.electronAPI && typeof window.electronAPI.relaunchApp === 'function') {
+          window.electronAPI.relaunchApp();
+        } else {
+          window.location.reload(true);
+        }
       });
     }
-
-    // Auto-refresh after 2 seconds
-    setTimeout(function() {
-      window.location.reload(true);
-    }, 2000);
   }
 
   // Initial check on page load

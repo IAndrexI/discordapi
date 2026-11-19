@@ -3,9 +3,10 @@ import type { MatrixUser } from '../types';
 
 interface MemberListProps {
   members: MatrixUser[];
+  onSelectUser?: (user: MatrixUser) => void;
 }
 
-export const MemberList: React.FC<MemberListProps> = ({ members }) => {
+export const MemberList: React.FC<MemberListProps> = ({ members, onSelectUser }) => {
   const onlineMembers = members.filter(m => m.presence !== 'offline');
   const offlineMembers = members.filter(m => m.presence === 'offline');
 
@@ -18,7 +19,7 @@ export const MemberList: React.FC<MemberListProps> = ({ members }) => {
         </h3>
         <div className="space-y-0.5">
           {onlineMembers.map(user => (
-            <MemberItem key={user.userId} user={user} />
+            <MemberItem key={user.userId} user={user} onSelect={() => onSelectUser?.(user)} />
           ))}
         </div>
       </div>
@@ -31,7 +32,7 @@ export const MemberList: React.FC<MemberListProps> = ({ members }) => {
           </h3>
           <div className="space-y-0.5">
             {offlineMembers.map(user => (
-              <MemberItem key={user.userId} user={user} isOffline />
+              <MemberItem key={user.userId} user={user} isOffline onSelect={() => onSelectUser?.(user)} />
             ))}
           </div>
         </div>
@@ -40,11 +41,18 @@ export const MemberList: React.FC<MemberListProps> = ({ members }) => {
   );
 };
 
-const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean }> = ({ user, isOffline }) => {
+const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean; onSelect?: () => void }> = ({
+  user,
+  isOffline,
+  onSelect,
+}) => {
   const isBot = user.userId.includes('bot') || user.userId.includes('discordbot');
 
   return (
-    <div className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--bg-item-hover)] cursor-pointer group transition-colors">
+    <div
+      onClick={onSelect}
+      className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--bg-item-hover)] cursor-pointer group transition-colors"
+    >
       <div className="relative flex-shrink-0">
         {user.avatarUrl ? (
           <img
@@ -75,18 +83,35 @@ const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean }> = ({ user,
         />
       </div>
 
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span
-          className={`text-sm font-medium truncate ${
-            isOffline ? 'text-[var(--text-muted)]' : 'text-[var(--text-normal)] group-hover:text-white'
-          }`}
-        >
-          {user.displayName}
-        </span>
-        {isBot && (
-          <span className="bg-[var(--discord-blurple)] text-white text-[9px] font-bold px-1 rounded uppercase">
-            BOT
+      <div className="flex flex-col min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={`text-sm font-medium truncate ${
+              isOffline ? 'text-[var(--text-muted)]' : 'text-[var(--text-normal)] group-hover:text-white'
+            }`}
+          >
+            {user.displayName}
           </span>
+          {isBot && (
+            <span className="bg-[var(--discord-blurple)] text-white text-[9px] font-bold px-1 rounded uppercase">
+              BOT
+            </span>
+          )}
+        </div>
+
+        {/* Mutual Channel or Group Chat Presence Indicator */}
+        {user.currentRoomName && !isOffline && (
+          <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-medium truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
+            <span className="truncate">in #{user.currentRoomName}</span>
+          </div>
+        )}
+
+        {/* Custom Activity or Status */}
+        {user.statusMsg && (
+          <div className="text-[11px] text-[var(--text-muted)] truncate">
+            {user.statusMsg}
+          </div>
         )}
       </div>
     </div>

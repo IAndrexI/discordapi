@@ -4,6 +4,57 @@ export interface MatrixUser {
   avatarUrl?: string;
   presence?: 'online' | 'idle' | 'dnd' | 'offline';
   statusMsg?: string;
+  currentRoomId?: string;
+  currentRoomName?: string;
+  currentRoomType?: 'server' | 'group' | 'dm';
+  activity?: string;
+  // Discord Identity & Stats
+  discordId?: string;
+  discordJoinDate?: number; // timestamp account created
+  serverJoinDate?: number; // timestamp joined current server
+  voiceTimeMinutes?: number; // total tracked time spent in voice calls
+  currentGame?: {
+    name: string;
+    appId?: string; // Steam App ID if applicable
+    lobbyId?: string;
+    connectUrl?: string; // steam://joinlobby/...
+  };
+  pronouns?: string;
+  bio?: string;
+  bannerColor?: string;
+  bannerUrl?: string;
+  accentColor?: string;
+  avatarDecoration?: 'none' | 'cyber_ring' | 'neon_pulse' | 'plasma_aura' | 'discord_crown';
+  badges?: string[];
+  isDiscordBridged?: boolean;
+}
+
+export interface GameInvite {
+  id: string;
+  gameName: string;
+  steamAppId?: string;
+  lobbyId?: string;
+  connectUrl: string; // e.g. steam://joinlobby/730/...
+  inviterName: string;
+  timestamp: number;
+}
+
+export interface MinecraftServerConfig {
+  id: string;
+  name: string;
+  host: string;
+  rconPort: number;
+  rconPassword?: string;
+  status?: 'online' | 'offline';
+  playerCount?: number;
+  maxPlayers?: number;
+}
+
+export interface MinecraftLogEntry {
+  id: string;
+  timestamp: number;
+  level: 'info' | 'warn' | 'error';
+  message: string;
 }
 
 export interface MatrixMessage {
@@ -25,6 +76,14 @@ export interface MatrixMessage {
     body: string;
   };
   reactions?: Record<string, string[]>; // emoji -> [userIds]
+  source?: 'discord' | 'app';
+  largeFile?: LargeFileTransfer;
+  webhookMeta?: {
+    username?: string;
+    avatarUrl?: string;
+    bridge?: 'minecraft' | 'discord' | 'script' | 'webhook';
+    serverName?: string;
+  };
 }
 
 export interface MatrixRoom {
@@ -39,6 +98,7 @@ export interface MatrixRoom {
   guildName?: string;
   isSynced?: boolean;
   syncSource?: 'discord' | 'matrix';
+  serverKind?: 'proprietary' | 'discord' | 'hybrid';
   discordChannelId?: string;
   discordGuildId?: string;
   unreadCount?: number;
@@ -54,6 +114,8 @@ export interface DiscordGuild {
   hasVoice?: boolean;
   isAlwaysSynced?: boolean;
   bridgedChannelCount?: number;
+  serverKind?: 'proprietary' | 'discord' | 'hybrid';
+  isProprietary?: boolean;
 }
 
 export interface DiscordAvailableGuild {
@@ -96,6 +158,17 @@ export interface VoiceParticipant {
   audioTrack?: MediaStreamTrack;
   videoTrack?: MediaStreamTrack;
   screenTrack?: MediaStreamTrack;
+  volume?: number; // 0 to 200 (default 100)
+  customBackground?: WebcamBackgroundConfig;
+  ping?: number;
+  codec?: string;
+}
+
+export interface WebcamBackgroundConfig {
+  type: 'none' | 'blur' | 'preset' | 'custom';
+  presetId?: string; // e.g. 'cyberpunk_city', 'synthwave_grid', 'gaming_room', 'anime_room', 'studio_dark', 'aurora'
+  customUrl?: string; // user-uploaded custom background image URL or base64
+  blurAmount?: number; // px blur if type === 'blur'
 }
 
 export interface VencordPlugin {
@@ -110,10 +183,159 @@ export interface VencordPlugin {
   code?: string;
   version?: string;
   hasSettings?: boolean;
+  tags?: string[];
+  isCatalog?: boolean;
 }
 
 export interface ThemeConfig {
-  activeTheme: 'dark' | 'midnight' | 'translucent' | 'transparent' | 'catppuccin' | 'nord' | 'cyberpunk' | 'crimson' | 'emerald' | 'solarized' | 'custom';
+  activeTheme:
+    | 'dark'
+    | 'midnight'
+    | 'translucent'
+    | 'transparent'
+    | 'catppuccin'
+    | 'nord'
+    | 'cyberpunk'
+    | 'crimson'
+    | 'emerald'
+    | 'solarized'
+    | 'teamspeak'
+    | 'custom';
+  layoutFormat?: 'discord' | 'teamspeak';
   customCssUrl?: string;
   customCssText?: string;
 }
+
+export type VoiceGatewayProvider = 'native_livekit' | 'discord_proxy' | 'stoat_hosted';
+
+export interface VoiceProxyConfig {
+  enabled: boolean;
+  activeProvider: VoiceGatewayProvider;
+  disclaimerAccepted: boolean;
+  disclaimerAcceptedTimestamp?: number;
+  discord: {
+    token: string;
+    guildId: string;
+    channelId: string;
+    proxyRelayUrl: string;
+    bitrate: number;
+    autoMuteOnJoin: boolean;
+  };
+  stoat: {
+    serverUrl: string;
+    roomId: string;
+    token: string;
+    transport: 'webrtc' | 'mediasoup';
+  };
+}
+
+export interface VoiceProxySession {
+  provider: VoiceGatewayProvider;
+  status: 'disconnected' | 'connecting' | 'authenticating' | 'handshaking' | 'connected' | 'error';
+  targetName: string;
+  ping: number;
+  error?: string;
+  connectedAt?: number;
+  participants: VoiceParticipant[];
+}
+
+export type EngineMode = 'hybrid' | 'proprietary' | 'discord_proxy';
+
+export interface ScriptPlugin {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  trigger: 'onMessage' | 'onCommand' | 'webhook' | 'minecraft' | 'manual';
+  code: string;
+  author?: string;
+  builtin?: boolean;
+  commandPrefix?: string;
+  lastRunAt?: number;
+  lastOutput?: string;
+}
+
+export interface WebhookConfig {
+  id: string;
+  name: string;
+  channelId: string;
+  channelName?: string;
+  token: string;
+  url: string;
+  bridgeType: 'discord' | 'minecraft' | 'custom';
+  enabled: boolean;
+  createdAt: number;
+  lastTriggeredAt?: number;
+}
+
+export interface LargeFileTransfer {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  mode: 'chunked' | 'p2p';
+  status: 'pending' | 'uploading' | 'completed' | 'error';
+  progress: number;
+  speedMBps: number;
+  uploadedBytes: number;
+  totalChunks: number;
+  completedChunks: number;
+  chunkSize: number;
+  downloadUrl: string;
+  sha256?: string;
+  p2pManifest?: {
+    peerId: string;
+    magnetUri?: string;
+    iceServers?: string[];
+    createdAt: number;
+  };
+  createdAt: number;
+  error?: string;
+}
+
+export interface DiscordQuest {
+  id: string;
+  title: string;
+  gameName: string;
+  description: string;
+  category: 'stream' | 'play' | 'orbs' | 'decoration';
+  progress: number;
+  target: number;
+  accepted: boolean;
+  completed: boolean;
+  claimed: boolean;
+  rewardName: string;
+  rewardDecoration?: 'cyber_ring' | 'neon_pulse' | 'plasma_aura' | 'discord_crown';
+  rewardBadge?: string;
+  expiresAt?: string;
+}
+
+export interface DiscordSyncedSettings {
+  syncEnabled: boolean;
+  discordTokenConnected: boolean;
+  status: 'online' | 'idle' | 'dnd' | 'invisible';
+  customStatusText: string;
+  customStatusEmoji: string;
+  displayName: string;
+  pronouns: string;
+  bio: string;
+  accentColor: string;
+  bannerColor: string;
+  theme: 'dark' | 'light' | 'midnight';
+  messageDisplayCompact: boolean;
+  developerMode: boolean;
+  animateEmoji: boolean;
+  gifAutoPlay: boolean;
+  noiseSuppression: 'krisp' | 'standard' | 'none';
+  echoCancellation: boolean;
+  automaticGainControl: boolean;
+  inputVolume: number;
+  outputVolume: number;
+  dmSpamFilter: boolean;
+  allowDmsFromServerMembers: boolean;
+  lastSyncedAt: number | null;
+  lastSyncDirection: 'app_to_discord' | 'discord_to_app' | null;
+  lastSyncLog: string;
+}
+
+

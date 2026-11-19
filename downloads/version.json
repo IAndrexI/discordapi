@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-11-19T09:28:08.166Z",
+  "downloads": {
+    "setupExe": "/downloads/ProtutechChat-Setup.exe",
+    "portableExe": "/downloads/ProtutechChat-Portable.exe",
+    "storeAppx": "/downloads/ProtutechChat-Store.appx",
+    "linuxAppImage": "/downloads/ProtutechChat.AppImage",
+    "linuxDeb": "/downloads/ProtutechChat.deb"
+  },
+  "microsoftStoreUrl": "https://apps.microsoft.com/detail/ProtutechChat"
+}

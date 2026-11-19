@@ -1,6 +1,6 @@
 {
-  "version": "1.8.0",
-  "updatedAt": "2026-10-04T15:51:00Z",
-  "buildTime": 1791136260000,
-  "changelog": "Equicord plugin engine support, official built-in plugins, custom user plugin loader via URL/code, and Equicord runtime sandbox"
+  "version": "1.8.7",
+  "updatedAt": "2026-10-07T05:59:00Z",
+  "buildTime": 1791352740000,
+  "changelog": "Discord-style custom webcam backgrounds (Blur intensity slider, Cyberpunk/Battlestation/Synthwave presets, and user image upload) with real-time video compositing, plus Electron and browser screen capture permission optimizations."
 }

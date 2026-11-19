@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ProtutechChat",
+  "version": "1.0.0",
+  "identifier": "vip.protutech.chat",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "ProtutechChat",
+        "width": 1280,
+        "height": 780,
+        "minWidth": 940,
+        "minHeight": 520,
+        "decorations": false,
+        "transparent": true,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../electron/icon.ico",
+      "../electron/icon.png"
+    ]
+  }
+}

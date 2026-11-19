@@ -275,13 +275,29 @@
       <ul>
         <li>Use the on-page <b>Client Storage Auditor</b> at <a href="/#securitySection" style="color:var(--cyan);">chat.protutech.vip/#securitySection</a> to inspect all active keys.</li>
         <li>Purge all locally cached tokens with a single click, instantly terminating the session on that device.</li>
+        <li>Uninstalling the application via Windows Settings completely removes the local sandbox data.</li>
       </ul>
     </div>
 
     <div class="card">
-      <h2>6. Code Transparency &amp; Verification</h2>
+      <h2>6. Microsoft Windows Store &amp; Desktop App Permissions</h2>
       <p>
-        We believe that privacy promises should be verifiable by code, not just legal text. The full source code of the client, server configuration, and bridge scripts is available for public audit at <a href="https://github.com/IAndrexI/discordapi" target="_blank" style="color:var(--cyan);">github.com/IAndrexI/discordapi</a>.
+        When installed via the Microsoft Store or desktop installer, ProtutechChat requests the following system capabilities solely for real-time media communication:
+      </p>
+      <ul>
+        <li><b>Microphone Access:</b> Required to capture audio during voice channel sessions. Audio packets are transmitted directly over Opus WebRTC and are never recorded or stored.</li>
+        <li><b>Camera Access:</b> Required to stream webcam video when you toggle your camera. Video streams are processed locally in real-time.</li>
+        <li><b>Screen Capture (Display Media):</b> Used exclusively when you explicitly initiate screen sharing to transmit desktop video to participants in your voice channel.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>7. Contact &amp; Inquiries</h2>
+      <p>
+        If you have any questions or concerns regarding this Privacy Policy or data processing in ProtutechChat, please contact us at:
+      </p>
+      <p style="color:var(--cyan); font-weight:600;">
+        Email: support@protutech.vip &bull; Website: <a href="https://chat.protutech.vip" style="color:var(--cyan);">https://chat.protutech.vip</a>
       </p>
     </div>
   </main>

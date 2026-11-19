@@ -1,8 +1,9 @@
 {
-  "name": "protutech-discord",
+  "name": "protutech",
   "private": true,
   "version": "1.0.0",
-  "description": "Self-hosted Discord client with ultra-low latency voice and Vencord custom theming",
+  "author": "Protutech",
+  "description": "Ultra-low latency voice, video, and community chat platform",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -11,14 +12,16 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "electron:dev": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron electron/main.cjs",
-    "electron:build": "npm run build && electron-builder --win portable nsis",
-    "electron:build:portable": "npm run build && electron-builder --win portable",
-    "electron:build:linux": "npm run build && electron-builder --linux AppImage deb tar.gz",
-    "electron:build:all": "npm run build && electron-builder -wl"
+    "sync:downloads": "node scripts/sync-downloads.cjs",
+    "electron:build": "npm run build && electron-builder --win portable nsis && node scripts/sync-downloads.cjs",
+    "electron:build:portable": "npm run build && electron-builder --win portable && node scripts/sync-downloads.cjs",
+    "electron:build:store": "npm run build && electron-builder --win appx && node scripts/sync-downloads.cjs",
+    "electron:build:linux": "npm run build && electron-builder --linux AppImage deb tar.gz && node scripts/sync-downloads.cjs",
+    "electron:build:all": "npm run build && electron-builder -wl && node scripts/sync-downloads.cjs"
   },
   "build": {
-    "appId": "vip.protutech.discord",
-    "productName": "Protutech Discord",
+    "appId": "vip.protutech.chat",
+    "productName": "ProtutechChat",
     "directories": {
       "output": "dist-electron"
     },
@@ -30,17 +33,28 @@
       "icon": "electron/icon.ico",
       "target": [
         "portable",
-        "nsis"
+        "nsis",
+        "appx"
       ]
+    },
+    "appx": {
+      "applicationId": "ProtutechChat",
+      "identityName": "Protutech.200542756E8C1",
+      "displayName": "ProtutechChat",
+      "publisher": "CN=E81D70C0-1117-411E-AE08-9C9DEEEC2C88",
+      "publisherDisplayName": "Protutech",
+      "backgroundColor": "#090d16",
+      "showNameOnTiles": true,
+      "artifactName": "ProtutechChat-Store.appx"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
-      "artifactName": "Protutech-Discord-Setup.exe"
+      "artifactName": "ProtutechChat-Setup.exe"
     },
     "portable": {
-      "artifactName": "Protutech-Discord-Portable.exe"
+      "artifactName": "ProtutechChat-Portable.exe"
     },
     "linux": {
       "icon": "electron/icon.png",
@@ -52,13 +66,10 @@
       ]
     },
     "appImage": {
-      "artifactName": "Protutech-Discord.AppImage"
+      "artifactName": "ProtutechChat.AppImage"
     },
     "deb": {
-      "artifactName": "Protutech-Discord.deb"
-    },
-    "tar": {
-      "artifactName": "Protutech-Discord-linux.tar.gz"
+      "artifactName": "ProtutechChat.deb"
     }
   },
   "dependencies": {
@@ -79,6 +90,7 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "oxlint": "^1.81.0",
+    "playwright": "^1.64.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
