@@ -1,6 +1,6 @@
 {
-  "version": "1.8.7",
-  "updatedAt": "2026-10-07T05:59:00Z",
-  "buildTime": 1791352740000,
-  "changelog": "Discord-style custom webcam backgrounds (Blur intensity slider, Cyberpunk/Battlestation/Synthwave presets, and user image upload) with real-time video compositing, plus Electron and browser screen capture permission optimizations."
+  "version": "1.0.1",
+  "updatedAt": "2026-11-19T18:48:00Z",
+  "buildTime": 1795079280000,
+  "changelog": "Microsoft Store submission update v1.0.1: Proxmox self-hosted backend sync, Equicord plugins, low-latency voice and video."
 }
