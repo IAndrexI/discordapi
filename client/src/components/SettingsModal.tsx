@@ -81,6 +81,7 @@ import {
   setDiscordLatencyWarningSuppressed,
 } from './DiscordCallWarningModal';
 import { matrix } from '../services/matrix';
+import { useAutoUpdater, CURRENT_APP_VERSION, type ManualUpdateCheckResult } from '../hooks/useAutoUpdater';
 import type { ThemeConfig, UserAccountInfo } from '../types';
 
 export type SettingsTab =
@@ -193,7 +194,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     return '1080p60';
   });
-  const [appVersion, setAppVersion] = useState<string>('1.0.3');
+  const [appVersion, setAppVersion] = useState<string>(CURRENT_APP_VERSION);
+  const {
+    autoUpdaterEnabled,
+    setAutoUpdaterEnabled,
+    checking: checkingUpdates,
+    checkForUpdatesNow,
+    restartAndApplyUpdate,
+  } = useAutoUpdater();
+  const [manualUpdateStatus, setManualUpdateStatus] = useState<ManualUpdateCheckResult | null>(null);
   const [windowBoundsResetNotice, setWindowBoundsResetNotice] = useState(false);
 
   // Bidirectional Discord Settings Sync State
@@ -4090,6 +4099,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <p className="text-sm text-[var(--text-muted)]">
                     Native desktop client settings, window bounds recovery, and store downloads.
                   </p>
+                </div>
+              </div>
+
+              {/* Built-in Auto-Updater (Optional) Card */}
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <div className="text-sm font-bold text-[var(--text-header)] flex items-center gap-2">
+                      <span>Built-in Auto-Updater</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] font-semibold uppercase">
+                        Optional
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                      Automatically check for new Protutech releases in the background.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoUpdaterEnabled}
+                    data-testid="settings-auto-updater-toggle"
+                    onClick={() => setAutoUpdaterEnabled(!autoUpdaterEnabled)}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer flex-shrink-0 ${
+                      autoUpdaterEnabled ? 'bg-[var(--discord-blurple)]' : 'bg-[#353842]'
+                    }`}
+                  >
+                    <span
+                      className={`block w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
+                        autoUpdaterEnabled ? 'left-6' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <div className="text-xs text-[var(--text-muted)]">
+                    Current version: <span className="font-mono font-bold text-[var(--text-header)]">v{appVersion}</span>
+                    {manualUpdateStatus && (
+                      <span className="ml-2 text-[var(--text-link)] font-semibold">
+                        {manualUpdateStatus.status === 'up-to-date' && '• Up to date ✓'}
+                        {manualUpdateStatus.status === 'update-available' &&
+                          `• Update v${manualUpdateStatus.latestVersion} ready!`}
+                        {manualUpdateStatus.status === 'error' && '• Could not reach update server'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {manualUpdateStatus?.status === 'update-available' && (
+                      <button
+                        type="button"
+                        onClick={restartAndApplyUpdate}
+                        className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                      >
+                        Restart &amp; Update
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={checkingUpdates}
+                      data-testid="settings-check-updates-btn"
+                      onClick={async () => {
+                        const res = await checkForUpdatesNow();
+                        setManualUpdateStatus(res);
+                      }}
+                      className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdates ? 'animate-spin' : ''}`} />
+                      <span>{checkingUpdates ? 'Checking...' : 'Check for Updates'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 

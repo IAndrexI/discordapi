@@ -19,6 +19,7 @@ import {
   Camera,
 } from 'lucide-react';
 import type { EngineMode } from '../types';
+import pkg from '../../package.json';
 import { appIconService, DEFAULT_APP_ICON_FALLBACK } from '../services/appIcon';
 import { desktopBridge } from '../services/desktopBridge';
 import { overlayService, type OverlayConfig } from '../services/overlay';
@@ -241,6 +242,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           />
           <span className="text-[11px] font-semibold text-[var(--text-header)] tracking-tight whitespace-nowrap">
             Protutech
+          </span>
+          <span
+            data-testid="topbar-app-version"
+            className="px-1.5 py-0.5 rounded bg-white/[0.06] text-[var(--text-muted)] text-[9px] font-mono font-semibold whitespace-nowrap"
+            title={`Protutech v${pkg.version}`}
+          >
+            v{pkg.version}
           </span>
 
           {runtimeKind !== 'web' && (

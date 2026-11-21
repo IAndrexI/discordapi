@@ -360,7 +360,14 @@ export const App: React.FC = () => {
   }, [rooms]);
 
   // Real-time live auto-update sentinel with Discord-style restart
-  const { updateAvailable, newVersion, restartAndApplyUpdate } = useAutoUpdater();
+  const {
+    autoUpdaterEnabled,
+    setAutoUpdaterEnabled,
+    updateAvailable,
+    newVersion,
+    dismissUpdate,
+    restartAndApplyUpdate,
+  } = useAutoUpdater();
 
   // Subscribe to User Profile customizations
   useEffect(() => {
@@ -2068,14 +2075,21 @@ export const App: React.FC = () => {
       )}
 
       {/* Real-time live auto-update toast banner */}
-      {updateAvailable && (
+      {autoUpdaterEnabled && updateAvailable && (
         <div className="fixed bottom-5 right-5 z-[999999] bg-[var(--bg-popout)] border border-[var(--border-accent)] shadow-2xl rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
           <span className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] animate-ping" />
           <div className="text-xs text-[var(--text-normal)]">
             <span className="font-bold text-[var(--text-link)] block">
-              Update Ready ({newVersion || 'latest'})
+              Update Ready ({newVersion ? `v${newVersion}` : 'latest'})
             </span>
             <span>Restart application to apply update.</span>
+            <button
+              type="button"
+              onClick={() => setAutoUpdaterEnabled(false)}
+              className="block text-[10px] text-[var(--text-muted)] hover:text-[var(--text-header)] underline mt-0.5 cursor-pointer"
+            >
+              Disable auto-updater
+            </button>
           </div>
           <button
             type="button"
@@ -2083,6 +2097,14 @@ export const App: React.FC = () => {
             className="ml-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
           >
             <span>Restart to Update</span>
+          </button>
+          <button
+            type="button"
+            onClick={dismissUpdate}
+            aria-label="Dismiss update"
+            className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
