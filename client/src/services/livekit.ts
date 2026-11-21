@@ -13,6 +13,8 @@ import type { VoiceParticipant, WebcamBackgroundConfig } from '../types';
 import { vencord } from './vencord';
 import { webcamBackground } from './webcamBackground';
 import { desktopBridge } from './desktopBridge';
+import { KrispAudioProcessor, type KrispStats } from './krispProcessor';
+import { discordSettingsSync, type NoiseSuppressionMode } from './discordSettingsSync';
 
 export type VoiceStateCallback = (participants: VoiceParticipant[], rtcPing: number) => void;
 export type AudioLevelCallback = (level: number, isSpeaking: boolean) => void;
@@ -33,6 +35,7 @@ const VOICE_BROADCAST_CHANNEL = 'protutech_voice_room_v2';
 const STORAGE_KEY_LOOPBACK_VOLUME = 'protutech_loopback_volume';
 const STORAGE_KEY_INPUT_DEVICE = 'protutech_audio_input_device';
 const STORAGE_KEY_OUTPUT_DEVICE = 'protutech_audio_output_device';
+const STORAGE_KEY_KRISP_THRESHOLD = 'protutech_krisp_threshold_db';
 
 const SCREEN_QUALITY_MAP: Record<
   ScreenShareQuality,
@@ -196,6 +199,10 @@ class LiveKitVoiceService {
   private analyser: AnalyserNode | null = null;
   private loopbackGainNode: GainNode | null = null;
   private localMediaSourceNode: MediaStreamAudioSourceNode | null = null;
+  private krispProcessor: KrispAudioProcessor | null = null;
+  private noiseSuppressionMode: NoiseSuppressionMode = 'krisp';
+  private krispThresholdDb: number = -36;
+  private krispListeners: Set<(stats: KrispStats) => void> = new Set();
   private localAudioStream: MediaStream | null = null;
   private localAudioTrack: MediaStreamTrack | null = null;
   private fallbackOscillator: OscillatorNode | null = null;
@@ -243,6 +250,17 @@ class LiveKitVoiceService {
         if (savedIn) this.selectedInputDeviceId = savedIn;
         const savedOut = localStorage.getItem(STORAGE_KEY_OUTPUT_DEVICE);
         if (savedOut) this.selectedOutputDeviceId = savedOut;
+        const savedThresh = localStorage.getItem(STORAGE_KEY_KRISP_THRESHOLD);
+        if (savedThresh !== null) {
+          const parsedT = Number(savedThresh);
+          if (Number.isFinite(parsedT)) {
+            this.krispThresholdDb = Math.max(-60, Math.min(-18, Math.round(parsedT)));
+          }
+        }
+        const synced = discordSettingsSync.getSettings();
+        if (synced?.noiseSuppression) {
+          this.noiseSuppressionMode = synced.noiseSuppression;
+        }
       } catch {
         // Ignore storage read errors
       }
@@ -380,6 +398,66 @@ class LiveKitVoiceService {
     }
     this.updateLoopbackGain();
     this.notify();
+  }
+
+  public getNoiseSuppressionMode(): NoiseSuppressionMode {
+    return this.noiseSuppressionMode;
+  }
+
+  public setNoiseSuppressionMode(mode: NoiseSuppressionMode): void {
+    this.noiseSuppressionMode = mode;
+    if (this.krispProcessor) {
+      this.krispProcessor.setMode(mode);
+      const stats = this.krispProcessor.getStats();
+      this.krispListeners.forEach((cb) => cb(stats));
+    }
+    if (this.localAudioTrack && typeof this.localAudioTrack.applyConstraints === 'function') {
+      void this.localAudioTrack.applyConstraints({ noiseSuppression: mode !== 'none' }).catch(() => {});
+    }
+    void discordSettingsSync.updateSetting('noiseSuppression', mode).catch(() => {});
+    this.notify();
+  }
+
+  public getKrispThresholdDb(): number {
+    return this.krispThresholdDb;
+  }
+
+  public setKrispThresholdDb(db: number): void {
+    const clamped = Math.max(-60, Math.min(-18, Math.round(Number(db) || -36)));
+    this.krispThresholdDb = clamped;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_KRISP_THRESHOLD, String(clamped));
+      } catch {
+        // Ignore storage errors
+      }
+    }
+    if (this.krispProcessor) {
+      this.krispProcessor.setThresholdDb(clamped);
+    }
+    this.notify();
+  }
+
+  public getKrispStats(): KrispStats {
+    if (this.krispProcessor) {
+      return this.krispProcessor.getStats();
+    }
+    return {
+      inputDb: -90,
+      outputDb: -90,
+      reductionDb: 0,
+      gateOpen: false,
+      mode: this.noiseSuppressionMode,
+      thresholdDb: this.krispThresholdDb,
+    };
+  }
+
+  public subscribeKrisp(cb: (stats: KrispStats) => void): () => void {
+    this.krispListeners.add(cb);
+    cb(this.getKrispStats());
+    return () => {
+      this.krispListeners.delete(cb);
+    };
   }
 
   public async listAudioDevices(): Promise<{
@@ -785,7 +863,7 @@ class LiveKitVoiceService {
     const targetId = deviceId ?? this.selectedInputDeviceId;
     const baseAudio: MediaTrackConstraints & { latency?: number } = {
       echoCancellation: true,
-      noiseSuppression: true,
+      noiseSuppression: this.noiseSuppressionMode !== 'none',
       autoGainControl: true,
       latency: 0.01,
     };
@@ -819,6 +897,10 @@ class LiveKitVoiceService {
   }
 
   private disconnectCurrentAudioSource(): void {
+    if (this.krispProcessor) {
+      this.krispProcessor.destroy();
+      this.krispProcessor = null;
+    }
     if (this.localMediaSourceNode) {
       try {
         this.localMediaSourceNode.disconnect();
@@ -860,12 +942,18 @@ class LiveKitVoiceService {
 
     if (micStream && micStream.getAudioTracks().length > 0) {
       this.localAudioStream = micStream;
-      this.localAudioTrack = micStream.getAudioTracks()[0];
-      this.localAudioTrack.enabled = !this.isMuted;
+      const processor = new KrispAudioProcessor(
+        ctx,
+        this.noiseSuppressionMode,
+        this.krispThresholdDb
+      );
+      processor.attachInputStream(micStream);
+      processor.getOutputNode().connect(analyser);
+      this.krispProcessor = processor;
 
-      const source = ctx.createMediaStreamSource(micStream);
-      source.connect(analyser);
-      this.localMediaSourceNode = source;
+      const processedTrack = processor.getProcessedStream().getAudioTracks()[0] || null;
+      this.localAudioTrack = processedTrack || micStream.getAudioTracks()[0];
+      this.localAudioTrack.enabled = !this.isMuted;
     } else {
       // Silent WebAudio Gain/Oscillator fallback when no microphone device exists
       const osc = ctx.createOscillator();
@@ -988,6 +1076,10 @@ class LiveKitVoiceService {
 
         const speakingNow = this.audioLevel > 8;
         this.notifyAudioLevel(speakingNow);
+        if (this.krispProcessor && this.krispListeners.size > 0) {
+          const stats = this.krispProcessor.getStats();
+          this.krispListeners.forEach((cb) => cb(stats));
+        }
 
         const local = this.participants.get(this.localIdentity);
         if (local && local.isSpeaking !== speakingNow) {

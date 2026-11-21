@@ -559,6 +559,48 @@ ipcMain.handle('get-server-info', () => {
   };
 });
 
+let discordCallWindow = null;
+ipcMain.handle('open-discord-call', (_, targetUrl) => {
+  try {
+    const parsed = new URL(String(targetUrl || 'https://discord.com/channels/@me'));
+    if (parsed.protocol !== 'https:' || (parsed.hostname !== 'discord.com' && !parsed.hostname.endsWith('.discord.com'))) {
+      return { ok: false, error: 'Only discord.com URLs are permitted.' };
+    }
+    if (discordCallWindow && !discordCallWindow.isDestroyed()) {
+      discordCallWindow.loadURL(parsed.toString());
+      discordCallWindow.focus();
+      return { ok: true };
+    }
+    discordCallWindow = new BrowserWindow({
+      width: 1120,
+      height: 760,
+      title: 'Protutech — Discord Call Companion',
+      icon: path.join(__dirname, 'icon.png'),
+      backgroundColor: '#080c16',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+      },
+    });
+    discordCallWindow.webContents.session.setPermissionRequestHandler((_, permission, callback) => {
+      if (['media', 'mediaKeySystem', 'display-capture', 'fullscreen', 'notifications'].includes(permission)) {
+        callback(true);
+      } else {
+        callback(false);
+      }
+    });
+    discordCallWindow.on('closed', () => {
+      discordCallWindow = null;
+    });
+    discordCallWindow.loadURL(parsed.toString());
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Failed to open Discord call window.' };
+  }
+});
+
 // Discord-style App Relaunch & In-Place Update Handler
 ipcMain.on('relaunch-app', () => {
   app.relaunch();

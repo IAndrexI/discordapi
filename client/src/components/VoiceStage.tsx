@@ -382,6 +382,23 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         <div className="flex items-center gap-1.5 text-xs flex-wrap flex-shrink-0">
           <button
             type="button"
+            data-testid="voicestage-krisp-btn"
+            aria-label="Krisp Noise Suppression"
+            onClick={() => {
+              const cur = livekit.getNoiseSuppressionMode();
+              livekit.setNoiseSuppressionMode(cur === 'krisp' ? 'none' : 'krisp');
+            }}
+            title="Toggle Krisp AI Noise Suppression"
+            className={`px-2 py-1.5 rounded-md border font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+              livekit.getNoiseSuppressionMode() === 'krisp'
+                ? 'bg-[var(--discord-blurple)]/20 text-[var(--accent-cyan)] border-[var(--discord-blurple)]/50'
+                : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+            }`}
+          >
+            <span>{livekit.getNoiseSuppressionMode() === 'krisp' ? 'Krisp ON' : 'Krisp OFF'}</span>
+          </button>
+          <button
+            type="button"
             data-testid="voicestage-camera-preview-btn"
             aria-label="Camera Preview"
             onClick={handleCameraPreviewClick}

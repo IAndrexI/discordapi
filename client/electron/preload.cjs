@@ -51,4 +51,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resetWindowBounds: () => ipcRenderer.send('reset-window-bounds'),
   selfHostedServerUrl: 'http://127.0.0.1:4175',
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
+  openDiscordCall: (url) => ipcRenderer.invoke('open-discord-call', url),
 });

@@ -9,6 +9,7 @@ import { VoiceStage } from './components/VoiceStage';
 import { SharedBrowserStage } from './components/SharedBrowserStage';
 import { MemberList } from './components/MemberList';
 import { SettingsModal, type SettingsTab } from './components/SettingsModal';
+import { QuickSwitcherModal } from './components/QuickSwitcherModal';
 import { LoginModal } from './components/LoginModal';
 import { AddConversationModal, type AddModalTab } from './components/AddConversationModal';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
@@ -274,6 +275,18 @@ export const App: React.FC = () => {
   // UI toggles & Modals
   const [showMemberList, setShowMemberList] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsQuickSwitcherOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('themes');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalTab, setAddModalTab] = useState<AddModalTab>('server');
@@ -1629,6 +1642,16 @@ export const App: React.FC = () => {
       />
 
       {/* Settings & Customization Modal */}
+      <QuickSwitcherModal
+        isOpen={isQuickSwitcherOpen}
+        onClose={() => setIsQuickSwitcherOpen(false)}
+        guilds={guilds}
+        rooms={rooms}
+        onSelectGuild={guildId => setActiveGuildId(guildId)}
+        onSelectRoom={roomId => setActiveRoomId(roomId)}
+        onJoinVoice={room => void handleJoinVoice(room)}
+      />
+
       <SettingsModal
         key={isSettingsOpen ? `open-${settingsInitialTab}` : 'closed'}
         isOpen={isSettingsOpen}

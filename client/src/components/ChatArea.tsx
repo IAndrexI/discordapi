@@ -30,6 +30,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import type { MatrixMessage, MatrixRoom } from '../types';
+import { EmojiPicker } from './EmojiPicker';
 import { matrix } from '../services/matrix';
 import { vencord } from '../services/vencord';
 import { scriptEngine } from '../services/scriptEngine';
@@ -40,9 +41,7 @@ import {
   parseLargeFileFromMessage,
 } from '../services/fileTransfer';
 
-const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '🚀'];
 const BAR_QUICK_EMOJIS = ['👍', '❤️', '😂'];
-const INPUT_EMOJIS = ['🚀', '🔥', '❤️', '👍', '😂', '🎮', '⚡', '👀'];
 const PINNED_STORAGE_KEY = 'protutech_pinned_messages_v1';
 
 function loadPinnedMessages(): Record<string, string[]> {
@@ -512,26 +511,18 @@ const MessageRow = React.memo<MessageRowProps>(
               </button>
               {showReactionPicker && (
                 <div
-                  role="dialog"
-                  aria-label="Reaction Picker"
                   className={`absolute right-0 ${
                     isTopMessage ? 'top-full mt-1' : 'bottom-full mb-1'
-                  } bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1 shadow-xl flex items-center gap-0.5 z-[70]`}
+                  } z-[70]`}
                 >
-                  {QUICK_REACTIONS.map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        onAddReaction(roomId, msg.id, emoji);
-                        setShowReactionPicker(false);
-                      }}
-                      aria-label={`React with ${emoji}`}
-                      className="w-7 h-7 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-sm cursor-pointer"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                  <EmojiPicker
+                    ariaLabel="Reaction Picker"
+                    onSelect={emoji => {
+                      onAddReaction(roomId, msg.id, emoji);
+                      setShowReactionPicker(false);
+                    }}
+                    onClose={() => setShowReactionPicker(false)}
+                  />
                 </div>
               )}
             </div>
@@ -990,26 +981,16 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
               <Smile className="w-5 h-5" />
             </button>
             {showEmojiTray && (
-              <div
-                role="dialog"
-                aria-label="Emoji Picker"
-                className="absolute right-0 bottom-full mb-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1.5 shadow-2xl flex items-center gap-1 z-[80] max-w-[calc(100vw/var(--app-zoom,1)-24px)]"
-              >
-                {INPUT_EMOJIS.map(emoji => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    aria-label={`Insert ${emoji}`}
-                    onClick={() => {
-                      setInputText(prev => prev + emoji);
-                      setShowEmojiTray(false);
-                      textareaRef.current?.focus();
-                    }}
-                    className="w-7 h-7 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-base cursor-pointer"
-                  >
-                    {emoji}
-                  </button>
-                ))}
+              <div className="absolute right-0 bottom-full mb-2 z-[80]">
+                <EmojiPicker
+                  ariaLabel="Emoji Picker"
+                  onSelect={emoji => {
+                    setInputText(prev => prev + emoji);
+                    setShowEmojiTray(false);
+                    textareaRef.current?.focus();
+                  }}
+                  onClose={() => setShowEmojiTray(false)}
+                />
               </div>
             )}
           </div>

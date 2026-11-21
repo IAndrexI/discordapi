@@ -177,7 +177,7 @@ export interface VencordPlugin {
   description: string;
   enabled: boolean;
   author: string;
-  source?: 'vencord' | 'equicord' | 'user';
+  source?: 'vencord' | 'equicord' | 'betterdiscord' | 'replugged' | 'user';
   category?: 'chat' | 'media' | 'ui' | 'privacy' | 'utility';
   codeUrl?: string;
   code?: string;

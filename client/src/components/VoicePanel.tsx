@@ -91,6 +91,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
   const [isStudio, setIsStudio] = useState(livekit.isStudioAudio);
   const [isGamingMode, setIsGamingMode] = useState(livekit.isLowResourceGamingMode);
   const [micLoopback, setMicLoopback] = useState(() => livekit.isMicLoopbackEnabled());
+  const [krispMode, setKrispMode] = useState(() => livekit.getNoiseSuppressionMode());
   const [audioLevel, setAudioLevel] = useState(() => livekit.getAudioLevel());
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [proxySession, setProxySession] = useState(() => voiceProxy.getSession());
@@ -388,6 +389,27 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
             }}
           />
         </div>
+        <button
+          type="button"
+          data-testid="voicepanel-krisp-btn"
+          aria-label={`Noise Suppression: ${krispMode}`}
+          aria-pressed={krispMode === 'krisp'}
+          onClick={() => {
+            const next = krispMode === 'krisp' ? 'standard' : krispMode === 'standard' ? 'none' : 'krisp';
+            livekit.setNoiseSuppressionMode(next);
+            setKrispMode(next);
+          }}
+          title={`Noise Suppression: ${krispMode.toUpperCase()} (click to cycle)`}
+          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0 border ${
+            krispMode === 'krisp'
+              ? 'bg-[var(--discord-blurple)]/20 text-[var(--accent-cyan)] border-[var(--discord-blurple)]/45'
+              : krispMode === 'standard'
+                ? 'bg-[var(--bg-card)] text-[var(--text-header)] border-[var(--border-subtle)]'
+                : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)] opacity-70'
+          }`}
+        >
+          <span>{krispMode === 'krisp' ? 'Krisp' : krispMode === 'standard' ? 'Std' : 'NS Off'}</span>
+        </button>
         <button
           type="button"
           data-testid="voice-mic-loopback-btn"

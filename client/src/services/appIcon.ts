@@ -80,13 +80,30 @@ const SOLAR_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
   <path d="M170 140 h110 c55 0 90 35 90 85 c0 50 -35 85 -90 85 h-55 v80 h-55 Z M225 190 v60 h55 c25 0 35 -12 35 -30 c0 -18 -10 -30 -35 -30 Z" fill="url(#flame)"/>
 </svg>`)}`;
 
+export const DEFAULT_APP_ICON_FALLBACK = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ptbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080c16"/>
+      <stop offset="100%" stop-color="#141e38"/>
+    </linearGradient>
+    <linearGradient id="ptfg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="100%" stop-color="#7f00ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#ptbg)"/>
+  <rect x="20" y="20" width="472" height="472" rx="112" fill="none" stroke="url(#ptfg)" stroke-width="14" opacity="0.85"/>
+  <path d="M160 124 h122 c58 0 98 38 98 92 c0 54 -40 92 -98 92 h-62 v84 h-60 Z M220 182 v68 h60 c28 0 42 -14 42 -34 c0 -20 -14 -34 -42 -34 Z" fill="url(#ptfg)"/>
+</svg>`)}`;
+
 export const APP_ICON_PRESETS: AppIconPreset[] = [
   {
     id: 'default',
     name: 'Protutech Mountain Cloud',
     tag: 'Official',
     description: 'The official Protutech cloud emblem with mountain peak and circuit paths.',
-    url: '/protutech_logo.png',
+    url: './protutech_logo.png',
     previewGradient: 'from-sky-900 to-indigo-950',
   },
   {
@@ -128,7 +145,13 @@ class AppIconService {
   private listeners: Set<(iconUrl: string) => void> = new Set();
 
   constructor() {
-    this.currentIcon = localStorage.getItem('protutech_app_icon') || '/protutech_logo.png';
+    const saved =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('protutech_app_icon') : null;
+    if (!saved || saved === '/protutech_logo.png' || saved === '/icon.png') {
+      this.currentIcon = './protutech_logo.png';
+    } else {
+      this.currentIcon = saved;
+    }
   }
 
   public getIcon(): string {

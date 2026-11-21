@@ -644,7 +644,24 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             </div>
           </div>
 
-          {/* Soundboard */}
+          <button
+          type="button"
+          data-testid="ts6-krisp-btn"
+          onClick={() => {
+            const cur = livekit.getNoiseSuppressionMode();
+            livekit.setNoiseSuppressionMode(cur === 'krisp' ? 'none' : 'krisp');
+          }}
+          title="Toggle Krisp AI Noise Suppression"
+          className={`px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors border ${
+            livekit.getNoiseSuppressionMode() === 'krisp'
+              ? 'bg-[var(--discord-blurple)]/20 text-[var(--accent-cyan)] border-[var(--discord-blurple)]/40'
+              : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+          }`}
+        >
+          <span>{livekit.getNoiseSuppressionMode() === 'krisp' ? 'Krisp' : 'NS Off'}</span>
+        </button>
+
+        {/* Soundboard */}
           <button
             type="button"
             data-testid="ts3-soundboard-btn"

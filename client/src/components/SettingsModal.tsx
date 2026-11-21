@@ -156,6 +156,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [loopbackVolume, setLoopbackVolume] = useState<number>(() => livekit.getLoopbackVolume());
   const [micAudioLevel, setMicAudioLevel] = useState<number>(() => livekit.getAudioLevel());
   const [isMicSpeaking, setIsMicSpeaking] = useState(false);
+  const [krispMode, setKrispMode] = useState<NoiseSuppressionMode>(() => livekit.getNoiseSuppressionMode());
+  const [krispThresholdDb, setKrispThresholdDb] = useState<number>(() => livekit.getKrispThresholdDb());
+  const [krispStats, setKrispStats] = useState(() => livekit.getKrispStats());
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [selectedInputId, setSelectedInputId] = useState<string>(() =>
@@ -392,7 +395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   // Equicord Plugins Management States
-  const [pluginFilter, setPluginFilter] = useState<'all' | 'equicord' | 'vencord' | 'user'>('all');
+  const [pluginFilter, setPluginFilter] = useState<'all' | 'equicord' | 'vencord' | 'betterdiscord' | 'replugged' | 'user'>('all');
   const [pluginCategoryFilter, setPluginCategoryFilter] = useState<string>('all');
   const [pluginSearch, setPluginSearch] = useState('');
   const [storeSearch, setStoreSearch] = useState('');
@@ -438,6 +441,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setMicAudioLevel(lvl);
       setIsMicSpeaking(speaking);
     });
+    const unsubKrisp = livekit.subscribeKrisp(stats => {
+      setKrispStats(stats);
+      setKrispMode(stats.mode);
+      setKrispThresholdDb(stats.thresholdDb);
+    });
     const unsubLivekit = livekit.subscribe(() => {
       setMicLoopbackEnabled(livekit.isMicLoopbackEnabled());
       setLoopbackVolume(livekit.getLoopbackVolume());
@@ -452,6 +460,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       unsubZoom();
       unsubSoundboard();
       unsubAudioLevel();
+      unsubKrisp();
       unsubLivekit();
     };
   }, []);
@@ -791,6 +800,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const filteredPlugins = plugins.filter(p => {
     if (pluginFilter === 'equicord' && p.source !== 'equicord') return false;
     if (pluginFilter === 'vencord' && p.source !== 'vencord' && p.source !== undefined) return false;
+    if (pluginFilter === 'betterdiscord' && p.source !== 'betterdiscord') return false;
+    if (pluginFilter === 'replugged' && p.source !== 'replugged') return false;
     if (pluginFilter === 'user' && p.source !== 'user') return false;
 
     if (pluginCategoryFilter !== 'all' && p.category !== pluginCategoryFilter) return false;
@@ -1859,9 +1870,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               },
               {
                 id: 'teamspeak',
-                name: 'TeamSpeak Classic',
-                badge: 'TS3 Palette',
-                desc: 'Classic high-contrast navy slate palette.',
+                name: 'TeamSpeak 6 Modern',
+                badge: 'TS6 Palette',
+                desc: 'Modern dark slate and electric blue TeamSpeak 6 palette.',
                 colors: ['#182230', '#202c3d', '#263447', '#2563eb'],
               },
               {
@@ -2525,6 +2536,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => setPluginFilter('betterdiscord')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+                        pluginFilter === 'betterdiscord'
+                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      BetterDiscord
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPluginFilter('replugged')}
+                      className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+                        pluginFilter === 'replugged'
+                          ? 'bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/40'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      Replugged
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPluginFilter('user')}
                       className={`text-xs px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1 cursor-pointer ${
                         pluginFilter === 'user'
@@ -3001,6 +3034,100 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                     />
                   </div>
+                </div>
+
+                {/* Krisp AI Noise Suppression */}
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[var(--accent-cyan)]" />
+                        <h3 className="text-sm font-bold text-[var(--text-header)]">
+                          Krisp AI Noise Suppression
+                        </h3>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            krispMode === 'krisp'
+                              ? 'bg-[var(--discord-blurple)]/20 text-[var(--accent-cyan)] border border-[var(--discord-blurple)]/40'
+                              : 'bg-[var(--bg-channels)] text-[var(--text-muted)]'
+                          }`}
+                        >
+                          {krispMode === 'krisp' ? 'Krisp Active' : krispMode === 'standard' ? 'Standard' : 'Off'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Real-time Web Audio DSP noise gate, rumble filter, and voice isolation.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-[var(--bg-channels)] p-1 rounded-md border border-[var(--border-subtle)]">
+                      {(['krisp', 'standard', 'none'] as const).map(modeOpt => (
+                        <button
+                          key={modeOpt}
+                          type="button"
+                          data-testid={`settings-krisp-mode-${modeOpt}`}
+                          onClick={() => {
+                            livekit.setNoiseSuppressionMode(modeOpt);
+                            setKrispMode(modeOpt);
+                          }}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                            krispMode === modeOpt
+                              ? 'bg-[var(--discord-blurple)] text-white'
+                              : 'text-[var(--text-normal)] hover:text-[var(--text-header)]'
+                          }`}
+                        >
+                          {modeOpt === 'krisp' ? 'Krisp' : modeOpt === 'standard' ? 'Standard' : 'Off'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {krispMode !== 'none' && (
+                    <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-normal)] font-semibold">
+                          Noise Gate Sensitivity
+                        </span>
+                        <span className="font-mono text-[var(--accent-cyan)] font-bold">
+                          {krispThresholdDb} dB
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={-60}
+                        max={-18}
+                        step={1}
+                        aria-label="Krisp Noise Gate Sensitivity"
+                        data-testid="settings-krisp-threshold-slider"
+                        value={krispThresholdDb}
+                        onChange={e => {
+                          const nextDb = Number(e.target.value);
+                          setKrispThresholdDb(nextDb);
+                          livekit.setKrispThresholdDb(nextDb);
+                        }}
+                        className="w-full accent-[var(--discord-blurple)] cursor-pointer"
+                      />
+                      <div className="grid grid-cols-3 gap-2 text-[11px] bg-[var(--bg-channels)] p-2 rounded border border-[var(--border-subtle)]">
+                        <div>
+                          <span className="text-[var(--text-muted)] block">Raw Input</span>
+                          <span className="font-mono font-bold text-[var(--text-header)]">
+                            {krispStats.inputDb} dB
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-muted)] block">Filtered Output</span>
+                          <span className="font-mono font-bold text-[var(--status-online)]">
+                            {krispStats.outputDb} dB
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-muted)] block">Noise Suppressed</span>
+                          <span className="font-mono font-bold text-[var(--accent-cyan)]">
+                            -{krispStats.reductionDb} dB {krispStats.gateOpen ? '(Open)' : '(Gated)'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Input Device & Output Device Selection */}
@@ -3855,12 +3982,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="button"
                     onClick={() => {
                       discordSettingsSync.setDiscordToken(discordTokenInput);
-                      setTokenSavedNotice('Token saved ✓');
-                      window.setTimeout(() => setTokenSavedNotice(null), 2000);
+                      setTokenSavedNotice('Token saved & connecting bridge...');
+                      void matrix.connectDiscord(discordTokenInput, true).then(res => {
+                        if (res.ok && res.user) {
+                          setTokenSavedNotice(
+                            `Connected as ${res.user.globalName || res.user.username} (${res.syncedGuilds || 0} servers synced) ✓`
+                          );
+                        } else {
+                          setTokenSavedNotice(res.error ? `Saved locally (${res.error})` : 'Token saved ✓');
+                        }
+                        window.setTimeout(() => setTokenSavedNotice(null), 3500);
+                      });
                     }}
                     className="px-3 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                   >
-                    Save
+                    Connect &amp; Sync
                   </button>
                   {syncSettings.discordTokenConnected && (
                     <button
@@ -3868,7 +4004,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => {
                         setDiscordTokenInput('');
                         discordSettingsSync.setDiscordToken('');
-                        setTokenSavedNotice('Cleared');
+                        void matrix.disconnectDiscord();
+                        setTokenSavedNotice('Disconnected & cleared');
                         window.setTimeout(() => setTokenSavedNotice(null), 2000);
                       }}
                       className="px-3 py-2 rounded bg-[var(--bg-channels)] hover:bg-red-500/20 text-[var(--text-normal)] text-xs cursor-pointer"

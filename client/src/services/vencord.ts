@@ -1,4 +1,5 @@
 import type { VencordPlugin, ThemeConfig } from '../types';
+import { EXTENDED_PLUGIN_CATALOG } from '../data/pluginCatalog';
 
 const STORAGE_KEY_PLUGINS = 'vencord_plugins_v1';
 const STORAGE_KEY_USER_PLUGINS = 'equicord_user_plugins_v1';
@@ -330,6 +331,34 @@ export const DEFAULT_PLUGINS: VencordPlugin[] = [
     category: 'utility',
     tags: ['nitro', 'emojis', 'streaming'],
   },
+  ...EXTENDED_PLUGIN_CATALOG.filter(
+    ext =>
+      ![
+        'customSounds',
+        'messageLogger',
+        'nitroBypass',
+        'ultraLowLatency',
+        'questCompleter',
+        'callTimer',
+        'relationshipNotifier',
+        'viewIcons',
+        'platformIndicators',
+        'betterFolders',
+        'volumeBooster',
+        'customRPC',
+        'gameActivityToggle',
+        'spotifyControls',
+        'customBadges',
+        'openInApp',
+        'translate',
+        'voiceMessages',
+        'permissionsViewer',
+        'showAllMessageTimestamps',
+        'clearURLs',
+        'sendTimestamps',
+        'splitLargeMessages',
+      ].includes(ext.id)
+  ),
 ];
 
 export const EQUICORD_CATALOG: VencordPlugin[] = [

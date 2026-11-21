@@ -19,7 +19,7 @@ import {
   Camera,
 } from 'lucide-react';
 import type { EngineMode } from '../types';
-import { appIconService } from '../services/appIcon';
+import { appIconService, DEFAULT_APP_ICON_FALLBACK } from '../services/appIcon';
 import { desktopBridge } from '../services/desktopBridge';
 import { overlayService, type OverlayConfig } from '../services/overlay';
 import { vencord } from '../services/vencord';
@@ -232,6 +232,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           <img
             src={currentIcon}
             alt="Protutech"
+            onError={e => {
+              if (e.currentTarget.src !== DEFAULT_APP_ICON_FALLBACK) {
+                e.currentTarget.src = DEFAULT_APP_ICON_FALLBACK;
+              }
+            }}
             className="w-3.5 h-3.5 rounded-sm object-cover flex-shrink-0"
           />
           <span className="text-[11px] font-semibold text-[var(--text-header)] tracking-tight whitespace-nowrap">
@@ -300,14 +305,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               onClick={() => handleLayoutSwitch('teamspeak')}
               data-testid="layout-toggle-ts3"
               aria-pressed={layoutFormat === 'teamspeak'}
-              title="TeamSpeak Layout"
+              title="TeamSpeak 6 Layout"
               className={`h-[18px] px-2 rounded-[3px] text-[10px] font-semibold transition-colors cursor-pointer ${
                 layoutFormat === 'teamspeak'
                   ? 'bg-[var(--discord-blurple)] text-white'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              TS3
+              TS6
             </button>
           </div>
 

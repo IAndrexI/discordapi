@@ -1,6 +1,7 @@
-import React from 'react';
-import { MessageSquare, Plus, Compass } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Compass } from 'lucide-react';
 import type { DiscordGuild, EngineMode } from '../types';
+import { appIconService, DEFAULT_APP_ICON_FALLBACK } from '../services/appIcon';
 
 export interface ServerRailProps {
   guilds: DiscordGuild[];
@@ -30,6 +31,12 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   engineMode = 'hybrid',
   onOpenDiscordHub,
 }) => {
+  const [appIcon, setAppIcon] = useState(() => appIconService.getIcon());
+
+  useEffect(() => {
+    return appIconService.subscribe(setAppIcon);
+  }, []);
+
   const visibleGuilds =
     engineMode === 'proprietary'
       ? guilds.filter(g => !isDiscordBridgedGuild(g))
@@ -55,14 +62,23 @@ export const ServerRail: React.FC<ServerRailProps> = ({
           onClick={() => onSelectGuild(null)}
           aria-label="Direct Messages"
           aria-current={activeGuildId === null ? 'page' : undefined}
-          className={`w-11 h-11 flex items-center justify-center transition-all duration-200 relative cursor-pointer ${
+          className={`w-11 h-11 flex items-center justify-center transition-all duration-200 relative cursor-pointer overflow-hidden ${
             activeGuildId === null
               ? 'bg-[var(--discord-blurple)] text-white rounded-[14px]'
               : 'bg-[var(--bg-card)] text-[var(--text-normal)] rounded-[22px] hover:rounded-[14px] hover:bg-[var(--discord-blurple)] hover:text-white'
           }`}
           title="Direct Messages"
         >
-          <MessageSquare className="w-5 h-5" />
+          <img
+            src={appIcon}
+            alt="Protutech"
+            onError={e => {
+              if (e.currentTarget.src !== DEFAULT_APP_ICON_FALLBACK) {
+                e.currentTarget.src = DEFAULT_APP_ICON_FALLBACK;
+              }
+            }}
+            className="w-7 h-7 rounded-lg object-cover"
+          />
           {unreadDMsCount > 0 && (
             <span className="absolute -bottom-1 -right-1 bg-[var(--status-dnd)] text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full ring-4 ring-[var(--bg-servers)] leading-none">
               {unreadDMsCount}

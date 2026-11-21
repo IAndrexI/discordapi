@@ -958,6 +958,136 @@ export class MatrixClientService {
     }
   }
 
+  public async getDiscordStatus(): Promise<{
+    connected: boolean;
+    gatewayStatus: string;
+    lastError: string | null;
+    user: { id: string; username: string; globalName: string; avatar: string | null } | null;
+  }> {
+    try {
+      const res = await this.fetchApi('/api/discord/status', { method: 'GET' });
+      if (!res.ok) return { connected: false, gatewayStatus: 'disconnected', lastError: null, user: null };
+      return (await res.json()) as {
+        connected: boolean;
+        gatewayStatus: string;
+        lastError: string | null;
+        user: { id: string; username: string; globalName: string; avatar: string | null } | null;
+      };
+    } catch {
+      return { connected: false, gatewayStatus: 'disconnected', lastError: null, user: null };
+    }
+  }
+
+  public async connectDiscord(
+    token: string,
+    syncAll = true
+  ): Promise<{
+    ok: boolean;
+    user?: { id: string; username: string; globalName: string; avatar: string | null };
+    syncedGuilds?: number;
+    syncedRooms?: number;
+    error?: string;
+  }> {
+    try {
+      const clean = token.trim();
+      if (typeof localStorage !== 'undefined' && clean) {
+        localStorage.setItem(DISCORD_TOKEN_KEY, clean);
+      }
+      const res = await this.fetchApi('/api/discord/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: clean }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        user?: { id: string; username: string; globalName: string; avatar: string | null };
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        return { ok: false, error: data.error || 'Failed to connect Discord client.' };
+      }
+      if (syncAll) {
+        const syncRes = await this.syncAllDiscord();
+        return {
+          ok: true,
+          user: data.user,
+          syncedGuilds: syncRes.syncedGuilds,
+          syncedRooms: syncRes.syncedRooms,
+        };
+      }
+      return { ok: true, user: data.user };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error connecting Discord.' };
+    }
+  }
+
+  public async syncAllDiscord(): Promise<{ ok: boolean; syncedGuilds: number; syncedRooms: number }> {
+    try {
+      const res = await this.fetchApi('/api/discord/sync-all', { method: 'POST' });
+      if (!res.ok) return { ok: false, syncedGuilds: 0, syncedRooms: 0 };
+      const data = (await res.json()) as { ok?: boolean; syncedGuilds?: number; syncedRooms?: number };
+      await this.loadInitialRooms();
+      return {
+        ok: Boolean(data.ok),
+        syncedGuilds: Number(data.syncedGuilds || 0),
+        syncedRooms: Number(data.syncedRooms || 0),
+      };
+    } catch {
+      return { ok: false, syncedGuilds: 0, syncedRooms: 0 };
+    }
+  }
+
+  public async disconnectDiscord(): Promise<void> {
+    try {
+      await this.fetchApi('/api/discord/disconnect', { method: 'POST' });
+    } catch {
+      // Ignore
+    }
+  }
+
+  public async sendDiscordTyping(roomId: string): Promise<void> {
+    try {
+      await this.fetchApi('/api/discord/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId }),
+      });
+    } catch {
+      // Ignore
+    }
+  }
+
+  public async joinDiscordVoice(
+    guildId: string | null,
+    channelId: string | null,
+    selfMute = false,
+    selfDeaf = false
+  ): Promise<{ ok: boolean; discordUrl?: string }> {
+    try {
+      const res = await this.fetchApi('/api/discord/voice/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId, channelId, selfMute, selfDeaf }),
+      });
+      if (!res.ok) return { ok: false };
+      return (await res.json()) as { ok: boolean; discordUrl?: string };
+    } catch {
+      return { ok: false };
+    }
+  }
+
+  public async leaveDiscordVoice(guildId: string | null): Promise<void> {
+    try {
+      await this.fetchApi('/api/discord/voice/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guildId }),
+      });
+    } catch {
+      // Ignore
+    }
+  }
+
   public logout(): void {
     this.accessToken = null;
     this.userId = null;
@@ -1918,10 +2048,14 @@ export class MatrixClientService {
         if (target) {
           if (!target.reactions) target.reactions = {};
           const existing = target.reactions[emoji] || [];
-          if (!existing.includes(this.userId!)) {
+          if (existing.includes(this.userId!)) {
+            const next = existing.filter((u) => u !== this.userId!);
+            if (next.length === 0) delete target.reactions[emoji];
+            else target.reactions[emoji] = next;
+          } else {
             target.reactions[emoji] = [...existing, this.userId!];
-            this.persistMessagesCache();
           }
+          this.persistMessagesCache();
         }
       }
       this.reactionListeners.forEach((cb) => cb(roomId, eventId, emoji, this.userId!));

@@ -10,6 +10,7 @@ const {
   verifyPassword,
   isValidEmail,
 } = require('./accountEmail.cjs');
+const { createDiscordClientBridge } = require('./discordClientBridge.cjs');
 
 const DEFAULT_DATA_DIR = path.resolve(__dirname, '../server-data');
 
@@ -1127,6 +1128,7 @@ function createRequestHandler(dataDir) {
   const activeUploads = new Map();
   let syncBatchCounter = 1;
   const syncWaiters = new Set();
+  let discordBridge = null;
 
   function broadcastEvent(eventName, data) {
     syncBatchCounter += 1;
@@ -1145,6 +1147,8 @@ function createRequestHandler(dataDir) {
       }
     }
   }
+
+  discordBridge = createDiscordClientBridge({ store, broadcastEvent });
 
   function resolveRoomByIdOrName(roomIdOrName) {
     const db = store.db;
@@ -1989,14 +1993,57 @@ function createRequestHandler(dataDir) {
     const roomMsgsMatch = pathname.match(/^\/api\/rooms\/([^/]+)\/messages$/);
     if (roomMsgsMatch) {
       const roomId = decodeURIComponent(roomMsgsMatch[1]);
+      const targetRoom = db.rooms.find((r) => r.id === roomId);
+      const activeDcToken = discordToken || discordBridge.getToken();
+
       if (method === 'GET') {
         const limit = Math.max(1, Math.min(300, Number(parsedUrl.searchParams.get('limit') || 100)));
+        if (targetRoom?.discordChannelId && activeDcToken) {
+          const remote = await discordBridge.api(
+            `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/messages?limit=${Math.min(100, limit)}`,
+            { token: activeDcToken }
+          );
+          if (remote.ok && Array.isArray(remote.data)) {
+            const normalized = remote.data
+              .slice()
+              .reverse()
+              .map((m) => discordBridge.normalizeDiscordMessage(m, roomId));
+            db.messages[roomId] = normalized;
+            store.save();
+            sendJson(res, 200, { roomId, messages: normalized, source: 'discord_api' });
+            return;
+          }
+        }
         const list = (db.messages[roomId] || []).slice(-limit);
         sendJson(res, 200, { roomId, messages: list });
         return;
       }
       if (method === 'POST') {
         const body = await readJsonBody(req);
+        if (targetRoom?.discordChannelId && activeDcToken) {
+          const payload = { content: String(body.body || '') };
+          if (body.replyTo?.id) {
+            payload.message_reference = {
+              message_id: String(body.replyTo.id).replace(/^dc_/, ''),
+            };
+          }
+          const remote = await discordBridge.api(
+            `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/messages`,
+            { method: 'POST', token: activeDcToken, body: payload }
+          );
+          if (remote.ok && remote.data) {
+            const normalized = discordBridge.normalizeDiscordMessage(remote.data, roomId);
+            const list = db.messages[roomId] || [];
+            if (!list.some((m) => m.id === normalized.id)) {
+              list.push(normalized);
+              db.messages[roomId] = list.slice(-250);
+              store.save();
+            }
+            broadcastEvent('message', { roomId, message: normalized });
+            sendJson(res, 201, { ok: true, event_id: normalized.id, message: normalized });
+            return;
+          }
+        }
         const msg = appendMessageToRoom(roomId, body);
         sendJson(res, 201, { ok: true, event_id: msg.id, message: msg });
         return;
@@ -2008,6 +2055,8 @@ function createRequestHandler(dataDir) {
       const roomId = decodeURIComponent(roomSingleMsgMatch[1]);
       const msgId = decodeURIComponent(roomSingleMsgMatch[2]);
       const list = db.messages[roomId] || [];
+      const targetRoom = db.rooms.find((r) => r.id === roomId);
+      const activeDcToken = discordToken || discordBridge.getToken();
 
       if (method === 'PUT' || method === 'PATCH') {
         const body = await readJsonBody(req);
@@ -2015,6 +2064,12 @@ function createRequestHandler(dataDir) {
         if (!target) {
           sendJson(res, 404, { error: 'Message not found' });
           return;
+        }
+        if (targetRoom?.discordChannelId && activeDcToken && msgId.startsWith('dc_')) {
+          await discordBridge.api(
+            `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/messages/${encodeURIComponent(msgId.replace(/^dc_/, ''))}`,
+            { method: 'PATCH', token: activeDcToken, body: { content: String(body.body ?? target.body) } }
+          );
         }
         target.body = String(body.body ?? target.body);
         target.isEdited = true;
@@ -2025,6 +2080,12 @@ function createRequestHandler(dataDir) {
       }
 
       if (method === 'DELETE') {
+        if (targetRoom?.discordChannelId && activeDcToken && msgId.startsWith('dc_')) {
+          await discordBridge.api(
+            `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/messages/${encodeURIComponent(msgId.replace(/^dc_/, ''))}`,
+            { method: 'DELETE', token: activeDcToken }
+          );
+        }
         db.messages[roomId] = list.filter((m) => m.id !== msgId);
         store.save();
         broadcastEvent('redaction', { roomId, eventId: msgId });
@@ -2049,11 +2110,28 @@ function createRequestHandler(dataDir) {
       }
       if (!target.reactions) target.reactions = {};
       const existing = target.reactions[emoji] || [];
-      if (!existing.includes(sender)) {
+      const alreadyReacted = existing.includes(sender);
+      if (alreadyReacted) {
+        const next = existing.filter((u) => u !== sender);
+        if (next.length === 0) delete target.reactions[emoji];
+        else target.reactions[emoji] = next;
+      } else {
         target.reactions[emoji] = [...existing, sender];
-        store.save();
-        broadcastEvent('reaction', { roomId, eventId: targetId, emoji, sender });
       }
+
+      const targetRoom = db.rooms.find((r) => r.id === roomId);
+      const activeDcToken = discordToken || discordBridge.getToken();
+      if (targetRoom?.discordChannelId && activeDcToken && String(targetId).startsWith('dc_')) {
+        const dcMsgId = String(targetId).replace(/^dc_/, '');
+        const encodedEmoji = encodeURIComponent(emoji);
+        await discordBridge.api(
+          `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/messages/${encodeURIComponent(dcMsgId)}/reactions/${encodedEmoji}/@me`,
+          { method: alreadyReacted ? 'DELETE' : 'PUT', token: activeDcToken }
+        );
+      }
+
+      store.save();
+      broadcastEvent('reaction', { roomId, eventId: targetId, emoji, sender });
       sendJson(res, 200, { ok: true, message: target });
       return;
     }
@@ -2061,6 +2139,155 @@ function createRequestHandler(dataDir) {
     // ---------------------------------------------------------
     // 6. Discord Proxy, Quests & Bidirectional Settings
     // ---------------------------------------------------------
+    if (pathname === '/api/discord/status' && method === 'GET') {
+      sendJson(res, 200, discordBridge.getStatus());
+      return;
+    }
+
+    if (pathname === '/api/discord/me' && method === 'GET') {
+      const activeDcToken = discordToken || discordBridge.getToken();
+      if (!activeDcToken) {
+        sendJson(res, 200, { connected: false, user: null });
+        return;
+      }
+      const remote = await discordBridge.api('/users/@me', { token: activeDcToken });
+      sendJson(res, remote.ok ? 200 : 401, {
+        connected: remote.ok,
+        user: remote.data,
+      });
+      return;
+    }
+
+    if (pathname === '/api/discord/connect' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = await discordBridge.connect(body.token || discordToken);
+      if (!result.ok) {
+        sendJson(res, 401, result);
+        return;
+      }
+      sendJson(res, 200, { ...result, status: discordBridge.getStatus() });
+      return;
+    }
+
+    if (pathname === '/api/discord/disconnect' && method === 'POST') {
+      discordBridge.disconnect();
+      sendJson(res, 200, { ok: true, status: discordBridge.getStatus() });
+      return;
+    }
+
+    if (pathname === '/api/discord/sync-all' && method === 'POST') {
+      const activeDcToken = discordToken || discordBridge.getToken();
+      if (!activeDcToken) {
+        sendJson(res, 401, { ok: false, error: 'Discord token required to sync servers.' });
+        return;
+      }
+      const guildsRes = await discordBridge.api('/users/@me/guilds', { token: activeDcToken });
+      let syncedGuilds = 0;
+      let syncedRooms = 0;
+      if (guildsRes.ok && Array.isArray(guildsRes.data)) {
+        for (const g of guildsRes.data.slice(0, 15)) {
+          const gId = `dc_guild_${g.id}`;
+          let localGuild = db.guilds.find((lg) => lg.id === gId || lg.discordGuildId === String(g.id));
+          if (!localGuild) {
+            localGuild = {
+              id: gId,
+              name: String(g.name || 'Discord Server'),
+              iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : undefined,
+              hasVoice: true,
+              isAlwaysSynced: true,
+              serverKind: 'discord',
+              discordGuildId: String(g.id),
+            };
+            db.guilds.push(localGuild);
+            syncedGuilds += 1;
+          }
+          const chRes = await discordBridge.api(`/guilds/${encodeURIComponent(g.id)}/channels`, {
+            token: activeDcToken,
+          });
+          if (chRes.ok && Array.isArray(chRes.data)) {
+            const cats = new Map();
+            for (const c of chRes.data) {
+              if (c.type === 4) cats.set(c.id, c.name);
+            }
+            for (const ch of chRes.data) {
+              if (ch.type !== 0 && ch.type !== 2 && ch.type !== 5 && ch.type !== 13) continue;
+              const roomId = `!dc_${ch.id}:discord.bridge`;
+              if (!db.rooms.some((r) => r.id === roomId || r.discordChannelId === String(ch.id))) {
+                db.rooms.push({
+                  id: roomId,
+                  name: String(ch.name || 'channel'),
+                  topic: ch.topic ? String(ch.topic) : undefined,
+                  isDirect: false,
+                  isGroupChat: false,
+                  isVoice: ch.type === 2 || ch.type === 13,
+                  guildId: localGuild.id,
+                  guildName: localGuild.name,
+                  categoryId: ch.parent_id || undefined,
+                  categoryName: ch.parent_id ? cats.get(ch.parent_id) : undefined,
+                  isSynced: true,
+                  syncSource: 'discord',
+                  serverKind: 'discord',
+                  discordGuildId: String(g.id),
+                  discordChannelId: String(ch.id),
+                  members: [db.users['@andrex:local.protutech']].filter(Boolean),
+                  unreadCount: 0,
+                  lastMessageTimestamp: Date.now(),
+                });
+                if (!db.messages[roomId]) db.messages[roomId] = [];
+                syncedRooms += 1;
+              }
+            }
+          }
+        }
+      }
+      store.save();
+      broadcastEvent('rooms_updated', { syncedGuilds, syncedRooms });
+      sendJson(res, 200, { ok: true, syncedGuilds, syncedRooms });
+      return;
+    }
+
+    if (pathname === '/api/discord/typing' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const targetRoom = db.rooms.find((r) => r.id === body.roomId);
+      const activeDcToken = discordToken || discordBridge.getToken();
+      if (targetRoom?.discordChannelId && activeDcToken) {
+        await discordBridge.api(
+          `/channels/${encodeURIComponent(targetRoom.discordChannelId)}/typing`,
+          { method: 'POST', token: activeDcToken }
+        );
+      }
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (pathname === '/api/discord/voice/join' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const guildId = body.guildId || null;
+      const channelId = body.channelId || null;
+      const sent = discordBridge.sendVoiceStateUpdate(
+        guildId,
+        channelId,
+        Boolean(body.selfMute),
+        Boolean(body.selfDeaf)
+      );
+      sendJson(res, 200, {
+        ok: true,
+        gatewaySent: sent,
+        discordUrl: guildId && channelId
+          ? `https://discord.com/channels/${encodeURIComponent(guildId)}/${encodeURIComponent(channelId)}`
+          : 'https://discord.com/channels/@me',
+        participants: channelId ? discordBridge.getVoiceStatesForChannel(channelId) : [],
+      });
+      return;
+    }
+
+    if (pathname === '/api/discord/voice/leave' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const sent = discordBridge.sendVoiceStateUpdate(body.guildId || null, null, false, false);
+      sendJson(res, 200, { ok: true, gatewaySent: sent });
+      return;
+    }
+
     if (pathname === '/api/discord/guilds' && method === 'GET') {
       if (discordToken) {
         const remote = await fetchDiscordApi('/users/@me/guilds', discordToken);

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  MessageSquare,
   Lock,
   User,
   Server,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { EngineMode } from '../types';
 import { matrix } from '../services/matrix';
+import { appIconService, DEFAULT_APP_ICON_FALLBACK } from '../services/appIcon';
 
 interface LoginModalProps {
   onLogin: (username: string, password: string) => Promise<boolean>;
@@ -244,9 +244,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="w-full max-w-lg max-h-full overflow-y-auto bg-[var(--bg-card)] rounded-xl shadow-2xl p-4 sm:p-5 border border-[var(--border-subtle)] relative z-10 animate-fadeIn my-auto">
         {/* Header */}
         <div className="text-center mb-3">
-          <div className="w-9 h-9 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center text-white mx-auto mb-1.5 shadow-lg">
-            <MessageSquare className="w-4 h-4 fill-current" />
-          </div>
+          <img
+            src={appIconService.getIcon()}
+            alt="Protutech"
+            onError={e => {
+              if (e.currentTarget.src !== DEFAULT_APP_ICON_FALLBACK) {
+                e.currentTarget.src = DEFAULT_APP_ICON_FALLBACK;
+              }
+            }}
+            className="w-10 h-10 rounded-xl object-cover mx-auto mb-1.5 shadow-lg border border-[var(--border-subtle)]"
+          />
           <h1 className="text-lg font-bold text-[var(--text-header)] leading-tight">Protutech</h1>
           <p className="text-xs text-[var(--text-muted)]">
             Fast, self-hosted chat &amp; voice.

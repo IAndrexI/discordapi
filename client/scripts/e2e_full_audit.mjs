@@ -468,7 +468,8 @@ async function runAudit() {
           await page.locator('button[aria-label="Add Emoji"]').click();
           const emojiTray = page.locator('[role="dialog"][aria-label="Emoji Picker"]');
           await assertInViewport(emojiTray, 'Composer Emoji Picker tray');
-          await emojiTray.locator('button').first().click();
+          await emojiTray.locator('[data-testid="emoji-picker-search"]').fill('fire');
+          await emojiTray.locator('button[aria-label=":fire:"]').first().click();
           await emojiTray.waitFor({ state: 'hidden', timeout: 4000 });
 
           // Clear injected emoji text if any
