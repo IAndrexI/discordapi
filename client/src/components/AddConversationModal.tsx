@@ -11,7 +11,6 @@ import {
   Volume2,
   Folder,
   Loader2,
-  Radio,
   Layers,
   Link as LinkIcon,
   Sparkles,
@@ -39,7 +38,19 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [activeTab, setActiveTab] = useState<AddModalTab>(initialTab);
+  const openTabKey = `${isOpen}:${initialTab}`;
+  const [tabOverride, setTabOverride] = useState<{ key: string; tab: AddModalTab } | null>(null);
+  const activeTab: AddModalTab =
+    tabOverride && tabOverride.key === openTabKey ? tabOverride.tab : initialTab;
+  const setActiveTab = (tab: AddModalTab) => {
+    setTabOverride({ key: openTabKey, tab });
+  };
+
+  // Server mode: 'create' = native server/channel, 'sync' = sync external server
+  const [serverMode, setServerMode] = useState<'create' | 'sync'>('create');
+  const [serverRoomName, setServerRoomName] = useState('');
+  const [serverRoomTopic, setServerRoomTopic] = useState('');
+  const [serverIsVoice, setServerIsVoice] = useState(false);
 
   // Sync mode for server: 'entire' = full clone always synced, 'selective' = pick specific channels
   const [serverSyncMode, setServerSyncMode] = useState<'entire' | 'selective'>('entire');
@@ -68,21 +79,36 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
 
   // Action status
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [statusState, setStatusState] = useState<{
+    key: string;
+    type: 'ok' | 'err';
+    text: string;
+  } | null>(null);
+  const statusMessage = statusState && statusState.key === openTabKey ? statusState : null;
+  const setStatusMessage = (msg: { type: 'ok' | 'err'; text: string } | null) => {
+    setStatusState(msg ? { key: openTabKey, ...msg } : null);
+  };
 
-  // Keep activeTab in sync with initialTab
-  useEffect(() => {
-    setActiveTab(initialTab);
-    setStatusMessage(null);
-  }, [initialTab, isOpen]);
-
-  // Load available Discord guilds when Server tab is active
   useEffect(() => {
     if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
-    if (activeTab === 'server' && guilds.length === 0) {
-      setLoadingGuilds(true);
-      discordSync.fetchAvailableGuilds().then(list => {
+  // Load available external servers when Server sync mode is active
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    if (activeTab === 'server' && serverMode === 'sync' && guilds.length === 0) {
+      void Promise.resolve().then(async () => {
+        if (cancelled) return;
+        setLoadingGuilds(true);
+        const list = await discordSync.fetchAvailableGuilds();
+        if (cancelled) return;
         setGuilds(list);
         setLoadingGuilds(false);
         if (list.length > 0 && !selectedGuildId) {
@@ -92,27 +118,41 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
     }
 
     if ((activeTab === 'group' || activeTab === 'dm') && availableDMs.length === 0) {
-      setLoadingDMs(true);
-      discordSync.fetchAvailableDMs().then(list => {
+      void Promise.resolve().then(async () => {
+        if (cancelled) return;
+        setLoadingDMs(true);
+        const list = await discordSync.fetchAvailableDMs();
+        if (cancelled) return;
         setAvailableDMs(list);
         setLoadingDMs(false);
       });
     }
-  }, [isOpen, activeTab, guilds.length, availableDMs.length, selectedGuildId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeTab, serverMode, guilds.length, availableDMs.length, selectedGuildId]);
 
   // Load channels when a guild is selected in selective mode
   useEffect(() => {
-    if (activeTab === 'server' && serverSyncMode === 'selective' && selectedGuildId) {
-      setLoadingChannels(true);
-      discordSync.fetchGuildChannels(selectedGuildId).then(chs => {
+    if (activeTab === 'server' && serverMode === 'sync' && serverSyncMode === 'selective' && selectedGuildId) {
+      let cancelled = false;
+      void Promise.resolve().then(async () => {
+        if (cancelled) return;
+        setLoadingChannels(true);
+        const chs = await discordSync.fetchGuildChannels(selectedGuildId);
+        if (cancelled) return;
         setGuildChannels(chs);
         setLoadingChannels(false);
-        // Default check all text and voice channels
         const nonCats = chs.filter(c => c.type !== 'category').map(c => c.id);
         setSelectedChannelIds(new Set(nonCats));
       });
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [activeTab, serverSyncMode, selectedGuildId]);
+    return undefined;
+  }, [activeTab, serverMode, serverSyncMode, selectedGuildId]);
 
   if (!isOpen) return null;
 
@@ -142,6 +182,34 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
 
     try {
       if (activeTab === 'server') {
+        if (serverMode === 'create') {
+          if (!serverRoomName.trim()) {
+            throw new Error('Please enter a server or channel name.');
+          }
+
+          const room = await matrix.createNativeRoom({
+            name: serverRoomName.trim(),
+            topic: serverRoomTopic.trim(),
+            isGroupChat: false,
+            isVoice: serverIsVoice,
+          });
+
+          if (!room) {
+            throw new Error('Sign in to create a native server or channel.');
+          }
+
+          setStatusMessage({
+            type: 'ok',
+            text: `${serverIsVoice ? 'Voice' : 'Text'} channel "#${room.name}" created!`,
+          });
+
+          setTimeout(() => {
+            onSuccess(room.guildId || room.id);
+            onClose();
+          }, 900);
+          return;
+        }
+
         if (!selectedGuildId) throw new Error('Please select a server to sync.');
 
         const isEntire = serverSyncMode === 'entire';
@@ -154,8 +222,8 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
         setStatusMessage({
           type: 'ok',
           text: isEntire
-            ? 'Cloning server channels and establishing continuous sync...'
-            : `Syncing ${channelIds.length} selective channels...`,
+            ? 'Cloning server channels and establishing sync...'
+            : `Syncing ${channelIds.length} selected channels...`,
         });
 
         const res = await discordSync.syncServer(selectedGuildId, isEntire, channelIds);
@@ -163,13 +231,13 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
 
         setStatusMessage({
           type: 'ok',
-          text: 'Server successfully cloned! Refreshing channels...',
+          text: 'Server synced! Refreshing channels...',
         });
 
         setTimeout(() => {
           onSuccess(selectedGuildId);
           onClose();
-        }, 1200);
+        }, 1000);
       } else if (activeTab === 'group') {
         if (groupMode === 'create') {
           if (!groupName.trim()) throw new Error('Please enter a group chat name.');
@@ -267,40 +335,55 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
   const singleDMs = availableDMs.filter(d => d.type === 'dm');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-[#0b1021] border border-cyan-500/25 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-conversation-title"
+        className="bg-[var(--bg-chat)] border border-[var(--border-subtle)] rounded-2xl w-[min(42rem,100%)] max-w-full max-h-full flex flex-col shadow-2xl overflow-hidden"
+      >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 bg-[#070b18]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-              <Sparkles className="w-5 h-5 text-cyan-400" />
+        <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between flex-shrink-0 bg-[var(--bg-userpanel)]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center text-white flex-shrink-0">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-white tracking-tight">Add or Sync Conversation</h2>
-              <p className="text-xs text-slate-400">
-                Choose between Server cloning, Group chats, or Direct Messages.
+            <div className="min-w-0">
+              <h2 id="add-conversation-title" className="text-base sm:text-lg font-bold text-[var(--text-header)] tracking-tight">
+                Add or Sync
+              </h2>
+              <p className="text-xs text-[var(--text-muted)]">
+                Create a native space or sync an external server, group, or DM.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Close Add or Sync dialog"
+            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] rounded-lg transition-colors cursor-pointer flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 3 Main Segmented Tabs */}
-        <div className="px-6 pt-4 pb-2 border-b border-white/10 bg-[#090e1f] flex gap-2">
+        <div className="px-5 pt-3 pb-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-channels)] flex gap-2 flex-shrink-0">
           <button
+            type="button"
             onClick={() => {
               setActiveTab('server');
               setStatusMessage(null);
             }}
-            className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2.5 font-semibold text-sm transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === 'server'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 border border-cyan-400/40'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
             <Server className="w-4 h-4" />
@@ -308,29 +391,31 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setActiveTab('group');
               setStatusMessage(null);
             }}
-            className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2.5 font-semibold text-sm transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === 'group'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 border border-cyan-400/40'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Group Chat</span>
+            <span>Group</span>
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setActiveTab('dm');
               setStatusMessage(null);
             }}
-            className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2.5 font-semibold text-sm transition-all ${
+            className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm transition-all cursor-pointer ${
               activeTab === 'dm'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 border border-cyan-400/40'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
             <MessageSquare className="w-4 h-4" />
@@ -339,204 +424,296 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
           {/* TAB 1: SERVER */}
           {activeTab === 'server' && (
             <div className="space-y-4">
-              {/* ALWAYS SYNCED GUARANTEE BANNER */}
-              <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-4 flex items-start gap-3 shadow-inner">
-                <ShieldCheck className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-emerald-200 leading-relaxed">
-                  <strong className="block text-emerald-400 font-bold text-sm mb-0.5">
-                    Full Server Mirror &bull; Always Synced
-                  </strong>
-                  Selecting a community server clones the complete channel structure including all
-                  categories, text channels, and dedicated voice lounges. This server will remain
-                  continuously and automatically synchronized in real time.
-                </div>
-              </div>
-
-              {/* Mode Toggle: Entire vs Selective */}
-              <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-1.5 text-xs font-semibold">
+              {/* Create vs Sync Toggle */}
+              <div className="flex items-center gap-2 bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-xl p-1 text-xs font-semibold">
                 <button
                   type="button"
-                  onClick={() => setServerSyncMode('entire')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                    serverSyncMode === 'entire'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  <span>Clone Entire Server (Always Synced)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setServerSyncMode('selective')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                    serverSyncMode === 'selective'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                  data-testid="add-server-mode-create"
+                  onClick={() => setServerMode('create')}
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    serverMode === 'create'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                   }`}
                 >
                   <Hash className="w-4 h-4" />
-                  <span>Select Specific Channels Only</span>
+                  <span>Create Native Server / Channel</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="add-server-mode-sync"
+                  onClick={() => setServerMode('sync')}
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    serverMode === 'sync'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                  }`}
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>Sync External Server</span>
                 </button>
               </div>
 
-              {/* Server Search */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search servers by name or ID..."
-                  value={guildSearch}
-                  onChange={e => setGuildSearch(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
+              {serverMode === 'create' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                      Server / Channel Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. engineering, squad-voice..."
+                      value={serverRoomName}
+                      onChange={e => setServerRoomName(e.target.value)}
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)]"
+                    />
+                  </div>
 
-              {/* Server List */}
-              <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30">
-                <div className="px-3 py-2 bg-black/40 border-b border-white/10 text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
-                  <span>Available Community Servers ({filteredGuilds.length})</span>
-                  {selectedGuildId && <span className="text-cyan-400">1 selected</span>}
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                      Topic (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Short channel description..."
+                      value={serverRoomTopic}
+                      onChange={e => setServerRoomTopic(e.target.value)}
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)]"
+                    />
+                  </div>
 
-                <div className="max-h-48 overflow-y-auto divide-y divide-white/5">
-                  {loadingGuilds ? (
-                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm">
-                      <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                      <span>Loading servers...</span>
-                    </div>
-                  ) : filteredGuilds.length === 0 ? (
-                    <div className="py-8 text-center text-slate-400 text-sm">
-                      No matching servers found.
-                    </div>
-                  ) : (
-                    filteredGuilds.map(guild => {
-                      const isSelected = selectedGuildId === guild.id;
-                      return (
-                        <div
-                          key={guild.id}
-                          onClick={() => setSelectedGuildId(guild.id)}
-                          className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'bg-blue-600/25 border-l-4 border-cyan-400 text-white'
-                              : 'hover:bg-white/5 text-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {guild.avatar_url ? (
-                              <img
-                                src={guild.avatar_url}
-                                alt={guild.name}
-                                className="w-8 h-8 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-blue-900/60 border border-blue-500/40 flex items-center justify-center font-bold text-xs text-white">
-                                {guild.name.slice(0, 2).toUpperCase()}
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-semibold text-sm flex items-center gap-2">
-                                <span>{guild.name}</span>
-                                {guild.bridged && (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    Already Synced
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-mono">ID: {guild.id}</div>
-                            </div>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-cyan-400" />}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Selective Channel Checklist (Only if selective mode chosen) */}
-              {serverSyncMode === 'selective' && selectedGuildId && (
-                <div className="border border-cyan-500/30 rounded-xl overflow-hidden bg-black/40 space-y-2 p-3">
-                  <div className="flex items-center justify-between text-xs pb-2 border-b border-white/10">
-                    <span className="font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setServerIsVoice(false)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                        !serverIsVoice
+                          ? 'bg-[var(--bg-item-active)] border-[var(--discord-blurple)] text-[var(--text-header)]'
+                          : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
                       <Hash className="w-3.5 h-3.5" />
-                      <span>Select Specific Channels to Sync</span>
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectAllChannels(true)}
-                        className="text-[11px] text-slate-400 hover:text-white underline"
-                      >
-                        Select All
-                      </button>
-                      <span className="text-slate-600">&bull;</span>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectAllChannels(false)}
-                        className="text-[11px] text-slate-400 hover:text-white underline"
-                      >
-                        Clear All
-                      </button>
+                      <span>Text Channel</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setServerIsVoice(true)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                        serverIsVoice
+                          ? 'bg-[var(--bg-item-active)] border-[var(--discord-blurple)] text-[var(--text-header)]'
+                          : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>Voice Channel</span>
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-[var(--text-muted)] bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-3">
+                    Creates a native room that works in both Local and Hybrid modes.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* ALWAYS SYNCED BANNER */}
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 flex items-start gap-3">
+                    <ShieldCheck className="w-5 h-5 text-[var(--status-online)] flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-[var(--text-normal)] leading-relaxed">
+                      <strong className="block text-[var(--status-online)] font-bold text-xs mb-0.5">
+                        Full Server Mirror &bull; Live Sync
+                      </strong>
+                      Clones categories, text channels, and voice lounges with continuous sync.
                     </div>
                   </div>
 
-                  {loadingChannels ? (
-                    <div className="py-6 flex justify-center items-center gap-2 text-slate-400 text-xs">
-                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                      <span>Loading server channels...</span>
+                  {/* Mode Toggle: Entire vs Selective */}
+                  <div className="flex items-center gap-2 bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-xl p-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setServerSyncMode('entire')}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        serverSyncMode === 'entire'
+                          ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      <Layers className="w-4 h-4" />
+                      <span>Clone Entire Server</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setServerSyncMode('selective')}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        serverSyncMode === 'selective'
+                          ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      <Hash className="w-4 h-4" />
+                      <span>Select Channels</span>
+                    </button>
+                  </div>
+
+                  {/* Server Search */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      aria-label="Search external servers"
+                      placeholder="Search servers by name or ID..."
+                      value={guildSearch}
+                      onChange={e => setGuildSearch(e.target.value)}
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl pl-9 pr-4 py-2 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)]"
+                    />
+                  </div>
+
+                  {/* Server List */}
+                  <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-userpanel)]">
+                    <div className="px-3 py-2 bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider flex justify-between">
+                      <span>Available Servers ({filteredGuilds.length})</span>
+                      {selectedGuildId && <span className="text-[var(--text-link)]">1 selected</span>}
                     </div>
-                  ) : guildChannels.length === 0 ? (
-                    <div className="py-4 text-center text-slate-400 text-xs">
-                      No channels found in this server.
-                    </div>
-                  ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
-                      {guildChannels.map(ch => {
-                        if (ch.type === 'category') {
+
+                    <div className="max-h-44 overflow-y-auto divide-y divide-[var(--border-subtle)]">
+                      {loadingGuilds ? (
+                        <div className="py-8 flex flex-col items-center justify-center gap-2 text-[var(--text-muted)] text-sm">
+                          <Loader2 className="w-5 h-5 animate-spin text-[var(--text-link)]" />
+                          <span>Loading servers...</span>
+                        </div>
+                      ) : filteredGuilds.length === 0 ? (
+                        <div className="py-8 text-center text-[var(--text-muted)] text-sm">
+                          No external servers found.
+                        </div>
+                      ) : (
+                        filteredGuilds.map(guild => {
+                          const isSelected = selectedGuildId === guild.id;
                           return (
                             <div
-                              key={ch.id}
-                              className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-2 flex items-center gap-1.5"
+                              key={guild.id}
+                              onClick={() => setSelectedGuildId(guild.id)}
+                              className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-[var(--bg-item-active)] border-l-4 border-[var(--discord-blurple)] text-[var(--text-header)]'
+                                  : 'hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)]'
+                              }`}
                             >
-                              <Folder className="w-3 h-3 text-slate-600" />
-                              <span>{ch.name}</span>
+                              <div className="flex items-center gap-3">
+                                {guild.avatar_url ? (
+                                  <img
+                                    src={guild.avatar_url}
+                                    alt={guild.name}
+                                    className="w-8 h-8 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-[var(--discord-blurple)] flex items-center justify-center font-bold text-xs text-white">
+                                    {guild.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-semibold text-sm flex items-center gap-2">
+                                    <span>{guild.name}</span>
+                                    {guild.bridged && (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/30">
+                                        Synced
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-[var(--text-muted)] font-mono">ID: {guild.id}</div>
+                                </div>
+                              </div>
+                              {isSelected && <Check className="w-4 h-4 text-[var(--text-link)]" />}
                             </div>
                           );
-                        }
+                        })
+                      )}
+                    </div>
+                  </div>
 
-                        const isChecked = selectedChannelIds.has(ch.id);
-                        return (
-                          <label
-                            key={ch.id}
-                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${
-                              isChecked ? 'bg-blue-900/30 text-white' : 'hover:bg-white/5 text-slate-400'
-                            }`}
+                  {/* Selective Channel Checklist */}
+                  {serverSyncMode === 'selective' && selectedGuildId && (
+                    <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-userpanel)] space-y-2 p-3">
+                      <div className="flex items-center justify-between text-xs pb-2 border-b border-[var(--border-subtle)]">
+                        <span className="font-bold text-[var(--text-link)] uppercase tracking-wider flex items-center gap-1.5">
+                          <Hash className="w-3.5 h-3.5" />
+                          <span>Select Channels</span>
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllChannels(true)}
+                            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-header)] underline cursor-pointer"
                           >
-                            <div className="flex items-center gap-2 truncate">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleToggleChannel(ch.id)}
-                                className="rounded border-white/20 bg-black/40 text-blue-600 focus:ring-0 cursor-pointer"
-                              />
-                              {ch.type === 'voice' ? (
-                                <Volume2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                              ) : (
-                                <Hash className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                              )}
-                              <span className="truncate">{ch.name}</span>
-                            </div>
-                            {ch.is_bridged && (
-                              <span className="text-[10px] text-emerald-400 font-medium ml-2">Synced</span>
-                            )}
-                          </label>
-                        );
-                      })}
+                            Select All
+                          </button>
+                          <span className="text-[var(--text-muted)]">&bull;</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllChannels(false)}
+                            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-header)] underline cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {loadingChannels ? (
+                        <div className="py-6 flex justify-center items-center gap-2 text-[var(--text-muted)] text-xs">
+                          <Loader2 className="w-4 h-4 animate-spin text-[var(--text-link)]" />
+                          <span>Loading channels...</span>
+                        </div>
+                      ) : guildChannels.length === 0 ? (
+                        <div className="py-4 text-center text-[var(--text-muted)] text-xs">
+                          No channels found.
+                        </div>
+                      ) : (
+                        <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                          {guildChannels.map(ch => {
+                            if (ch.type === 'category') {
+                              return (
+                                <div
+                                  key={ch.id}
+                                  className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 pt-2 flex items-center gap-1.5"
+                                >
+                                  <Folder className="w-3 h-3" />
+                                  <span>{ch.name}</span>
+                                </div>
+                              );
+                            }
+
+                            const isChecked = selectedChannelIds.has(ch.id);
+                            return (
+                              <label
+                                key={ch.id}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${
+                                  isChecked ? 'bg-[var(--bg-item-active)] text-[var(--text-header)]' : 'hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)]'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleToggleChannel(ch.id)}
+                                    className="rounded border-[var(--border-subtle)] cursor-pointer"
+                                  />
+                                  {ch.type === 'voice' ? (
+                                    <Volume2 className="w-3.5 h-3.5 text-[var(--status-online)] flex-shrink-0" />
+                                  ) : (
+                                    <Hash className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
+                                  )}
+                                  <span className="truncate">{ch.name}</span>
+                                </div>
+                                {ch.is_bridged && (
+                                  <span className="text-[10px] text-[var(--status-online)] font-medium ml-2">Synced</span>
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -548,86 +725,75 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
           {activeTab === 'group' && (
             <div className="space-y-4">
               {/* Group Chat Mode Toggle */}
-              <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-1 text-xs font-semibold">
+              <div className="flex items-center gap-2 bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-xl p-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setGroupMode('create')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     groupMode === 'create'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                   }`}
                 >
                   <Users className="w-4 h-4" />
-                  <span>Create Protutech Group</span>
+                  <span>Create Group</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setGroupMode('sync')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     groupMode === 'sync'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                   }`}
                 >
                   <LinkIcon className="w-4 h-4" />
-                  <span>Sync Group Chat</span>
+                  <span>Sync Group</span>
                 </button>
               </div>
 
               {groupMode === 'create' ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Group Chat Name
+                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                      Group Name
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. Squad Tactics, Project Alpha..."
                       value={groupName}
                       onChange={e => setGroupName(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Topic or Description (Optional)
+                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                      Topic (Optional)
                     </label>
                     <input
                       type="text"
                       placeholder="Voice lounge and strategy chat..."
                       value={groupTopic}
                       onChange={e => setGroupTopic(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)]"
                     />
-                  </div>
-
-                  {/* Sync Later Notice */}
-                  <div className="bg-blue-950/30 border border-blue-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-200">
-                    <Radio className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Sync Option Available Later:</strong> This group chat will be created as a native,
-                      ultra-low latency Protutech chat. You can link or synchronize this group with any
-                      channel later at any time from the chat header.
-                    </div>
                   </div>
                 </div>
               ) : (
-                /* Sync Group Chat */
                 <div className="space-y-3">
-                  <div className="text-xs text-slate-400">
-                    Select a multi-person group chat to synchronize:
+                  <div className="text-xs text-[var(--text-muted)]">
+                    Select a group chat to sync:
                   </div>
 
-                  <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 max-h-56 overflow-y-auto divide-y divide-white/5">
+                  <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-userpanel)] max-h-56 overflow-y-auto divide-y divide-[var(--border-subtle)]">
                     {loadingDMs ? (
-                      <div className="py-8 flex justify-center items-center gap-2 text-slate-400 text-sm">
-                        <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                        <span>Loading group chats...</span>
+                      <div className="py-8 flex justify-center items-center gap-2 text-[var(--text-muted)] text-sm">
+                        <Loader2 className="w-5 h-5 animate-spin text-[var(--text-link)]" />
+                        <span>Loading groups...</span>
                       </div>
                     ) : groupDMs.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 text-sm">
+                      <div className="py-8 text-center text-[var(--text-muted)] text-sm">
                         No group chats detected.
                       </div>
                     ) : (
@@ -639,15 +805,15 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                             onClick={() => setSelectedGroupDMId(gdm.id)}
                             className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
                               isSelected
-                                ? 'bg-blue-600/25 border-l-4 border-cyan-400 text-white'
-                                : 'hover:bg-white/5 text-slate-300'
+                                ? 'bg-[var(--bg-item-active)] border-l-4 border-[var(--discord-blurple)] text-[var(--text-header)]'
+                                : 'hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)]'
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
-                              <Users className="w-4 h-4 text-cyan-400" />
-                              <span className="text-sm font-medium">{gdm.name || `Group Chat (${gdm.id.slice(-4)})`}</span>
+                              <Users className="w-4 h-4 text-[var(--text-link)]" />
+                              <span className="text-sm font-medium">{gdm.name || `Group (${gdm.id.slice(-4)})`}</span>
                             </div>
-                            {isSelected && <Check className="w-4 h-4 text-cyan-400" />}
+                            {isSelected && <Check className="w-4 h-4 text-[var(--text-link)]" />}
                           </div>
                         );
                       })
@@ -662,71 +828,62 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
           {activeTab === 'dm' && (
             <div className="space-y-4">
               {/* DM Mode Toggle */}
-              <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-1 text-xs font-semibold">
+              <div className="flex items-center gap-2 bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-xl p-1 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setDmMode('create')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     dmMode === 'create'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Start Protutech DM</span>
+                  <span>Start Direct Message</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setDmMode('sync')}
-                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     dmMode === 'sync'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[var(--discord-blurple)] text-white shadow-md'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                   }`}
                 >
                   <LinkIcon className="w-4 h-4" />
-                  <span>Sync Contact Chat</span>
+                  <span>Sync Contact</span>
                 </button>
               </div>
 
               {dmMode === 'create' ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Username or Matrix ID
+                    <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+                      Username or User ID
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. andrex or @andrex:chat.protutech.vip"
                       value={dmUsername}
                       onChange={e => setDmUsername(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--discord-blurple)] font-mono"
                     />
-                  </div>
-
-                  <div className="bg-blue-950/30 border border-blue-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-200">
-                    <Radio className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Sync Option Available Later:</strong> Once started, you can link this direct
-                      message to any contact or private conversation later from the chat top bar.
-                    </div>
                   </div>
                 </div>
               ) : (
-                /* Sync Contact DM */
                 <div className="space-y-3">
-                  <div className="text-xs text-slate-400">
-                    Select a contact to synchronize directly into your DMs:
+                  <div className="text-xs text-[var(--text-muted)]">
+                    Select a contact to sync into your DMs:
                   </div>
 
-                  <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 max-h-56 overflow-y-auto divide-y divide-white/5">
+                  <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-userpanel)] max-h-56 overflow-y-auto divide-y divide-[var(--border-subtle)]">
                     {loadingDMs ? (
-                      <div className="py-8 flex justify-center items-center gap-2 text-slate-400 text-sm">
-                        <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                      <div className="py-8 flex justify-center items-center gap-2 text-[var(--text-muted)] text-sm">
+                        <Loader2 className="w-5 h-5 animate-spin text-[var(--text-link)]" />
                         <span>Loading contacts...</span>
                       </div>
                     ) : singleDMs.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 text-sm">
+                      <div className="py-8 text-center text-[var(--text-muted)] text-sm">
                         No direct messages found.
                       </div>
                     ) : (
@@ -738,17 +895,17 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                             onClick={() => setSelectedDMId(dm.id)}
                             className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
                               isSelected
-                                ? 'bg-blue-600/25 border-l-4 border-cyan-400 text-white'
-                                : 'hover:bg-white/5 text-slate-300'
+                                ? 'bg-[var(--bg-item-active)] border-l-4 border-[var(--discord-blurple)] text-[var(--text-header)]'
+                                : 'hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)]'
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
-                              <MessageSquare className="w-4 h-4 text-blue-400" />
+                              <MessageSquare className="w-4 h-4 text-[var(--text-link)]" />
                               <span className="text-sm font-medium">
                                 {dm.name || `User (${dm.other_user_id || dm.id.slice(-4)})`}
                               </span>
                             </div>
-                            {isSelected && <Check className="w-4 h-4 text-cyan-400" />}
+                            {isSelected && <Check className="w-4 h-4 text-[var(--text-link)]" />}
                           </div>
                         );
                       })
@@ -762,16 +919,16 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
           {/* Status Feedback Message */}
           {statusMessage && (
             <div
-              className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in ${
+              className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn ${
                 statusMessage.type === 'ok'
-                  ? 'bg-emerald-950/60 border border-emerald-500/50 text-emerald-300'
-                  : 'bg-red-950/60 border border-red-500/50 text-red-300'
+                  ? 'bg-emerald-500/15 border border-emerald-500/40 text-[var(--status-online)]'
+                  : 'bg-red-500/15 border border-red-500/40 text-[var(--status-dnd)]'
               }`}
             >
               {statusMessage.type === 'ok' ? (
-                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <Check className="w-4 h-4 flex-shrink-0" />
               ) : (
-                <X className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <X className="w-4 h-4 flex-shrink-0" />
               )}
               <span>{statusMessage.text}</span>
             </div>
@@ -779,12 +936,12 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-white/10 bg-[#070b18] flex items-center justify-between flex-shrink-0">
+        <div className="px-5 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-userpanel)] flex items-center justify-between flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -793,18 +950,20 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 border border-cyan-400/30 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-sm px-5 py-2 rounded-xl shadow-lg flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white" />}
             <span>
               {activeTab === 'server'
-                ? serverSyncMode === 'entire'
+                ? serverMode === 'create'
+                  ? 'Create Server / Channel'
+                  : serverSyncMode === 'entire'
                   ? 'Clone & Sync Server'
                   : `Sync (${selectedChannelIds.size}) Channels`
                 : activeTab === 'group'
                 ? groupMode === 'create'
-                  ? 'Create Group Chat'
-                  : 'Sync Group DM'
+                  ? 'Create Group'
+                  : 'Sync Group'
                 : dmMode === 'create'
                 ? 'Start Direct Message'
                 : 'Sync Direct Message'}

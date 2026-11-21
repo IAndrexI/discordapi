@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Camera,
   Mic,
   MicOff,
   Headphones,
@@ -83,6 +84,7 @@ export interface TeamSpeakLayoutProps {
   onSelectUser?: (user: MatrixUser) => void;
   onOpenSettings: (tab?: 'profile' | 'voice' | 'themes' | 'overlay' | 'plugins') => void;
   onOpenSoundboard: () => void;
+  onOpenCameraPreview?: () => void;
   onToggleCoBrowse: () => void;
   onCloseCoBrowse: () => void;
   onOpenLargeFileShare?: () => void;
@@ -145,6 +147,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
   onSelectUser,
   onOpenSettings,
   onOpenSoundboard,
+  onOpenCameraPreview,
   onToggleCoBrowse,
   onCloseCoBrowse,
   onOpenLargeFileShare,
@@ -187,7 +190,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
       id: `log_init_${Date.now()}`,
       timestamp: Date.now(),
       source: 'Server',
-      text: `TeamSpeak 3 Classic Hierarchy initialized for ${effectiveDisplayName}`,
+      text: `TeamSpeak Layout initialized for ${effectiveDisplayName}`,
       tone: 'info',
     },
   ]);
@@ -372,6 +375,14 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
     }
   };
 
+  const handleOpenCameraPreview = () => {
+    if (onOpenCameraPreview) {
+      onOpenCameraPreview();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('protutech:open-camera-preview'));
+    }
+  };
+
   const handleScreenShareButton = async () => {
     if (isScreenSharing) {
       const ok = await livekit.setScreenShare(false);
@@ -481,14 +492,15 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
       className="flex-1 min-h-0 w-full flex flex-col overflow-hidden bg-[var(--bg-chat)] text-[var(--text-normal)] select-none"
     >
       {/* 1. Classic TS3 Server Tabs Strip */}
-      <div className="bg-[var(--bg-servers)] border-b border-black/25 px-2 pt-1.5 flex items-end gap-1 overflow-x-auto no-scrollbar flex-shrink-0">
+      <div className="bg-[var(--bg-servers)] border-b border-[var(--border-subtle)] px-2 pt-1.5 flex items-end gap-1 overflow-x-auto no-scrollbar flex-shrink-0">
         <button
           type="button"
           onClick={() => onSelectGuild(null)}
+          aria-pressed={activeGuildId === null}
           className={`px-3 py-1.5 rounded-t-md text-xs font-semibold flex items-center gap-1.5 border border-b-0 transition-colors cursor-pointer flex-shrink-0 ${
             activeGuildId === null
-              ? 'bg-[var(--bg-channels)] text-[var(--text-header)] border-white/10 border-t-2 border-t-[var(--discord-blurple)]'
-              : 'bg-black/20 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-white/[0.04] border-transparent'
+              ? 'bg-[var(--bg-channels)] text-[var(--text-header)] border-[var(--border-subtle)] border-t-2 border-t-[var(--discord-blurple)]'
+              : 'bg-[var(--bg-card)]/60 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-transparent'
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
@@ -508,10 +520,11 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               key={guild.id}
               type="button"
               onClick={() => onSelectGuild(guild.id)}
+              aria-pressed={isActive}
               className={`px-3 py-1.5 rounded-t-md text-xs font-semibold flex items-center gap-1.5 border border-b-0 transition-colors cursor-pointer flex-shrink-0 max-w-[180px] ${
                 isActive
-                  ? 'bg-[var(--bg-channels)] text-[var(--text-header)] border-white/10 border-t-2 border-t-[var(--discord-blurple)]'
-                  : 'bg-black/20 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-white/[0.04] border-transparent'
+                  ? 'bg-[var(--bg-channels)] text-[var(--text-header)] border-[var(--border-subtle)] border-t-2 border-t-[var(--discord-blurple)]'
+                  : 'bg-[var(--bg-card)]/60 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-transparent'
               }`}
             >
               {guild.iconUrl ? (
@@ -523,7 +536,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               )}
               <span className="truncate">{guild.name}</span>
               {hasActiveCall && (
-                <span className="w-2 h-2 rounded-full bg-[#38bdf8] flex-shrink-0" title="Active voice call" />
+                <span className="w-2 h-2 rounded-full bg-[var(--text-link)] flex-shrink-0" title="Active voice call" />
               )}
             </button>
           );
@@ -533,27 +546,30 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           <button
             type="button"
             onClick={onOpenAddModal}
+            aria-label="Add or Sync Server"
             className="px-2.5 py-1.5 mb-0.5 rounded text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] flex items-center gap-1 cursor-pointer flex-shrink-0"
             title="Add or Sync Server"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Sync Server</span>
+            <span>Add / Sync</span>
           </button>
         )}
       </div>
 
       {/* 2. Classic TS3 Icon Toolbar */}
-      <div className="bg-[var(--bg-channels)] border-b border-black/25 px-2.5 py-1.5 flex items-center justify-between gap-2 flex-shrink-0 overflow-x-auto no-scrollbar">
+      <div className="bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] px-2.5 py-1.5 flex items-center justify-between gap-2 flex-shrink-0 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Mute Mic */}
           <button
             type="button"
             onClick={() => void handleToggleMute()}
+            aria-label={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+            aria-pressed={isMuted}
             title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               isMuted
                 ? 'bg-[var(--status-dnd)]/20 text-[var(--status-dnd)] border-[var(--status-dnd)]/40'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
@@ -564,11 +580,13 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           <button
             type="button"
             onClick={handleToggleDeafen}
+            aria-label={isDeafened ? 'Undeafen Speakers' : 'Deafen Speakers'}
+            aria-pressed={isDeafened}
             title={isDeafened ? 'Undeafen Speakers' : 'Deafen Speakers'}
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               isDeafened
                 ? 'bg-[var(--status-dnd)]/20 text-[var(--status-dnd)] border-[var(--status-dnd)]/40'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             {isDeafened ? <VolumeX className="w-3.5 h-3.5" /> : <Headphones className="w-3.5 h-3.5" />}
@@ -579,24 +597,28 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           <button
             type="button"
             onClick={handleToggleAway}
+            aria-label={isAway ? 'Clear Away Status' : 'Set Away Status'}
+            aria-pressed={isAway}
             title={isAway ? 'Clear Away Status' : 'Set Away Status'}
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               isAway
                 ? 'bg-[var(--status-idle)]/20 text-[var(--status-idle)] border-[var(--status-idle)]/40'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">{isAway ? 'Away' : 'Away'}</span>
+            <span className="hidden xl:inline">Away</span>
           </button>
 
-          <div className="w-[1px] h-5 bg-white/10 mx-1" />
+          <div className="w-[1px] h-5 bg-[var(--border-subtle)] mx-1" />
 
           {/* Mic Playback (Hear Yourself) + Mini Live VU Meter */}
-          <div className="flex items-center gap-1.5 bg-black/25 border border-white/5 rounded px-2 py-1">
+          <div className="flex items-center gap-1.5 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded px-2 py-1">
             <button
               type="button"
               data-testid="ts3-mic-playback-btn"
+              aria-label="Mic Playback"
+              aria-pressed={micLoopback}
               onClick={() => void handleToggleMicLoopback()}
               title="Mic Playback (Hear Yourself)"
               className={`text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
@@ -609,14 +631,14 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               <span>{micLoopback ? 'Playback ON' : 'Playback'}</span>
             </button>
             <div
-              className="w-12 h-1.5 bg-black/60 rounded-full overflow-hidden"
+              className="w-12 h-1.5 bg-[var(--bg-channels)] rounded-full overflow-hidden"
               title={`Mic Level: ${audioLevel}%`}
             >
               <div
                 className="h-full transition-all duration-75"
                 style={{
                   width: `${audioLevel}%`,
-                  backgroundColor: isSpeaking ? '#38bdf8' : 'var(--status-online)',
+                  backgroundColor: isSpeaking ? 'var(--text-link)' : 'var(--status-online)',
                 }}
               />
             </div>
@@ -626,25 +648,28 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           <button
             type="button"
             data-testid="ts3-soundboard-btn"
+            aria-label="Soundboard"
             onClick={onOpenSoundboard}
             title="Open Soundboard"
-            className="px-2 py-1 rounded text-xs font-medium bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-2 py-1 rounded text-xs font-medium bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Music className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
             <span className="hidden lg:inline">Soundboard</span>
           </button>
 
-          <div className="w-[1px] h-5 bg-white/10 mx-1" />
+          <div className="w-[1px] h-5 bg-[var(--border-subtle)] mx-1" />
 
-          {/* Camera, Screen Share, Co-Browse, Disconnect */}
+          {/* Camera, Camera Preview, Screen Share, Co-Browse, Disconnect */}
           <button
             type="button"
+            aria-label={hasVideo ? 'Turn Off Camera' : 'Turn On Camera'}
+            aria-pressed={hasVideo}
             onClick={() => void handleToggleCamera()}
             title={hasVideo ? 'Turn Off Camera' : 'Turn On Camera'}
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               hasVideo
                 ? 'bg-[var(--status-online)]/20 text-[var(--status-online)] border-[var(--status-online)]/40'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             {hasVideo ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
@@ -653,12 +678,26 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
           <button
             type="button"
+            data-testid="ts3-camera-preview-btn"
+            aria-label="Camera Preview"
+            onClick={handleOpenCameraPreview}
+            title="Camera Preview & Backgrounds"
+            className="px-2 py-1 rounded text-xs font-medium bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+          >
+            <Camera className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+            <span className="hidden xl:inline">Camera Preview</span>
+          </button>
+
+          <button
+            type="button"
+            aria-label={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
+            aria-pressed={isScreenSharing}
             onClick={() => void handleScreenShareButton()}
             title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               isScreenSharing
                 ? 'bg-[var(--status-online)]/20 text-[var(--status-online)] border-[var(--status-online)]/40'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             <Monitor className="w-3.5 h-3.5" />
@@ -667,12 +706,15 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
           <button
             type="button"
+            data-testid="ts3-cobrowse-btn"
+            aria-label="Co-Browse"
+            aria-pressed={isCoBrowseOpen}
             onClick={onToggleCoBrowse}
-            title="Toggle Co-Browse & Watch Together"
+            title="Co-Browse & Watch Together"
             className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 cursor-pointer border transition-colors ${
               isCoBrowseOpen
                 ? 'bg-[var(--discord-blurple)]/25 text-[var(--text-header)] border-[var(--discord-blurple)]/50'
-                : 'bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-white/5'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -682,6 +724,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           {activeVoiceRoom && (
             <button
               type="button"
+              aria-label="Disconnect from Voice Channel"
               onClick={onDisconnectVoice}
               title="Disconnect from Voice Channel"
               className="px-2 py-1 rounded text-xs font-semibold bg-[var(--status-dnd)]/20 hover:bg-[var(--status-dnd)] text-[var(--status-dnd)] hover:text-white border border-[var(--status-dnd)]/40 flex items-center gap-1 cursor-pointer transition-colors"
@@ -691,15 +734,16 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             </button>
           )}
 
-          <div className="w-[1px] h-5 bg-white/10 mx-1" />
+          <div className="w-[1px] h-5 bg-[var(--border-subtle)] mx-1" />
 
           {/* Tool Shortcuts */}
           {onOpenLargeFileShare && (
             <button
               type="button"
+              aria-label="Large File Transfer"
               onClick={onOpenLargeFileShare}
               title="Large File Transfer"
-              className="p-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 cursor-pointer"
+              className="p-1.5 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer"
             >
               <Package className="w-3.5 h-3.5" />
             </button>
@@ -707,9 +751,10 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           {onOpenScripts && (
             <button
               type="button"
+              aria-label="Scripts & Console"
               onClick={onOpenScripts}
-              title="Scripts & Minecraft Bridge"
-              className="p-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 cursor-pointer"
+              title="Scripts & Console"
+              className="p-1.5 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer"
             >
               <Terminal className="w-3.5 h-3.5" />
             </button>
@@ -717,9 +762,10 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           {onOpenEquicord && (
             <button
               type="button"
+              aria-label="Plugins"
               onClick={onOpenEquicord}
-              title="Equicord Plugins"
-              className="p-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 cursor-pointer"
+              title="Plugins"
+              className="p-1.5 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer"
             >
               <Puzzle className="w-3.5 h-3.5" />
             </button>
@@ -727,18 +773,20 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           {onOpenDiscordHub && (
             <button
               type="button"
+              aria-label="Hub"
               onClick={onOpenDiscordHub}
-              title="Discord Hub & Quests"
-              className="p-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 cursor-pointer"
+              title="Hub"
+              className="p-1.5 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer"
             >
               <Trophy className="w-3.5 h-3.5" />
             </button>
           )}
           <button
             type="button"
+            aria-label="Settings"
             onClick={() => onOpenSettings('voice')}
-            title="Client Settings"
-            className="p-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-white/5 cursor-pointer"
+            title="Settings"
+            className="p-1.5 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -747,20 +795,21 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
         <button
           type="button"
           data-testid="ts3-switch-discord-btn"
+          aria-label="Standard"
           onClick={onSwitchToDiscordLayout}
           className="px-2.5 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer flex-shrink-0 transition-colors"
         >
           <LayoutGrid className="w-3.5 h-3.5" />
-          <span>Switch to Discord Layout</span>
+          <span>Standard</span>
         </button>
       </div>
 
       {/* 3. Upper Split Workspace: Left TS3 Channel Tree + Right Channel/Client Info & Stage */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* Left Pane: Classic TS3 Channel Tree */}
-        <div className="w-[46%] min-w-[260px] max-w-[480px] h-full overflow-y-auto bg-[var(--bg-channels)] border-r border-black/25 p-2 space-y-1.5">
+        <div className="w-[38%] sm:w-[40%] lg:w-[36%] min-w-[230px] max-w-[420px] h-full overflow-y-auto bg-[var(--bg-channels)] border-r border-[var(--border-subtle)] p-2 space-y-1.5">
           {/* Root Server Header Node */}
-          <div className="px-2 py-1 rounded bg-black/20 border border-white/5 flex items-center justify-between text-xs font-bold text-[var(--text-header)]">
+          <div className="px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] flex items-center justify-between text-xs font-bold text-[var(--text-header)]">
             <span className="truncate">
               {activeGuild ? activeGuild.name : 'Protutech Virtual Server (Home)'}
             </span>
@@ -771,17 +820,17 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
           {/* Active External Voice Call Node (if active voice channel is not in current tree) */}
           {activeVoiceRoom && !anyListedChannelMatchesActiveVoice && (
-            <div className="ml-2 pl-2 border-l border-white/10 space-y-0.5">
+            <div className="ml-2 pl-2 border-l border-[var(--border-subtle)] space-y-0.5">
               <div className="px-2 py-1 rounded bg-[var(--bg-item-active)] text-xs font-semibold text-[var(--text-header)] flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 truncate">
-                  <Volume2 className="w-3.5 h-3.5 text-[#38bdf8] flex-shrink-0" />
+                  <Volume2 className="w-3.5 h-3.5 text-[var(--text-link)] flex-shrink-0" />
                   <span className="truncate">{activeVoiceRoom}</span>
                 </span>
-                <span className="text-[10px] font-mono text-[#38bdf8] flex-shrink-0">
+                <span className="text-[10px] font-mono text-[var(--text-link)] flex-shrink-0">
                   Opus 48kHz
                 </span>
               </div>
-              <div className="ml-4 pl-2 border-l border-white/10 space-y-0.5">
+              <div className="ml-4 pl-2 border-l border-[var(--border-subtle)] space-y-0.5">
                 {voiceParticipants.map((p) => (
                   <Ts3ClientRow
                     key={p.identity}
@@ -801,6 +850,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               <div key={group.id} className="space-y-0.5">
                 <button
                   type="button"
+                  aria-expanded={!isCollapsed}
                   onClick={() => toggleFolder(group.id)}
                   className="w-full px-1.5 py-1 rounded hover:bg-[var(--bg-item-hover)] flex items-center gap-1.5 text-xs font-bold text-[var(--text-header)] cursor-pointer"
                 >
@@ -808,9 +858,9 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                     {isCollapsed ? '[+]' : '[-]'}
                   </span>
                   {isCollapsed ? (
-                    <Folder className="w-3.5 h-3.5 text-[#f0b232] flex-shrink-0" />
+                    <Folder className="w-3.5 h-3.5 text-[var(--status-idle)] flex-shrink-0" />
                   ) : (
-                    <FolderOpen className="w-3.5 h-3.5 text-[#f0b232] flex-shrink-0" />
+                    <FolderOpen className="w-3.5 h-3.5 text-[var(--status-idle)] flex-shrink-0" />
                   )}
                   <span className="truncate">{group.label}</span>
                   <span className="ml-auto text-[10px] text-[var(--text-muted)] font-mono">
@@ -819,7 +869,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                 </button>
 
                 {!isCollapsed && (
-                  <div className="ml-3 pl-2 border-l border-white/10 space-y-0.5">
+                  <div className="ml-3 pl-2 border-l border-[var(--border-subtle)] space-y-0.5">
                     {group.items.length === 0 ? (
                       <div className="px-2 py-1 text-[11px] text-[var(--text-muted)] italic">
                         (empty)
@@ -835,8 +885,16 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                         return (
                           <div key={channel.id} className="space-y-0.5">
                             <div
+                              role="button"
+                              tabIndex={0}
                               onClick={() => handleChannelClick(channel)}
                               onDoubleClick={() => handleChannelDoubleClick(channel)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleChannelClick(channel);
+                                }
+                              }}
                               className={`group px-2 py-1 rounded flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
                                 isSelected || isJoined
                                   ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] font-semibold'
@@ -852,7 +910,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                                 {isVoiceChannel ? (
                                   <Volume2
                                     className={`w-3.5 h-3.5 flex-shrink-0 ${
-                                      isJoined ? 'text-[#38bdf8]' : 'text-[var(--text-muted)]'
+                                      isJoined ? 'text-[var(--text-link)]' : 'text-[var(--text-muted)]'
                                     }`}
                                   />
                                 ) : channel.isDirect ? (
@@ -865,13 +923,14 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 {isVoiceChannel && (
-                                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/25 text-[var(--text-muted)]">
+                                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[var(--bg-popout)] text-[var(--text-muted)]">
                                     Opus 48kHz
                                   </span>
                                 )}
                                 {isVoiceChannel && !isJoined && (
                                   <button
                                     type="button"
+                                    aria-label={`Join ${channel.name}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onJoinVoice(channel);
@@ -884,12 +943,13 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                                 {isVoiceChannel && onJoinDiscordCall && (channel.discordChannelId || channel.isSynced) && (
                                   <button
                                     type="button"
+                                    aria-label={`Bridged Call for ${channel.name}`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       void onJoinDiscordCall(channel);
                                     }}
-                                    title="Join Discord Call"
-                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 rounded bg-[#23a55a]/25 text-[#23a55a] cursor-pointer transition-opacity"
+                                    title="Bridged Call"
+                                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 rounded bg-[var(--status-online)]/25 text-[var(--status-online)] cursor-pointer transition-opacity"
                                   >
                                     <PhoneCall className="w-3 h-3" />
                                   </button>
@@ -899,7 +959,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
                             {/* Nested Tree-Indented Client Rows with Iconic TS3 Blue Circle Lamp */}
                             {isJoined && voiceParticipants.length > 0 && (
-                              <div className="ml-4 pl-2 border-l border-white/10 space-y-0.5 py-0.5">
+                              <div className="ml-4 pl-2 border-l border-[var(--border-subtle)] space-y-0.5 py-0.5">
                                 {voiceParticipants.map((p) => (
                                   <Ts3ClientRow
                                     key={p.identity}
@@ -924,14 +984,14 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
         {/* Right Pane: TeamSpeak Channel & Client Info Panel + Embedded Stages */}
         <div className="flex-1 min-w-0 h-full overflow-y-auto bg-[var(--bg-chat)] flex flex-col">
           {/* Server Ping / Packet-Loss / Codec HUD */}
-          <div className="px-4 py-2 bg-[var(--bg-userpanel)] border-b border-black/20 flex items-center justify-between gap-2 flex-wrap text-xs flex-shrink-0">
+          <div className="px-4 py-2 bg-[var(--bg-userpanel)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap text-xs flex-shrink-0">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1.5 font-semibold text-[var(--text-header)]">
-                <Activity className="w-3.5 h-3.5 text-[#38bdf8]" />
+                <Activity className="w-3.5 h-3.5 text-[var(--text-link)]" />
                 <span>Ping: {rtcPing}ms</span>
               </span>
-              <span className="text-[var(--text-muted)]">Packet Loss: 0.00%</span>
-              <span className="text-[var(--text-muted)]">Codec: Opus Music 48kHz</span>
+              <span className="text-[var(--text-muted)]">Loss: 0.00%</span>
+              <span className="text-[var(--text-muted)]">Opus 48kHz</span>
               <span className="flex items-center gap-1 text-[var(--status-online)]">
                 <Shield className="w-3 h-3" />
                 <span>Encrypted</span>
@@ -948,10 +1008,10 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                   className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer ${
                     isRoomActiveVoice(currentRoom)
                       ? 'bg-[var(--status-dnd)] text-white'
-                      : 'bg-[var(--discord-blurple)] text-white'
+                      : 'bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white'
                   }`}
                 >
-                  {isRoomActiveVoice(currentRoom) ? 'Leave Voice' : 'Join Voice Channel'}
+                  {isRoomActiveVoice(currentRoom) ? 'Leave Voice' : 'Join Voice'}
                 </button>
               )}
             </div>
@@ -965,6 +1025,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               onToggleCoBrowse={onToggleCoBrowse}
               isCoBrowsing={isCoBrowseOpen}
               onOpenSoundboard={onOpenSoundboard}
+              onOpenCameraPreview={handleOpenCameraPreview}
               onDisconnect={onDisconnectVoice}
             />
           )}
@@ -985,20 +1046,20 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
           <div className="p-4 space-y-4">
             {/* Selected TS3 Client Volume & Inspector Card */}
             {selectedClient && (
-              <div className="p-3 rounded-lg bg-[var(--bg-channels)] border border-white/10 space-y-2.5">
+              <div className="p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       className={`w-3 h-3 rounded-full flex-shrink-0 ${
                         selectedClient.isSpeaking
-                          ? 'bg-[#38bdf8] shadow-[0_0_8px_#38bdf8]'
-                          : 'bg-[#3b82f6]/75'
+                          ? 'bg-[var(--text-link)] shadow-[0_0_8px_var(--text-link)]'
+                          : 'bg-[var(--discord-blurple)]/75'
                       }`}
                     />
                     <span className="text-sm font-bold text-[var(--text-header)] truncate">
                       {selectedClient.name}
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/30 text-[var(--text-muted)]">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-popout)] text-[var(--text-muted)]">
                       {selectedClient.codec || 'Opus 48kHz'}
                     </span>
                   </div>
@@ -1007,15 +1068,16 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                       <button
                         type="button"
                         onClick={() => handleInspectUser(selectedClient.identity)}
-                        className="px-2 py-1 rounded bg-[var(--discord-blurple)] text-white text-[11px] font-semibold cursor-pointer"
+                        className="px-2 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-[11px] font-semibold cursor-pointer"
                       >
                         Profile
                       </button>
                     )}
                     <button
                       type="button"
+                      aria-label="Close client inspector"
                       onClick={() => setSelectedClientId(null)}
-                      className="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer"
+                      className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1027,13 +1089,14 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                   <span className="text-[var(--text-muted)] flex-shrink-0">Client Volume</span>
                   <input
                     type="range"
+                    aria-label={`Volume for ${selectedClient.name}`}
                     min={0}
                     max={200}
                     value={selectedClient.volume ?? 100}
                     onChange={(e) =>
                       livekit.setParticipantVolume(selectedClient.identity, Number(e.target.value))
                     }
-                    className="flex-1 accent-[#38bdf8] cursor-pointer h-1.5"
+                    className="flex-1 accent-[var(--discord-blurple)] cursor-pointer h-1.5"
                   />
                   <span className="font-mono text-xs text-[var(--text-header)] w-10 text-right">
                     {selectedClient.volume ?? 100}%
@@ -1043,11 +1106,11 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             )}
 
             {/* Channel Description & Codec Spec */}
-            <div className="p-3.5 rounded-lg bg-[var(--bg-channels)] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
                   {currentRoom.isVoice ? (
-                    <Volume2 className="w-4 h-4 text-[#38bdf8] flex-shrink-0" />
+                    <Volume2 className="w-4 h-4 text-[var(--text-link)] flex-shrink-0" />
                   ) : (
                     <Hash className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
                   )}
@@ -1068,11 +1131,11 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             </div>
 
             {/* Channel Members List */}
-            <div className="p-3.5 rounded-lg bg-[var(--bg-channels)] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-2">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 <span className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
-                  <span>Channel Members ({currentRoom.members.length})</span>
+                  <span>Members ({currentRoom.members.length})</span>
                 </span>
               </div>
               {currentRoom.members.length === 0 ? (
@@ -1086,7 +1149,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                       key={member.userId}
                       type="button"
                       onClick={() => onSelectUser?.(member)}
-                      className="px-2.5 py-1.5 rounded bg-black/20 hover:bg-[var(--bg-item-hover)] flex items-center justify-between gap-2 text-left text-xs cursor-pointer transition-colors"
+                      className="px-2.5 py-1.5 rounded bg-[var(--bg-popout)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] flex items-center justify-between gap-2 text-left text-xs cursor-pointer transition-colors"
                     >
                       <span className="flex items-center gap-2 min-w-0">
                         <span
@@ -1119,16 +1182,17 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
       </div>
 
       {/* 4. Lower Pane: Tabbed TeamSpeak Chat & Server Event Log */}
-      <div className="h-[min(230px,36vh)] min-h-[160px] flex-shrink-0 border-t border-black/30 bg-[var(--bg-userpanel)] flex flex-col overflow-hidden">
+      <div className="h-[min(210px,calc(34vh/var(--app-zoom,1)))] min-h-[140px] flex-shrink-0 border-t border-[var(--border-subtle)] bg-[var(--bg-userpanel)] flex flex-col overflow-hidden">
         {/* Lower Tabs */}
-        <div className="px-2 pt-1 bg-[var(--bg-servers)] border-b border-black/25 flex items-center justify-between gap-2 flex-shrink-0">
+        <div className="px-2 pt-1 bg-[var(--bg-servers)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-shrink-0">
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setLowerTab('channel')}
+              aria-pressed={lowerTab === 'channel'}
               className={`px-3 py-1 rounded-t text-xs font-semibold border border-b-0 cursor-pointer transition-colors ${
                 lowerTab === 'channel'
-                  ? 'bg-[var(--bg-userpanel)] text-[var(--text-header)] border-white/10'
+                  ? 'bg-[var(--bg-userpanel)] text-[var(--text-header)] border-[var(--border-subtle)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-header)] border-transparent'
               }`}
             >
@@ -1137,14 +1201,15 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             <button
               type="button"
               onClick={() => setLowerTab('log')}
+              aria-pressed={lowerTab === 'log'}
               className={`px-3 py-1 rounded-t text-xs font-semibold border border-b-0 cursor-pointer transition-colors flex items-center gap-1.5 ${
                 lowerTab === 'log'
-                  ? 'bg-[var(--bg-userpanel)] text-[var(--text-header)] border-white/10'
+                  ? 'bg-[var(--bg-userpanel)] text-[var(--text-header)] border-[var(--border-subtle)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-header)] border-transparent'
               }`}
             >
               <span>&lt;Server Event Log&gt;</span>
-              <span className="text-[10px] font-mono px-1 rounded bg-black/30 text-[var(--text-muted)]">
+              <span className="text-[10px] font-mono px-1 rounded bg-[var(--bg-popout)] text-[var(--text-muted)]">
                 {eventLogs.length}
               </span>
             </button>
@@ -1192,26 +1257,31 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                         <button
                           type="button"
                           onClick={() => handleInspectUser(msg.sender)}
-                          className="font-bold text-[#38bdf8] hover:underline mr-1.5 cursor-pointer"
+                          className="font-bold text-[var(--text-link)] hover:underline mr-1.5 cursor-pointer"
                         >
                           &lt;{msg.senderName}&gt;
                         </button>
                         {msg.source === 'discord' && (
-                          <span className="mr-1.5 px-1 py-0.2 rounded text-[9px] font-bold bg-[#5865f2]/25 text-indigo-300">
-                            Discord
+                          <span
+                            title="External Bridge"
+                            className="mr-1.5 px-1 py-0.2 rounded text-[9px] font-bold bg-[var(--discord-blurple)]/25 text-[var(--text-link)]"
+                          >
+                            Bridge
                           </span>
                         )}
                         {isEditingThis ? (
                           <span className="inline-flex items-center gap-1">
                             <input
                               type="text"
+                              aria-label="Edit message"
                               value={editingText}
                               onChange={(e) => setEditingText(e.target.value)}
-                              className="bg-[var(--bg-message-input)] border border-white/20 rounded px-2 py-0.5 text-xs text-[var(--text-header)] outline-none"
+                              className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2 py-0.5 text-xs text-[var(--text-header)] outline-none"
                               autoFocus
                             />
                             <button
                               type="button"
+                              aria-label="Save edit"
                               onClick={() => {
                                 if (editingText.trim() && onEditMessage) {
                                   onEditMessage(currentRoom.id, msg.id, editingText.trim());
@@ -1224,8 +1294,9 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                             </button>
                             <button
                               type="button"
+                              aria-label="Cancel edit"
                               onClick={() => setEditingId(null)}
-                              className="p-0.5 rounded bg-white/10 text-[var(--text-muted)] cursor-pointer"
+                              className="p-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)] cursor-pointer"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -1246,7 +1317,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                             <img
                               src={msg.mediaUrl}
                               alt={msg.body}
-                              className="max-h-24 rounded border border-white/10"
+                              className="max-h-24 rounded border border-[var(--border-subtle)]"
                             />
                           </div>
                         )}
@@ -1268,7 +1339,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                                 key={emoji}
                                 type="button"
                                 onClick={() => onAddReaction?.(currentRoom.id, msg.id, emoji)}
-                                className="px-1.5 py-0.2 rounded bg-white/10 text-[10px] cursor-pointer"
+                                className="px-1.5 py-0.2 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[10px] cursor-pointer"
                               >
                                 {emoji} {users.length}
                               </button>
@@ -1281,17 +1352,19 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                         {onAddReaction && (
                           <button
                             type="button"
+                            aria-label="Quick React"
                             onClick={() =>
                               onAddReaction(currentRoom.id, msg.id, TS_QUICK_REACTIONS[0])
                             }
                             title="Quick React"
-                            className="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer"
+                            className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                           >
                             <Smile className="w-3 h-3" />
                           </button>
                         )}
                         <button
                           type="button"
+                          aria-label="Reply"
                           onClick={() =>
                             setReplyTarget({
                               id: msg.id,
@@ -1300,19 +1373,20 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                             })
                           }
                           title="Reply"
-                          className="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer"
+                          className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                         >
                           <Reply className="w-3 h-3" />
                         </button>
                         {onEditMessage && isOwn && (
                           <button
                             type="button"
+                            aria-label="Edit message"
                             onClick={() => {
                               setEditingId(msg.id);
                               setEditingText(msg.body);
                             }}
                             title="Edit"
-                            className="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer"
+                            className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -1320,6 +1394,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                         {onDeleteMessage && (
                           <button
                             type="button"
+                            aria-label="Delete message"
                             onClick={() => onDeleteMessage(currentRoom.id, msg.id)}
                             title="Delete"
                             className="p-1 rounded hover:bg-[var(--status-dnd)]/20 text-[var(--text-muted)] hover:text-[var(--status-dnd)] cursor-pointer"
@@ -1337,15 +1412,16 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
 
             {/* Reply target banner */}
             {replyTarget && (
-              <div className="px-3 py-1 bg-black/25 border-t border-white/5 flex items-center justify-between text-[11px] flex-shrink-0">
+              <div className="px-3 py-1 bg-[var(--bg-popout)] border-t border-[var(--border-subtle)] flex items-center justify-between text-[11px] flex-shrink-0">
                 <span className="truncate text-[var(--text-muted)]">
                   Replying to <b className="text-[var(--text-header)]">@{replyTarget.sender}</b>:{' '}
                   {replyTarget.body}
                 </span>
                 <button
                   type="button"
+                  aria-label="Cancel reply"
                   onClick={() => setReplyTarget(null)}
-                  className="text-[var(--text-muted)] hover:text-white cursor-pointer"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1355,7 +1431,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             {/* Compact TS3 Message Composer */}
             <form
               onSubmit={(e) => void handleSendComposer(e)}
-              className="px-2.5 py-1.5 bg-[var(--bg-channels)] border-t border-black/20 flex items-center gap-2 flex-shrink-0"
+              className="px-2.5 py-1.5 bg-[var(--bg-channels)] border-t border-[var(--border-subtle)] flex items-center gap-2 flex-shrink-0"
             >
               <input
                 ref={fileInputRef}
@@ -1365,24 +1441,27 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
               />
               <button
                 type="button"
+                aria-label="Attach File"
                 disabled={isUploading}
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach File"
-                className="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
+                className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
               >
                 <Paperclip className="w-4 h-4" />
               </button>
               <input
                 type="text"
                 data-testid="ts3-chat-input"
+                aria-label={`Message #${currentRoom.name}`}
                 value={composerText}
                 onChange={(e) => setComposerText(e.target.value)}
                 placeholder={`Send message to #${currentRoom.name}...`}
-                className="flex-1 bg-[var(--bg-message-input)] border border-white/10 focus:border-[var(--discord-blurple)] rounded px-2.5 py-1 text-xs text-[var(--text-normal)] placeholder:text-[var(--text-muted)] outline-none"
+                className="flex-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded px-2.5 py-1 text-xs text-[var(--text-normal)] placeholder:text-[var(--text-muted)] outline-none"
               />
               <button
                 type="submit"
                 disabled={!composerText.trim()}
+                aria-label="Send message"
                 className="px-3 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] disabled:opacity-45 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -1405,7 +1484,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
                       entry.tone === 'sound'
                         ? 'text-[var(--discord-blurple)]'
                         : entry.tone === 'voice'
-                          ? 'text-[#38bdf8]'
+                          ? 'text-[var(--text-link)]'
                           : entry.tone === 'warn'
                             ? 'text-[var(--status-idle)]'
                             : 'text-[var(--status-online)]'
@@ -1423,11 +1502,11 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
       </div>
 
       {/* 5. Bottom Status Bar */}
-      <div className="h-[24px] px-3 bg-[var(--bg-servers)] border-t border-black/25 flex items-center justify-between text-[11px] text-[var(--text-muted)] flex-shrink-0 gap-2 overflow-hidden">
+      <div className="h-[24px] px-3 bg-[var(--bg-servers)] border-t border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-muted)] flex-shrink-0 gap-2 overflow-hidden">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              activeVoiceRoom ? 'bg-[#38bdf8]' : 'bg-[var(--status-online)]'
+              activeVoiceRoom ? 'bg-[var(--text-link)]' : 'bg-[var(--status-online)]'
             }`}
           />
           <span className="truncate font-medium text-[var(--text-normal)]">
@@ -1447,6 +1526,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             {onZoomOut && (
               <button
                 type="button"
+                aria-label="Zoom Out"
                 onClick={onZoomOut}
                 className="px-1 hover:text-[var(--text-header)] cursor-pointer"
                 title="Zoom Out"
@@ -1456,6 +1536,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             )}
             <button
               type="button"
+              aria-label="Reset Zoom"
               onClick={onZoomReset}
               className="hover:text-[var(--text-header)] cursor-pointer font-mono"
               title="Reset Zoom"
@@ -1465,6 +1546,7 @@ export const TeamSpeakLayout: React.FC<TeamSpeakLayoutProps> = ({
             {onZoomIn && (
               <button
                 type="button"
+                aria-label="Zoom In"
                 onClick={onZoomIn}
                 className="px-1 hover:text-[var(--text-header)] cursor-pointer"
                 title="Zoom In"
@@ -1513,8 +1595,8 @@ const Ts3ClientRow: React.FC<Ts3ClientRowProps> = ({
         <span
           className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all ${
             p.isSpeaking
-              ? 'bg-[#38bdf8] shadow-[0_0_8px_#38bdf8] scale-110'
-              : 'bg-[#2563eb]/75 border border-[#38bdf8]/40'
+              ? 'bg-[var(--text-link)] shadow-[0_0_8px_var(--text-link)] scale-110'
+              : 'bg-[var(--discord-blurple)]/75 border border-[var(--text-link)]/40'
           }`}
           title={p.isSpeaking ? 'Speaking' : 'Connected'}
         />
@@ -1523,12 +1605,12 @@ const Ts3ClientRow: React.FC<Ts3ClientRowProps> = ({
 
       <span className="flex items-center gap-1 flex-shrink-0">
         {p.hasScreenShare && (
-          <span className="px-1 py-0.2 rounded bg-[#f23f43] text-white text-[9px] font-bold">
+          <span className="px-1 py-0.2 rounded bg-[var(--status-dnd)] text-white text-[9px] font-bold">
             LIVE
           </span>
         )}
         {p.hasVideo && (
-          <span className="px-1 py-0.2 rounded bg-[#23a55a]/25 text-[#23a55a] text-[9px] font-bold">
+          <span className="px-1 py-0.2 rounded bg-[var(--status-online)]/25 text-[var(--status-online)] text-[9px] font-bold">
             CAM
           </span>
         )}

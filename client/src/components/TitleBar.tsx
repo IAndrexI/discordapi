@@ -16,6 +16,7 @@ import {
   Package,
   Pickaxe,
   RotateCcw,
+  Camera,
 } from 'lucide-react';
 import type { EngineMode } from '../types';
 import { appIconService } from '../services/appIcon';
@@ -76,6 +77,7 @@ export interface TitleBarProps {
   onOpenSoundboard?: () => void;
   onOpenMinecraftConsole?: () => void;
   onOpenLargeFileShare?: () => void;
+  onOpenCameraPreview?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -97,6 +99,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onOpenSoundboard,
   onOpenMinecraftConsole,
   onOpenLargeFileShare,
+  onOpenCameraPreview,
 }) => {
   const isDesktop = desktopBridge.isDesktopApp();
   const runtimeKind = desktopBridge.getRuntimeKind();
@@ -182,6 +185,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     }
   };
 
+  const handleOpenCameraPreview = () => {
+    if (onOpenCameraPreview) {
+      onOpenCameraPreview();
+    } else {
+      window.dispatchEvent(new CustomEvent('protutech:open-camera-preview'));
+    }
+  };
+
   const runMenuAction = (action?: () => void) => {
     setToolsMenuOpen(false);
     action?.();
@@ -190,20 +201,20 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   const modePill =
     engineMode === 'proprietary'
       ? {
-          label: 'Proprietary',
-          dotClass: 'bg-[#23a55a]',
-          title: 'Proprietary Mode (100% Self-Hosted) — click to switch mode',
+          label: 'Local',
+          dotClass: 'bg-[var(--status-online)]',
+          title: 'Local Only (Self-Hosted) — click to switch',
         }
       : engineMode === 'discord_proxy'
       ? {
           label: 'Bridge',
-          dotClass: 'bg-[#5865f2]',
-          title: 'Discord Bridge Mode — click to switch mode',
+          dotClass: 'bg-[var(--discord-blurple)]',
+          title: 'Remote Bridge — click to switch',
         }
       : {
           label: 'Hybrid',
-          dotClass: 'bg-[#23a55a]',
-          title: 'Hybrid Mode (Self-Hosted + Discord) — click to switch mode',
+          dotClass: 'bg-[var(--status-online)]',
+          title: 'Hybrid (Local + Bridge) — click to switch',
         };
 
   return (
@@ -238,8 +249,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               type="button"
               onClick={onToggleEngineMode}
               data-testid="topbar-mode-badge"
+              aria-label={`Engine mode: ${modePill.label}`}
               title={modePill.title}
-              className="h-[18px] px-1.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-[var(--text-normal)] hover:text-[var(--text-header)] text-[10px] font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+              className="h-[18px] px-1.5 rounded bg-white/[0.06] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] text-[10px] font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
             >
               <span className={`w-1.5 h-1.5 rounded-full ${modePill.dotClass}`} />
               <span>{modePill.label}</span>
@@ -263,9 +275,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           className="flex items-center h-full gap-1.5 pr-1 flex-shrink-0"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {/* Segmented Layout Switcher: Discord | TS3 */}
+          {/* Segmented Layout Switcher: Standard | TS3 */}
           <div
-            className="inline-flex items-center bg-black/20 rounded p-0.5 border border-[var(--border-subtle)] flex-shrink-0"
+            className="inline-flex items-center bg-black/25 rounded p-0.5 border border-[var(--border-subtle)] flex-shrink-0"
             role="group"
             aria-label="Layout Format"
           >
@@ -273,20 +285,22 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               type="button"
               onClick={() => handleLayoutSwitch('discord')}
               data-testid="layout-toggle-discord"
-              title="Discord Layout (Standard)"
+              aria-pressed={layoutFormat === 'discord'}
+              title="Standard Layout"
               className={`h-[18px] px-2 rounded-[3px] text-[10px] font-semibold transition-colors cursor-pointer ${
                 layoutFormat === 'discord'
                   ? 'bg-[var(--discord-blurple)] text-white'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              Discord
+              Standard
             </button>
             <button
               type="button"
               onClick={() => handleLayoutSwitch('teamspeak')}
               data-testid="layout-toggle-ts3"
-              title="TeamSpeak 3 Classic Hierarchy Format"
+              aria-pressed={layoutFormat === 'teamspeak'}
+              title="TeamSpeak Layout"
               className={`h-[18px] px-2 rounded-[3px] text-[10px] font-semibold transition-colors cursor-pointer ${
                 layoutFormat === 'teamspeak'
                   ? 'bg-[var(--discord-blurple)] text-white'
@@ -299,7 +313,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
           {/* Compact Zoom Control: - | 100% | + */}
           <div
-            className="inline-flex items-center bg-black/20 rounded border border-[var(--border-subtle)] h-[20px] flex-shrink-0"
+            className="inline-flex items-center bg-black/25 rounded border border-[var(--border-subtle)] h-[20px] flex-shrink-0"
             role="group"
             aria-label="Zoom Controls"
           >
@@ -307,6 +321,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               type="button"
               onClick={onZoomOut}
               data-testid="zoom-out-btn"
+              aria-label="Zoom Out"
               title="Zoom Out (Ctrl+-)"
               className="w-5 h-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] rounded-l text-[11px] font-bold transition-colors cursor-pointer"
             >
@@ -316,6 +331,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               type="button"
               onClick={onZoomReset}
               data-testid="zoom-reset-btn"
+              aria-label={`Reset Zoom (${zoomLevel}%)`}
               title="Reset Zoom to 100% (Ctrl+0)"
               className="px-1.5 h-full flex items-center justify-center text-[10px] font-medium tabular-nums text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-x border-[var(--border-subtle)] transition-colors cursor-pointer min-w-[36px]"
             >
@@ -325,6 +341,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               type="button"
               onClick={onZoomIn}
               data-testid="zoom-in-btn"
+              aria-label="Zoom In"
               title="Zoom In (Ctrl+=)"
               className="w-5 h-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] rounded-r text-[11px] font-bold transition-colors cursor-pointer"
             >
@@ -332,28 +349,30 @@ export const TitleBar: React.FC<TitleBarProps> = ({
             </button>
           </div>
 
-          {/* Single Clean Tools & Plugins Dropdown */}
+          {/* Tools Dropdown */}
           <div className="relative flex-shrink-0" ref={toolsMenuRef}>
             <button
               type="button"
               onClick={() => setToolsMenuOpen(prev => !prev)}
               data-testid="topbar-tools-menu-btn"
+              aria-haspopup="menu"
               aria-expanded={toolsMenuOpen}
-              title="Tools, Plugins, Soundboard & Window Utilities"
+              aria-label="Tools"
+              title="Tools & Utilities"
               className={`h-[20px] px-2 rounded text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer border ${
                 toolsMenuOpen
-                  ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border-white/10'
+                  ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border-[var(--border-accent)]'
                   : 'bg-white/[0.05] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
               }`}
             >
               <Wrench className="w-3 h-3 flex-shrink-0" />
-              <span className="hidden md:inline whitespace-nowrap">Tools &amp; Plugins</span>
+              <span className="hidden md:inline whitespace-nowrap">Tools</span>
               <ChevronDown className="w-3 h-3 opacity-75 flex-shrink-0" />
             </button>
 
             {toolsMenuOpen && (
               <div
-                className="absolute right-0 top-[26px] w-56 bg-[#111214] text-[#dbdee1] border border-white/10 rounded-md shadow-2xl py-1.5 px-1.5 z-[120] text-xs"
+                className="absolute right-0 top-[26px] w-56 bg-[var(--bg-popout)] text-[var(--text-normal)] border border-[var(--border-subtle)] rounded-lg shadow-2xl py-1.5 px-1.5 z-[120] max-h-[calc(100vh/var(--app-zoom,1)-44px)] overflow-y-auto text-xs animate-fadeIn"
                 role="menu"
               >
                 {onOpenDiscordHub && (
@@ -362,11 +381,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-discord-hub-btn"
                     onClick={() => runMenuAction(onOpenDiscordHub)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Trophy className="w-3.5 h-3.5 text-[#f0b232]" />
-                      <span>Quests &amp; Discord Hub</span>
+                      <Trophy className="w-3.5 h-3.5 text-[var(--status-idle)]" />
+                      <span>Hub &amp; Quests</span>
                     </span>
                   </button>
                 )}
@@ -377,14 +396,27 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-equicord-btn"
                     onClick={() => runMenuAction(onOpenEquicord)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Puzzle className="w-3.5 h-3.5 text-[#a78bfa]" />
-                      <span>Equicord Plugins</span>
+                      <Puzzle className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                      <span>Plugins</span>
                     </span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="topbar-camera-preview-btn"
+                  onClick={() => runMenuAction(handleOpenCameraPreview)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Camera className="w-3.5 h-3.5 text-[var(--accent-cyan)]" />
+                    <span>Camera Preview</span>
+                  </span>
+                </button>
 
                 {onOpenSoundboard && (
                   <button
@@ -392,10 +424,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-soundboard-btn"
                     onClick={() => runMenuAction(onOpenSoundboard)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Music className="w-3.5 h-3.5 text-[#23a55a]" />
+                      <Music className="w-3.5 h-3.5 text-[var(--status-online)]" />
                       <span>Soundboard</span>
                     </span>
                   </button>
@@ -407,11 +439,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-scripts-btn"
                     onClick={() => runMenuAction(onOpenScripts)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Terminal className="w-3.5 h-3.5 text-[#23a55a]" />
-                      <span>Scripts / MC API</span>
+                      <Terminal className="w-3.5 h-3.5 text-[var(--status-online)]" />
+                      <span>Scripts &amp; Bots</span>
                     </span>
                   </button>
                 )}
@@ -422,10 +454,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-mc-console-btn"
                     onClick={() => runMenuAction(onOpenMinecraftConsole)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Pickaxe className="w-3.5 h-3.5 text-[#23a55a]" />
+                      <Pickaxe className="w-3.5 h-3.5 text-[var(--status-online)]" />
                       <span>Minecraft Console</span>
                     </span>
                   </button>
@@ -437,14 +469,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-cobrowse-btn"
                     onClick={() => runMenuAction(onOpenCoBrowse)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Globe className="w-3.5 h-3.5 text-[#00a8fc]" />
-                      <span>Co-Browse Search</span>
+                      <Globe className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                      <span>Co-Browse</span>
                     </span>
                     {isCoBrowsing && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-online)]" />
                     )}
                   </button>
                 )}
@@ -455,33 +487,33 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     role="menuitem"
                     data-testid="topbar-large-file-btn"
                     onClick={() => runMenuAction(onOpenLargeFileShare)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <span className="flex items-center gap-2">
-                      <Package className="w-3.5 h-3.5 text-[#00a8fc]" />
-                      <span>Large File Share</span>
+                      <Package className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                      <span>Large Files</span>
                     </span>
                   </button>
                 )}
 
-                <div className="h-px bg-white/[0.08] my-1 mx-1" />
+                <div className="h-px bg-[var(--border-subtle)] my-1 mx-1" />
 
                 <button
                   type="button"
                   role="menuitem"
                   data-testid="topbar-overlay-btn"
                   onClick={() => runMenuAction(handleToggleOverlay)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
                   <span className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-[#949ba4]" />
-                    <span>In-Game Overlay</span>
+                    <Layers className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    <span>Overlay</span>
                   </span>
                   <span
                     className={`text-[10px] font-semibold px-1.5 py-0.2 rounded ${
                       overlayConfig.enabled
-                        ? 'bg-[#23a55a]/25 text-[#23a55a]'
-                        : 'bg-white/[0.08] text-[#949ba4]'
+                        ? 'bg-[var(--status-online)]/20 text-[var(--status-online)]'
+                        : 'bg-white/[0.08] text-[var(--text-muted)]'
                     }`}
                   >
                     {overlayConfig.enabled ? 'ON' : 'OFF'}
@@ -493,11 +525,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                   role="menuitem"
                   data-testid="topbar-store-btn"
                   onClick={() => runMenuAction(handleOpenStore)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
                   <span className="flex items-center gap-2">
-                    <Store className="w-3.5 h-3.5 text-[#00a8fc]" />
-                    <span>Microsoft Store Hub</span>
+                    <Store className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                    <span>Desktop Store</span>
                   </span>
                 </button>
 
@@ -506,11 +538,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                   role="menuitem"
                   data-testid="topbar-reset-window-btn"
                   onClick={() => runMenuAction(handleResetWindowBounds)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
                   <span className="flex items-center gap-2">
-                    <RotateCcw className="w-3.5 h-3.5 text-[#949ba4]" />
-                    <span>Reset Window Position</span>
+                    <RotateCcw className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    <span>Reset Window</span>
                   </span>
                 </button>
               </div>
@@ -523,6 +555,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               <button
                 type="button"
                 onClick={() => desktopBridge.minimize()}
+                aria-label="Minimize"
                 title="Minimize"
                 className="w-9 h-full flex items-center justify-center hover:bg-white/[0.08] text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
               >
@@ -531,6 +564,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               <button
                 type="button"
                 onClick={() => desktopBridge.maximize()}
+                aria-label={isMaximized ? 'Restore Down' : 'Maximize'}
                 title={isMaximized ? 'Restore Down' : 'Maximize'}
                 className="w-9 h-full flex items-center justify-center hover:bg-white/[0.08] text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
               >
@@ -539,8 +573,9 @@ export const TitleBar: React.FC<TitleBarProps> = ({
               <button
                 type="button"
                 onClick={() => desktopBridge.close()}
+                aria-label="Close"
                 title="Close (Minimize to Tray)"
-                className="w-9 h-full flex items-center justify-center hover:bg-[#da373c] text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-full flex items-center justify-center hover:bg-[var(--status-dnd)] text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

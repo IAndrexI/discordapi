@@ -108,8 +108,8 @@ function createDefaultSettings(): SyncedDiscordSettings {
     lastSyncedAt: null,
     lastSyncDirection: null,
     lastSyncLog: hasToken
-      ? 'Discord token detected — bidirectional sync armed'
-      : 'Hybrid sync armed (ready for App ↔ Discord updates)',
+      ? 'External Bridge token detected — bidirectional sync armed'
+      : 'Hybrid sync armed (ready for App ↔ External Bridge updates)',
   };
 }
 
@@ -309,8 +309,8 @@ class DiscordSettingsSyncService {
       ...this.settings,
       discordTokenConnected: Boolean(trimmed),
       lastSyncLog: trimmed
-        ? 'Discord token saved — live Discord API forwarding active'
-        : 'Discord token cleared — using local hybrid sync',
+        ? 'External Bridge token saved — live bridge forwarding active'
+        : 'External Bridge token cleared — using local hybrid sync',
     };
     this.persistLocalSettings();
     this.notify();
@@ -373,7 +373,7 @@ class DiscordSettingsSyncService {
       if (onlyToggledSyncOff) {
         this.settings = {
           ...this.settings,
-          lastSyncLog: 'Bidirectional Discord sync paused (changes kept locally)',
+          lastSyncLog: 'Bidirectional External Bridge sync paused (changes kept locally)',
         };
         this.persistLocalSettings();
         this.notify();
@@ -462,8 +462,8 @@ class DiscordSettingsSyncService {
         lastSyncedAt: syncedAt,
         lastSyncDirection: 'app_to_discord',
         lastSyncLog: data.discordForwarded
-          ? `Pushed ${summaryField} → Discord API & hybrid server ✓`
-          : `Synced ${summaryField} → Discord hybrid state ✓`,
+          ? `Pushed ${summaryField} → External Bridge & hybrid server ✓`
+          : `Synced ${summaryField} → Bridge hybrid state ✓`,
       };
 
       this.applyDomFlags(this.settings);
@@ -529,8 +529,8 @@ class DiscordSettingsSyncService {
         lastSyncedAt: syncedAt,
         lastSyncDirection: 'discord_to_app',
         lastSyncLog: token
-          ? 'Pulled live settings from Discord API & hybrid bridge ✓'
-          : 'Pulled latest settings from Discord hybrid bridge ✓',
+          ? 'Pulled live settings from External Bridge & hybrid server ✓'
+          : 'Pulled latest settings from hybrid bridge ✓',
       };
 
       this.applyDomFlags(this.settings);

@@ -107,12 +107,12 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
   const handleAddCustomSound = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customFile) {
-      setAddError('Please select an audio file (.mp3, .wav, .ogg, .webm, .m4a).');
+      setAddError('Select an audio file (.mp3, .wav, .ogg, .webm, .m4a).');
       return;
     }
     const cleanName = customName.trim();
     if (!cleanName) {
-      setAddError('Please enter a clip name.');
+      setAddError('Enter a clip name.');
       return;
     }
 
@@ -132,58 +132,64 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
       setShowAddDrawer(false);
       setActiveTab('custom');
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to save custom sound.');
+      setAddError(err instanceof Error ? err.message : 'Failed to save sound.');
     } finally {
       setIsAdding(false);
     }
   };
 
+  const sizeBoundsClass =
+    anchor === 'center'
+      ? 'max-w-full max-h-full'
+      : 'max-w-[calc(100vw/var(--app-zoom,1)-24px)] max-h-[calc(100vh/var(--app-zoom,1)-96px)]';
+
   const panelContent = (
     <div
       data-testid="soundboard-popover"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Soundboard"
       onClick={(e) => e.stopPropagation()}
-      className="w-[450px] max-w-[calc(100vw-24px)] max-h-[75vh] bg-[#111214] border border-[#1e1f22] rounded-xl shadow-[0_12px_36px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col text-[#dbdee1] animate-fadeIn"
+      className={`w-[450px] ${sizeBoundsClass} z-[95] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-xl shadow-[0_12px_36px_rgba(0,0,0,0.65)] overflow-hidden flex flex-col text-[var(--text-normal)] animate-fadeIn`}
     >
-      {/* Discord-style Header */}
-      <div className="bg-[#2b2d31] px-3.5 py-2.5 border-b border-[#1e1f22] flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
+      {/* Header */}
+      <div className="bg-[var(--bg-channels)] px-3.5 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#5865f2]/20 border border-[#5865f2]/40 flex items-center justify-center text-[#5865f2] flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-[var(--discord-blurple)]/20 border border-[var(--discord-blurple)]/40 flex items-center justify-center text-[var(--discord-blurple)] flex-shrink-0">
             <Music className="w-4 h-4" />
           </div>
-          <div className="min-w-0">
-            <div className="text-sm font-bold text-[#f2f3f5] leading-tight flex items-center gap-1.5">
-              <span>Soundboard</span>
-              {playingIds.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#5865f2] text-white">
-                  {playingIds.length} playing
-                </span>
-              )}
-            </div>
+          <div className="text-sm font-bold text-[var(--text-header)] leading-tight flex items-center gap-1.5">
+            <span>Soundboard</span>
+            {playingIds.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[var(--discord-blurple)] text-white">
+                {playingIds.length} playing
+              </span>
+            )}
           </div>
         </div>
 
         {/* Master Volume, Mute, Stop All, Close */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <div
-            className="flex items-center gap-1.5 bg-[#1e1f22] rounded-md px-2 py-1 border border-white/5"
-            title={`Soundboard Volume: ${masterVolume}%`}
+            className="flex items-center gap-1.5 bg-[var(--bg-card)] rounded-md px-2 py-1 border border-[var(--border-subtle)]"
+            title={`Volume: ${masterVolume}%`}
           >
-            <Volume2 className="w-3.5 h-3.5 text-[#949ba4] flex-shrink-0" />
+            <Volume2 className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
             <input
               type="range"
               min={0}
               max={200}
               step={1}
-              aria-label="Soundboard Master Volume"
+              aria-label="Soundboard Volume"
               value={masterVolume}
               onChange={(e) => {
                 const vol = Number(e.target.value);
                 setMasterVolume(vol);
                 soundboardService.setMasterVolume(vol);
               }}
-              className="w-16 sm:w-20 accent-[#5865f2] cursor-pointer h-1 bg-[#383a40] rounded-lg"
+              className="w-16 sm:w-20 accent-[var(--discord-blurple)] cursor-pointer h-1 bg-[var(--bg-message-input)] rounded-lg"
             />
-            <span className="text-[10px] font-mono text-[#949ba4] w-8 text-right">
+            <span className="text-[10px] font-mono text-[var(--text-muted)] w-8 text-right">
               {masterVolume}%
             </span>
           </div>
@@ -196,11 +202,12 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
               soundboardService.setMuted(next);
             }}
             aria-label={isMuted ? 'Unmute Soundboard' : 'Mute Soundboard'}
-            title={isMuted ? 'Unmute Soundboard' : 'Mute Soundboard'}
-            className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+            aria-pressed={isMuted}
+            title={isMuted ? 'Unmute' : 'Mute'}
+            className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer border ${
               isMuted
-                ? 'bg-[#f23f43]/20 text-[#f23f43] border border-[#f23f43]/40'
-                : 'bg-[#1e1f22] text-[#dbdee1] hover:bg-[#35373c] hover:text-white'
+                ? 'bg-[var(--status-dnd)]/20 text-[var(--status-dnd)] border-[var(--status-dnd)]/40'
+                : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-normal)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -209,20 +216,20 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
           <button
             type="button"
             onClick={() => soundboardService.stopAll()}
-            title="Stop All Playing Sounds"
-            aria-label="Stop All"
-            className="px-2 py-1 rounded-md bg-[#1e1f22] hover:bg-[#f23f43]/20 text-[#dbdee1] hover:text-[#f23f43] border border-white/5 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+            title="Stop All"
+            aria-label="Stop All Sounds"
+            className="px-2 py-1 rounded-md bg-[var(--bg-card)] hover:bg-[var(--status-dnd)]/20 text-[var(--text-normal)] hover:text-[var(--status-dnd)] border border-[var(--border-subtle)] text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
           >
             <Square className="w-3 h-3 fill-current" />
-            <span className="hidden sm:inline">Stop All</span>
+            <span className="hidden sm:inline">Stop</span>
           </button>
 
           <button
             type="button"
             onClick={onClose}
             aria-label="Close Soundboard"
-            title="Close Soundboard"
-            className="w-7 h-7 rounded-md hover:bg-white/10 text-[#949ba4] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            title="Close"
+            className="w-7 h-7 rounded-md hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -230,22 +237,23 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
       </div>
 
       {/* Search Bar & Filter Tabs */}
-      <div className="px-3 py-2 bg-[#1e1f22]/75 border-b border-[#1e1f22] space-y-2 flex-shrink-0">
+      <div className="px-3 py-2 bg-[var(--bg-channels)]/60 border-b border-[var(--border-subtle)] space-y-2 flex-shrink-0">
         <div className="relative flex items-center">
-          <Search className="w-3.5 h-3.5 text-[#949ba4] absolute left-2.5 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search sounds"
             placeholder="Search sounds..."
-            className="w-full bg-[#111214] border border-white/10 focus:border-[#5865f2] rounded-md pl-8 pr-7 py-1.5 text-xs text-[#f2f3f5] placeholder-[#949ba4] outline-none"
+            className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-md pl-8 pr-7 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              aria-label="Clear sound search"
-              className="absolute right-2 text-[#949ba4] hover:text-white cursor-pointer"
+              aria-label="Clear search"
+              className="absolute right-2 text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -253,7 +261,7 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
         </div>
 
         <div className="flex items-center justify-between gap-1.5 flex-wrap">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" role="tablist" aria-label="Sound categories">
             {(
               [
                 { id: 'all', label: 'All' },
@@ -267,11 +275,13 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
                 <button
                   key={tab.id}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
                     active
-                      ? 'bg-[#5865f2] text-white'
-                      : 'bg-[#2b2d31] text-[#949ba4] hover:text-white hover:bg-[#35373c]'
+                      ? 'bg-[var(--discord-blurple)] text-white'
+                      : 'bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                   }`}
                 >
                   {tab.label}
@@ -280,22 +290,22 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
             })}
           </div>
 
-          <span className="text-[10px] text-[#949ba4] font-medium">
+          <span className="text-[10px] text-[var(--text-muted)] font-medium">
             {filteredSounds.length} {filteredSounds.length === 1 ? 'sound' : 'sounds'}
           </span>
         </div>
       </div>
 
-      {/* 3-Column Tactile Discord Sound Grid */}
+      {/* 3-Column Sound Grid */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3">
         {filteredSounds.length === 0 ? (
-          <div className="py-10 text-center space-y-2">
+          <div className="py-8 text-center space-y-1.5">
             <div className="text-2xl">🔇</div>
-            <div className="text-xs font-semibold text-[#f2f3f5]">No sounds found</div>
-            <p className="text-[11px] text-[#949ba4]">
+            <div className="text-xs font-semibold text-[var(--text-header)]">No sounds found</div>
+            <p className="text-[11px] text-[var(--text-muted)]">
               {activeTab === 'custom'
-                ? 'Upload your own MP3/WAV/OGG sound clips below.'
-                : 'Try clearing your search or switching filter tabs.'}
+                ? 'Add a custom clip below.'
+                : 'Try another search or tab.'}
             </p>
           </div>
         ) : (
@@ -307,23 +317,24 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
                   key={clip.id}
                   className={`relative group rounded-lg border transition-all overflow-hidden ${
                     isPlaying
-                      ? 'bg-[#5865f2]/20 border-[#5865f2] ring-2 ring-[#5865f2]/60 animate-pulse'
-                      : 'bg-[#1e1f22] hover:bg-[#35373c] border-white/[0.06] hover:border-white/15'
+                      ? 'bg-[var(--discord-blurple)]/20 border-[var(--discord-blurple)] ring-2 ring-[var(--discord-blurple)]/60 animate-pulse'
+                      : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border-[var(--border-subtle)] hover:border-[var(--discord-blurple)]/50'
                   }`}
                 >
                   <button
                     type="button"
                     data-testid={`soundboard-tile-${clip.id}`}
+                    aria-label={`Play ${clip.name}`}
                     onClick={() => void soundboardService.play(clip.id, { senderName })}
                     title={`Play ${clip.name}${clip.hotkey ? ` (${clip.hotkey})` : ''}`}
-                    className="w-full h-full min-h-[80px] p-2.5 pt-4 flex flex-col items-center justify-center gap-1 text-center cursor-pointer"
+                    className="w-full h-full min-h-[76px] p-2.5 pt-4 flex flex-col items-center justify-center gap-1 text-center cursor-pointer"
                   >
                     <span className="text-2xl leading-none select-none">{clip.emoji}</span>
-                    <span className="text-[11px] font-semibold text-[#f2f3f5] truncate w-full px-1">
+                    <span className="text-[11px] font-semibold text-[var(--text-header)] truncate w-full px-1">
                       {clip.name}
                     </span>
                     {clip.hotkey && (
-                      <span className="text-[9px] font-mono text-[#949ba4] bg-black/35 px-1.5 py-0.2 rounded">
+                      <span className="text-[9px] font-mono text-[var(--text-muted)] bg-[var(--bg-popout)] px-1.5 py-0.2 rounded border border-[var(--border-subtle)]">
                         {clip.hotkey}
                       </span>
                     )}
@@ -336,12 +347,13 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
                       e.stopPropagation();
                       soundboardService.toggleFavorite(clip.id);
                     }}
-                    title={clip.favorite ? 'Remove Favorite' : 'Favorite Sound'}
+                    title={clip.favorite ? 'Unfavorite' : 'Favorite'}
                     aria-label={clip.favorite ? `Unfavorite ${clip.name}` : `Favorite ${clip.name}`}
+                    aria-pressed={Boolean(clip.favorite)}
                     className={`absolute top-1 left-1 w-5 h-5 rounded flex items-center justify-center transition-opacity cursor-pointer ${
                       clip.favorite
-                        ? 'opacity-100 text-[#f0b232] bg-black/40'
-                        : 'opacity-0 group-hover:opacity-100 focus:opacity-100 text-[#949ba4] hover:text-[#f0b232] bg-black/50'
+                        ? 'opacity-100 text-[var(--status-idle)] bg-[var(--bg-popout)]/80'
+                        : 'opacity-0 group-hover:opacity-100 focus:opacity-100 text-[var(--text-muted)] hover:text-[var(--status-idle)] bg-[var(--bg-popout)]/80'
                     }`}
                   >
                     <Star className={`w-3 h-3 ${clip.favorite ? 'fill-current' : ''}`} />
@@ -355,9 +367,9 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
                         e.stopPropagation();
                         void soundboardService.play(clip.id, { localOnly: true, senderName });
                       }}
-                      title="Preview Locally (Not Broadcast)"
+                      title="Preview Locally"
                       aria-label={`Preview ${clip.name} locally`}
-                      className="w-5 h-5 rounded bg-black/60 hover:bg-[#5865f2] text-[#dbdee1] hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                      className="w-5 h-5 rounded bg-[var(--bg-popout)]/85 hover:bg-[var(--discord-blurple)] text-[var(--text-normal)] hover:text-white flex items-center justify-center cursor-pointer transition-colors"
                     >
                       <Headphones className="w-3 h-3" />
                     </button>
@@ -369,9 +381,9 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
                           e.stopPropagation();
                           void soundboardService.deleteCustomSound(clip.id);
                         }}
-                        title="Delete Custom Sound"
+                        title="Delete"
                         aria-label={`Delete ${clip.name}`}
-                        className="w-5 h-5 rounded bg-black/60 hover:bg-[#f23f43] text-[#dbdee1] hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                        className="w-5 h-5 rounded bg-[var(--bg-popout)]/85 hover:bg-[var(--status-dnd)] text-[var(--text-normal)] hover:text-white flex items-center justify-center cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -384,127 +396,135 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
         )}
       </div>
 
-      {/* Expandable + Add Custom Sound Drawer */}
-      <div className="border-t border-[#1e1f22] bg-[#2b2d31] flex-shrink-0">
+      {/* Expandable Add Custom Sound Drawer (viewport-safe with sticky submit footer) */}
+      <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-channels)] flex-shrink-0 max-h-[min(320px,calc(100vh/var(--app-zoom,1)-270px))] flex flex-col overflow-hidden">
         <button
           type="button"
+          data-testid="soundboard-add-toggle-btn"
+          aria-expanded={showAddDrawer}
+          aria-label="Add Custom Sound"
           onClick={() => setShowAddDrawer((v) => !v)}
-          className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-semibold text-[#f2f3f5] hover:bg-white/[0.04] transition-colors cursor-pointer"
+          className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-semibold text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] transition-colors cursor-pointer flex-shrink-0"
         >
           <span className="flex items-center gap-1.5">
-            <Plus className="w-3.5 h-3.5 text-[#5865f2]" />
+            <Plus className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
             <span>Add Custom Sound</span>
           </span>
           {showAddDrawer ? (
-            <ChevronDown className="w-4 h-4 text-[#949ba4]" />
+            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
           ) : (
-            <ChevronUp className="w-4 h-4 text-[#949ba4]" />
+            <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
           )}
         </button>
 
         {showAddDrawer && (
           <form
             onSubmit={handleAddCustomSound}
-            className="px-3.5 pb-3 pt-1 space-y-2.5 border-t border-white/5 bg-[#1e1f22]/70 max-h-[260px] overflow-y-auto"
+            className="flex-1 min-h-0 flex flex-col overflow-hidden border-t border-[var(--border-subtle)] bg-[var(--bg-popout)]/75"
           >
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,.mp3,.wav,.ogg,.webm,.m4a"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full px-3 py-2 rounded-md border border-dashed border-white/20 hover:border-[#5865f2] bg-[#111214] text-xs text-[#dbdee1] flex items-center justify-between gap-2 cursor-pointer transition-colors"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Upload className="w-3.5 h-3.5 text-[#5865f2] flex-shrink-0" />
-                  <span className="truncate">
-                    {customFile ? customFile.name : 'Choose audio file (.mp3, .wav, .ogg, .webm, .m4a)'}
-                  </span>
-                </span>
-                {customFile && (
-                  <span className="text-[10px] text-[#949ba4] flex-shrink-0">
-                    {Math.max(1, Math.round(customFile.size / 1024))} KB
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-2.5 space-y-2">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#949ba4] mb-1">
-                  Clip Name
-                </label>
                 <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  maxLength={32}
-                  placeholder="e.g. Bruh"
-                  className="w-full bg-[#111214] border border-white/10 focus:border-[#5865f2] rounded px-2.5 py-1.5 text-xs text-white outline-none"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*,.mp3,.wav,.ogg,.webm,.m4a"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Choose audio file"
+                  className="w-full px-3 py-1.5 rounded-md border border-dashed border-[var(--border-subtle)] hover:border-[var(--discord-blurple)] bg-[var(--bg-card)] text-xs text-[var(--text-normal)] flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <Upload className="w-3.5 h-3.5 text-[var(--discord-blurple)] flex-shrink-0" />
+                    <span className="truncate">
+                      {customFile ? customFile.name : 'Choose audio (.mp3, .wav, .ogg, .webm, .m4a)'}
+                    </span>
+                  </span>
+                  {customFile && (
+                    <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">
+                      {Math.max(1, Math.round(customFile.size / 1024))} KB
+                    </span>
+                  )}
+                </button>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#949ba4] mb-1">
-                  Hotkey (Optional)
-                </label>
-                <div className="relative flex items-center">
-                  <Keyboard className="w-3 h-3 text-[#949ba4] absolute left-2 pointer-events-none" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                    Name
+                  </label>
                   <input
                     type="text"
-                    value={customHotkey}
-                    onChange={(e) => setCustomHotkey(e.target.value)}
-                    maxLength={16}
-                    placeholder="e.g. Alt+1"
-                    className="w-full bg-[#111214] border border-white/10 focus:border-[#5865f2] rounded pl-7 pr-2 py-1.5 text-xs text-white outline-none"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    maxLength={32}
+                    placeholder="e.g. Bruh"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded px-2.5 py-1 text-xs text-[var(--text-header)] outline-none"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                    Hotkey
+                  </label>
+                  <div className="relative flex items-center">
+                    <Keyboard className="w-3 h-3 text-[var(--text-muted)] absolute left-2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={customHotkey}
+                      onChange={(e) => setCustomHotkey(e.target.value)}
+                      maxLength={16}
+                      placeholder="Alt+1"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded pl-7 pr-2 py-1 text-xs text-[var(--text-header)] outline-none"
+                    />
+                  </div>
+                </div>
               </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                  Icon ({customEmoji})
+                </label>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {QUICK_EMOJIS.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      aria-label={`Select emoji ${em}`}
+                      aria-pressed={customEmoji === em}
+                      onClick={() => setCustomEmoji(em)}
+                      className={`w-6 h-6 rounded flex items-center justify-center text-sm cursor-pointer transition-colors ${
+                        customEmoji === em
+                          ? 'bg-[var(--discord-blurple)] text-white ring-1 ring-white/40'
+                          : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)]'
+                      }`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {addError && (
+                <div className="text-[11px] text-[var(--status-dnd)] font-medium">{addError}</div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-[#949ba4] mb-1">
-                Emoji ({customEmoji})
-              </label>
-              <div className="flex items-center gap-1 flex-wrap">
-                {QUICK_EMOJIS.map((em) => (
-                  <button
-                    key={em}
-                    type="button"
-                    onClick={() => setCustomEmoji(em)}
-                    className={`w-7 h-7 rounded flex items-center justify-center text-sm cursor-pointer transition-colors ${
-                      customEmoji === em
-                        ? 'bg-[#5865f2] ring-1 ring-white/40'
-                        : 'bg-[#111214] hover:bg-[#35373c]'
-                    }`}
-                  >
-                    {em}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {addError && (
-              <div className="text-[11px] text-[#f23f43] font-medium">{addError}</div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-0.5">
+            <div className="px-3.5 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-channels)] flex items-center justify-end gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setShowAddDrawer(false)}
-                className="px-3 py-1.5 rounded text-xs font-medium text-[#949ba4] hover:text-white hover:bg-white/5 cursor-pointer"
+                className="px-3 py-1 rounded text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isAdding}
-                className="px-3.5 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] disabled:opacity-50 text-white text-xs font-semibold cursor-pointer transition-colors"
+                className="px-3.5 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] disabled:opacity-50 text-white text-xs font-semibold cursor-pointer transition-colors"
               >
                 {isAdding ? 'Saving...' : 'Upload Sound'}
               </button>
@@ -519,7 +539,7 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
     return (
       <div
         onClick={onClose}
-        className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-3"
+        className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-3"
       >
         {panelContent}
       </div>
@@ -528,8 +548,8 @@ export const SoundboardPopover: React.FC<SoundboardPopoverProps> = ({
 
   return (
     <>
-      <div onClick={onClose} className="fixed inset-0 z-[69] bg-transparent" />
-      <div className="fixed bottom-[62px] left-3 sm:left-[84px] z-[70] max-w-[calc(100vw-24px)]">
+      <div onClick={onClose} className="fixed inset-0 z-[94] bg-transparent" />
+      <div className="fixed bottom-[62px] left-3 sm:left-[84px] z-[95] max-w-[calc(100vw/var(--app-zoom,1)-24px)] max-h-[calc(100vh/var(--app-zoom,1)-96px)] flex flex-col">
         {panelContent}
       </div>
     </>

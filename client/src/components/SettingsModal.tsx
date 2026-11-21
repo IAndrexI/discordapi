@@ -168,6 +168,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [soundboardMuted, setSoundboardMuted] = useState<boolean>(() =>
     soundboardService.isMuted()
   );
+  const [screenQuality, setScreenQuality] = useState<'1080p60' | '1440p60' | '4k60' | '720p30'>(() => {
+    try {
+      const saved = localStorage.getItem('protutech_screen_quality');
+      if (saved === '1080p60' || saved === '1440p60' || saved === '4k60' || saved === '720p30') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return '1080p60';
+  });
+  const [appVersion, setAppVersion] = useState<string>('1.0.3');
   const [windowBoundsResetNotice, setWindowBoundsResetNotice] = useState(false);
 
   // Bidirectional Discord Settings Sync State
@@ -257,6 +269,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       unsubLivekit();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/version.json')
+      .then(res => (res.ok ? res.json() : null))
+      .then((data: { version?: string } | null) => {
+        if (!cancelled && data?.version && typeof data.version === 'string') {
+          setAppVersion(data.version);
+        }
+      })
+      .catch(() => {
+        // Keep initial fallback 1.0.3
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncQuality = () => {
+      try {
+        const saved = localStorage.getItem('protutech_screen_quality');
+        if (saved === '1080p60' || saved === '1440p60' || saved === '4k60' || saved === '720p30') {
+          setScreenQuality(saved);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    if (isOpen) {
+      void Promise.resolve().then(syncQuality);
+    }
+    window.addEventListener('storage', syncQuality);
+    return () => window.removeEventListener('storage', syncQuality);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || activeTab !== 'voice') return;
@@ -582,24 +629,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div
       data-testid="settings-modal"
-      className="fixed inset-0 top-[28px] z-50 bg-[var(--bg-chat)] flex overflow-hidden animate-fadeIn"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+      className="fixed top-[28px] inset-x-0 bottom-0 z-50 bg-[var(--bg-chat)] flex overflow-hidden"
     >
-      {/* Discord Circular ESC Close Button */}
+      {/* Circular ESC Close Button */}
       <button
         type="button"
         onClick={onClose}
         aria-label="Close Settings"
         data-testid="settings-close-btn"
-        className="absolute top-5 right-6 text-[var(--text-muted)] hover:text-[var(--text-header)] flex flex-col items-center gap-1 group z-20 cursor-pointer"
+        className="absolute top-4 right-5 text-[var(--text-muted)] hover:text-[var(--text-header)] flex flex-col items-center gap-1 group z-20 cursor-pointer"
       >
-        <div className="w-9 h-9 rounded-full border-2 border-[var(--text-muted)] group-hover:border-[var(--text-header)] group-hover:bg-white/5 flex items-center justify-center transition-colors">
+        <div className="w-9 h-9 rounded-full border-2 border-[var(--text-muted)] group-hover:border-[var(--text-header)] group-hover:bg-[var(--bg-item-hover)] flex items-center justify-center transition-colors">
           <X className="w-5 h-5" />
         </div>
         <span className="text-[11px] font-bold tracking-wider">ESC</span>
       </button>
 
       {/* Left Settings Sidebar */}
-      <div className="w-56 sm:w-64 bg-[var(--bg-channels)] px-3 sm:px-4 py-6 flex flex-col justify-between select-none border-r border-black/20 overflow-y-auto flex-shrink-0">
+      <div className="w-44 sm:w-56 md:w-64 bg-[var(--bg-channels)] px-3 sm:px-4 py-5 flex flex-col justify-between select-none border-r border-[var(--border-subtle)] overflow-y-auto min-h-0 flex-shrink-0">
         <div className="space-y-5">
           {/* User Settings Category */}
           <div>
@@ -617,10 +667,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#5865f2]" />
+                  <User className="w-4 h-4 text-[var(--discord-blurple)]" />
                   <span>User Profile</span>
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#5865f2]/20 text-[#949cf7] font-bold">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-userpanel)] text-[var(--text-link)] font-bold">
                   Custom
                 </span>
               </button>
@@ -656,14 +706,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-[#23a55a]" />
+                  <Layers className="w-4 h-4 text-[var(--status-online)]" />
                   <span>In-Game Overlay</span>
                 </div>
                 <span
                   className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
                     overlayConfig.enabled
-                      ? 'bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/30'
-                      : 'bg-black/20 text-[var(--text-muted)]'
+                      ? 'bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/30'
+                      : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)]'
                   }`}
                 >
                   {overlayConfig.enabled ? 'ON' : 'OFF'}
@@ -675,7 +725,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Appearance & Extensions Category */}
           <div>
             <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2.5 mb-1.5 flex items-center gap-1.5">
-              <Puzzle className="w-3.5 h-3.5 text-[#5865f2]" />
+              <Puzzle className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
               <span>Appearance &amp; Plugins</span>
             </div>
             <div className="space-y-0.5">
@@ -704,7 +754,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Layers className="w-4 h-4" />
                   <span>Plugins</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#5865f2]/20 text-[#949cf7] font-bold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-userpanel)] text-[var(--text-link)] font-bold">
                   Equicord
                 </span>
               </button>
@@ -718,10 +768,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#5865f2]" />
+                  <Sparkles className="w-4 h-4 text-[var(--discord-blurple)]" />
                   <span>Add Plugins</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#5865f2] text-white font-bold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--discord-blurple)] text-white font-bold">
                   Store
                 </span>
               </button>
@@ -747,46 +797,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#5865f2]" />
+                  <ImageIcon className="w-4 h-4 text-[var(--discord-blurple)]" />
                   <span>App Icon</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#5865f2]/20 text-[#949cf7] font-bold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-userpanel)] text-[var(--text-link)] font-bold">
                   Custom
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Discord Hub & Equicord Shortcuts */}
+          {/* Community Hub & Equicord Shortcuts */}
           <div>
             <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2.5 mb-1.5 flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5 text-[#f0b232]" />
-              <span>Discord &amp; Equicord</span>
+              <Trophy className="w-3.5 h-3.5 text-[var(--status-idle)]" />
+              <span>Community</span>
             </div>
             <div className="space-y-1">
               <button
                 type="button"
                 onClick={() => handleOpenDiscordHubModal('quests')}
-                className="w-full text-left px-3 py-1.5 rounded text-xs font-semibold text-[var(--text-normal)] bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[#4e5058]/30 flex items-center justify-between cursor-pointer transition-colors"
+                className="w-full text-left px-3 py-1.5 rounded text-xs font-semibold text-[var(--text-normal)] bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] flex items-center justify-between cursor-pointer transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Trophy className="w-3.5 h-3.5 text-[#f0b232]" />
-                  <span>Discord Hub</span>
+                  <Trophy className="w-3.5 h-3.5 text-[var(--status-idle)]" />
+                  <span>Community Hub</span>
                 </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#f0b232]/20 text-[#f0b232] font-bold">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-[var(--status-idle)] font-bold">
                   Quests
                 </span>
               </button>
               <button
                 type="button"
                 onClick={handleOpenEquicordModal}
-                className="w-full text-left px-3 py-1.5 rounded text-xs font-semibold text-[var(--text-normal)] bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[#4e5058]/30 flex items-center justify-between cursor-pointer transition-colors"
+                className="w-full text-left px-3 py-1.5 rounded text-xs font-semibold text-[var(--text-normal)] bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] flex items-center justify-between cursor-pointer transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-[#5865f2]" />
+                  <Zap className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
                   <span>Equicord Engine</span>
                 </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#5865f2]/20 text-[#949cf7] font-bold">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-link)] font-bold">
                   25+
                 </span>
               </button>
@@ -795,11 +845,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Logout */}
-        <div className="pt-3 border-t border-[#4e5058]/25 mt-4">
+        <div className="pt-3 border-t border-[var(--border-subtle)] mt-4">
           <button
             type="button"
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium text-[var(--status-dnd)] hover:bg-[var(--status-dnd)]/10 transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium text-[var(--status-dnd)] hover:bg-red-500/10 transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Log Out</span>
@@ -808,43 +858,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       </div>
 
       {/* Right Settings Content */}
-      <div className="flex-1 min-w-0 bg-[var(--bg-chat)] overflow-y-auto relative">
-        <div className="max-w-3xl mx-auto px-6 sm:px-10 py-8 pr-16 sm:pr-20">
-          {/* Bidirectional Discord Settings Sync Status Bar */}
-          <div className="mb-6 p-3.5 rounded-lg bg-[var(--bg-channels)] border border-[#4e5058]/35 space-y-2">
+      <div className="flex-1 min-w-0 min-h-0 bg-[var(--bg-chat)] overflow-y-auto relative">
+        <div className="max-w-3xl mx-auto px-5 sm:px-10 py-6 sm:py-8 pr-16 sm:pr-20">
+          {/* Preferences Sync Status Bar */}
+          <div className="mb-6 p-3.5 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)] space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#5865f2]/20 border border-[#5865f2]/35 flex items-center justify-center text-[#949cf7]">
+                <div className="w-8 h-8 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-link)]">
                   <ArrowLeftRight className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-[var(--text-header)]">
-                      Discord Bidirectional Sync
+                      Preferences Sync
                     </span>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                         syncSettings.syncEnabled
-                          ? 'bg-[#23a55a]/20 text-[#23a55a] border-[#23a55a]/35'
-                          : 'bg-black/20 text-[var(--text-muted)] border-[#4e5058]/30'
+                          ? 'bg-emerald-500/15 text-[var(--status-online)] border-emerald-500/35'
+                          : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] border-[var(--border-subtle)]'
                       }`}
                     >
                       {syncSettings.syncEnabled
                         ? syncSettings.lastSyncedAt
-                          ? 'Synced with Discord ✓'
-                          : 'Sync Active ✓'
-                        : 'Sync Paused'}
+                          ? 'Synced ✓'
+                          : 'Active ✓'
+                        : 'Paused'}
                     </span>
                     {syncSettings.discordTokenConnected && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#5865f2]/20 text-[#949cf7] font-semibold">
-                        Token Connected
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-userpanel)] text-[var(--text-link)] font-semibold border border-[var(--border-subtle)]">
+                        Bridge Connected
                       </span>
                     )}
                   </div>
                   <div className="text-[11px] text-[var(--text-muted)] flex items-center gap-2 flex-wrap">
                     <span>{syncSettings.lastSyncLog}</span>
                     {syncSettings.lastSyncedAt && (
-                      <span className="font-mono text-[#00a8fc]">
+                      <span className="font-mono text-[var(--text-link)]">
                         •{' '}
                         {new Date(syncSettings.lastSyncedAt).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -859,12 +909,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="flex items-center gap-2 flex-wrap">
                 <label className="flex items-center gap-2 text-[11px] font-semibold text-[var(--text-normal)] cursor-pointer select-none">
-                  <span>Sync Settings to Discord Side</span>
+                  <span>Auto-Sync</span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={syncSettings.syncEnabled}
-                    aria-label="Sync Settings to Discord Side"
+                    aria-label="Toggle Auto-Sync"
                     onClick={() =>
                       void discordSettingsSync.updateSetting(
                         'syncEnabled',
@@ -872,7 +922,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       )
                     }
                     className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${
-                      syncSettings.syncEnabled ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                      syncSettings.syncEnabled ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                     }`}
                   >
                     <div
@@ -887,20 +937,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="button"
                   disabled={syncBusy !== null}
                   onClick={() => void handlePullFromDiscord()}
-                  className="px-2.5 py-1 rounded bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-xs font-semibold text-[var(--text-normal)] border border-[#4e5058]/35 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-2.5 py-1 rounded bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-xs font-semibold text-[var(--text-normal)] border border-[var(--border-subtle)] flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3 h-3 ${syncBusy === 'pull' ? 'animate-spin' : ''}`} />
-                  <span>Pull from Discord Now</span>
+                  <span>Pull</span>
                 </button>
 
                 <button
                   type="button"
                   disabled={syncBusy !== null}
                   onClick={() => void handlePushToDiscord()}
-                  className="px-2.5 py-1 rounded bg-[#5865f2] hover:bg-[#4752c4] text-xs font-bold text-white flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-2.5 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-xs font-bold text-white flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Upload className="w-3 h-3" />
-                  <span>Push All to Discord</span>
+                  <span>Push</span>
                 </button>
               </div>
             </div>
@@ -911,30 +961,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">
-                    User Profile Customization
+                    User Profile
                   </h2>
                   <p className="text-sm text-[var(--text-muted)]">
-                    Optional Discord-style profile card, banner, avatar decoration, pronouns, and status.
+                    Customize your profile card, banner, avatar decoration, and status.
                   </p>
                 </div>
                 {profileSavedToast && (
-                  <span className="px-3 py-1 rounded-full bg-[#23a55a]/20 border border-[#23a55a]/40 text-[#23a55a] text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[var(--status-online)] text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
                     <CheckCircle className="w-3.5 h-3.5" />
                     <span>Saved</span>
                   </span>
                 )}
               </div>
 
-              {/* Live Discord Profile Card Preview */}
+              {/* Live Profile Card Preview */}
               <div
                 className="rounded-xl overflow-hidden border shadow-xl bg-[var(--bg-userpanel)]"
-                style={{ borderColor: profileDraft.accentColor || '#5865f2' }}
+                style={{ borderColor: profileDraft.accentColor || 'var(--discord-blurple)' }}
               >
                 {/* Banner */}
                 <div
                   className="h-24 w-full relative bg-cover bg-center"
                   style={{
-                    backgroundColor: profileDraft.bannerColor || '#5865f2',
+                    backgroundColor: profileDraft.bannerColor || '#0e7490',
                     backgroundImage: profileDraft.bannerUrl
                       ? `url("${profileDraft.bannerUrl}")`
                       : undefined,
@@ -951,7 +1001,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             className="w-20 h-20 rounded-full object-cover border-4 border-[var(--bg-userpanel)] bg-[var(--bg-servers)]"
                           />
                         ) : (
-                          <div className="w-20 h-20 rounded-full border-4 border-[var(--bg-userpanel)] bg-[#5865f2] flex items-center justify-center text-white font-extrabold text-2xl">
+                          <div className="w-20 h-20 rounded-full border-4 border-[var(--bg-userpanel)] bg-[var(--discord-blurple)] flex items-center justify-center text-white font-extrabold text-2xl">
                             {previewDisplayName.slice(0, 2).toUpperCase()}
                           </div>
                         )}
@@ -974,7 +1024,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {profileDraft.badges.map(b => (
                           <span
                             key={b}
-                            className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/35"
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]"
                           >
                             {b}
                           </span>
@@ -996,14 +1046,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="text-xs text-[var(--text-muted)] font-mono">{userId}</div>
 
                   {(profileDraft.customStatus || profileDraft.customStatusEmoji) && (
-                    <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-channels)] border border-[#4e5058]/30 text-xs text-[var(--text-normal)]">
+                    <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)] text-xs text-[var(--text-normal)]">
                       {profileDraft.customStatusEmoji && <span>{profileDraft.customStatusEmoji}</span>}
                       <span>{profileDraft.customStatus || 'Custom status'}</span>
                     </div>
                   )}
 
                   {profileDraft.bio && (
-                    <p className="mt-3 text-xs text-[var(--text-normal)] leading-relaxed whitespace-pre-wrap border-t border-[#4e5058]/25 pt-2.5">
+                    <p className="mt-3 text-xs text-[var(--text-normal)] leading-relaxed whitespace-pre-wrap border-t border-[var(--border-subtle)] pt-2.5">
                       {profileDraft.bio}
                     </p>
                   )}
@@ -1022,7 +1072,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileDraft.displayName}
                       onChange={e => setProfileDraft(p => ({ ...p, displayName: e.target.value }))}
                       placeholder={fallbackUsername}
-                      className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
                   </div>
 
@@ -1035,7 +1085,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileDraft.pronouns}
                       onChange={e => setProfileDraft(p => ({ ...p, pronouns: e.target.value }))}
                       placeholder="e.g. he/him, she/her, they/them"
-                      className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
                   </div>
                 </div>
@@ -1048,22 +1098,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
+                      aria-label="Status Emoji"
                       value={profileDraft.customStatusEmoji}
                       onChange={e =>
                         setProfileDraft(p => ({ ...p, customStatusEmoji: e.target.value }))
                       }
                       maxLength={4}
-                      className="w-14 text-center bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-2 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="w-14 text-center bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                       title="Status Emoji"
                     />
                     <input
                       type="text"
+                      aria-label="Custom Status Text"
                       value={profileDraft.customStatus}
                       onChange={e => setProfileDraft(p => ({ ...p, customStatus: e.target.value }))}
                       placeholder="What are you playing or working on?"
-                      className="flex-1 bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="flex-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
                     <select
+                      aria-label="Presence Status"
                       value={profileDraft.presence}
                       onChange={e => {
                         const nextPresence = e.target.value as UserProfileCustomizations['presence'];
@@ -1079,7 +1132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           );
                         }
                       }}
-                      className="bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-2.5 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2.5 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     >
                       <option value="online">Online</option>
                       <option value="idle">Idle</option>
@@ -1095,8 +1148,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => setProfileDraft(p => ({ ...p, customStatusEmoji: em }))}
                         className={`px-2 py-0.5 rounded text-xs cursor-pointer border transition-colors ${
                           profileDraft.customStatusEmoji === em
-                            ? 'bg-[#5865f2]/20 border-[#5865f2]'
-                            : 'bg-[var(--bg-userpanel)] border-[#4e5058]/30 hover:bg-[var(--bg-item-hover)]'
+                            ? 'bg-[var(--bg-item-active)] border-[var(--discord-blurple)]'
+                            : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)] hover:bg-[var(--bg-item-hover)]'
                         }`}
                       >
                         {em}
@@ -1108,19 +1161,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* Bio */}
                 <div>
                   <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                    About Me / Bio
+                    About Me
                   </label>
                   <textarea
                     rows={3}
                     value={profileDraft.bio}
                     onChange={e => setProfileDraft(p => ({ ...p, bio: e.target.value }))}
-                    placeholder="Write a short bio for your profile card..."
-                    className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2] resize-none"
+                    placeholder="Write a short bio for your profile..."
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] resize-none"
                   />
                 </div>
 
                 {/* Avatar URL + Upload */}
-                <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-2.5">
+                <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2.5">
                   <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block">
                     Avatar Image URL or Upload
                   </label>
@@ -1130,9 +1183,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileDraft.avatarUrl}
                       onChange={e => setProfileDraft(p => ({ ...p, avatarUrl: e.target.value }))}
                       placeholder="https://... or upload an image file"
-                      className="flex-1 min-w-[200px] bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="flex-1 min-w-[200px] bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold cursor-pointer transition-colors">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer transition-colors">
                       <Upload className="w-3.5 h-3.5" />
                       <span>Upload</span>
                       <input
@@ -1153,13 +1206,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
                   </div>
                   {profileAvatarError && (
-                    <p className="text-xs text-red-400">{profileAvatarError}</p>
+                    <p className="text-xs text-[var(--status-dnd)]">{profileAvatarError}</p>
                   )}
                 </div>
 
                 {/* Banner Color / Image & Accent Color */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-2">
+                  <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2">
                     <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block">
                       Banner Color &amp; Accent
                     </label>
@@ -1168,22 +1221,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="text-[11px] text-[var(--text-muted)]">Banner:</span>
                         <input
                           type="color"
+                          aria-label="Banner color"
                           value={profileDraft.bannerColor}
                           onChange={e =>
                             setProfileDraft(p => ({ ...p, bannerColor: e.target.value }))
                           }
-                          className="w-8 h-7 rounded bg-transparent border border-[#4e5058]/35 cursor-pointer"
+                          className="w-8 h-7 rounded bg-transparent border border-[var(--border-subtle)] cursor-pointer"
                         />
                       </div>
                       <div className="flex items-center gap-1.5 ml-2">
                         <span className="text-[11px] text-[var(--text-muted)]">Accent:</span>
                         <input
                           type="color"
+                          aria-label="Accent color"
                           value={profileDraft.accentColor}
                           onChange={e =>
                             setProfileDraft(p => ({ ...p, accentColor: e.target.value }))
                           }
-                          className="w-8 h-7 rounded bg-transparent border border-[#4e5058]/35 cursor-pointer"
+                          className="w-8 h-7 rounded bg-transparent border border-[var(--border-subtle)] cursor-pointer"
                         />
                       </div>
                     </div>
@@ -1192,9 +1247,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           key={col}
                           type="button"
+                          aria-label={`Select banner color ${col}`}
                           onClick={() => setProfileDraft(p => ({ ...p, bannerColor: col }))}
                           className={`w-5 h-5 rounded-full border cursor-pointer ${
-                            profileDraft.bannerColor === col ? 'border-white scale-110' : 'border-[#4e5058]/40'
+                            profileDraft.bannerColor === col ? 'border-[var(--text-header)] scale-110' : 'border-[var(--border-subtle)]'
                           }`}
                           style={{ backgroundColor: col }}
                         />
@@ -1202,7 +1258,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-2">
+                  <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2">
                     <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block">
                       Banner Image URL (Optional)
                     </label>
@@ -1211,7 +1267,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileDraft.bannerUrl}
                       onChange={e => setProfileDraft(p => ({ ...p, bannerUrl: e.target.value }))}
                       placeholder="https://.../banner.png"
-                      className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                      className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
                   </div>
                 </div>
@@ -1233,12 +1289,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }
                           className={`p-2.5 rounded-lg border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
                             selected
-                              ? 'border-[#5865f2] bg-[#5865f2]/15 text-[var(--text-header)]'
-                              : 'border-[#4e5058]/30 bg-[var(--bg-userpanel)] text-[var(--text-normal)] hover:border-[#4e5058]/60'
+                              ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-userpanel)] text-[var(--text-normal)] hover:bg-[var(--bg-item-hover)]'
                           }`}
                         >
                           <div
-                            className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-black/30 ${dec.cssClass}`}
+                            className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-[var(--bg-popout)] ${dec.cssClass}`}
                           >
                             <span
                               className="w-3 h-3 rounded-full"
@@ -1253,7 +1309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Save Controls */}
-                <div className="flex items-center justify-between pt-2 border-t border-[#4e5058]/30">
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
                   <button
                     type="button"
                     onClick={() => setProfileDraft(userProfileService.getProfile())}
@@ -1263,7 +1319,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Check className="w-4 h-4" />
                     <span>Save Profile</span>
@@ -1279,35 +1335,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-xl font-bold text-[var(--text-header)]">
-                    Optional In-Game Overlay
+                    In-Game Overlay
                   </h2>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/30 font-bold uppercase">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/30 font-bold uppercase">
                     Optional
                   </span>
                 </div>
                 <p className="text-sm text-[var(--text-muted)]">
-                  Lightweight floating HUD for voice participants, RTC ping/FPS telemetry, and live Discord/App chat toasts while gaming.
+                  Floating HUD for active voice participants, telemetry, and chat alerts.
                 </p>
               </div>
 
               {/* Master Toggle Card */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 flex items-center justify-between gap-4">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-center justify-between gap-4">
                 <div>
                   <div className="text-sm font-bold text-[var(--text-header)]">
-                    Enable In-Game Overlay
+                    Enable Overlay
                   </div>
                   <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                    Disabled by default. Toggle anytime from the TitleBar, UserBar, or hotkey.
+                    Toggle anytime from the title bar, user bar, or hotkey.
                   </div>
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={overlayConfig.enabled}
+                  aria-label="Enable In-Game Overlay"
                   onClick={() => {
                     const next = overlayService.toggleEnabled();
                     void desktopBridge.setOverlayMode(next, overlayConfig.isInteractive);
                   }}
                   className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                    overlayConfig.enabled ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                    overlayConfig.enabled ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                   }`}
                 >
                   <div
@@ -1319,9 +1378,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Position Selector (4 Corners) */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                  Screen Corner Position
+                  Screen Position
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {(
@@ -1338,13 +1397,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => overlayService.updateConfig({ position: pos.id })}
                       className={`py-2 px-3 rounded border text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${
                         overlayConfig.position === pos.id
-                          ? 'border-[#5865f2] bg-[#5865f2]/15 text-[var(--text-header)]'
-                          : 'border-[#4e5058]/30 text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
+                          ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                          : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
                       }`}
                     >
                       <span>{pos.label}</span>
                       {overlayConfig.position === pos.id && (
-                        <Check className="w-3.5 h-3.5 text-[#5865f2]" />
+                        <Check className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
                       )}
                     </button>
                   ))}
@@ -1352,15 +1411,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Opacity Slider */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-2">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-[var(--text-header)]">Overlay Opacity</span>
-                  <span className="font-mono text-[#949cf7]">
+                  <span className="font-mono text-[var(--text-link)]">
                     {Math.round(overlayConfig.opacity * 100)}%
                   </span>
                 </div>
                 <input
                   type="range"
+                  aria-label="Overlay Opacity"
                   min={0.25}
                   max={1}
                   step={0.05}
@@ -1368,41 +1428,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={e =>
                     overlayService.updateConfig({ opacity: Number(e.target.value) })
                   }
-                  className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                  className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                 />
               </div>
 
               {/* Behavior Switches */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                  HUD Display &amp; Interaction
+                  HUD Options
                 </div>
 
                 {[
                   {
                     key: 'compactMode' as const,
                     label: 'Compact Mode',
-                    desc: 'Minimalist footprint with condensed participant pills.',
+                    desc: 'Condensed participant pills.',
                   },
                   {
                     key: 'showOnlySpeaking' as const,
                     label: 'Speaking-Only Filter',
-                    desc: 'Only display participants who are actively speaking.',
+                    desc: 'Show only active speakers.',
                   },
                   {
                     key: 'showChatToasts' as const,
-                    label: 'Incoming Chat Toasts',
-                    desc: 'Show incoming Discord & Matrix messages for 6 seconds.',
+                    label: 'Chat Toasts',
+                    desc: 'Display incoming chat messages briefly.',
                   },
                   {
                     key: 'showTelemetry' as const,
-                    label: 'RTC Ping & FPS Telemetry',
-                    desc: 'Live frame rate and sub-40ms WebRTC latency counter.',
+                    label: 'Ping & FPS Telemetry',
+                    desc: 'Display live RTC latency and frame rate.',
                   },
                 ].map(item => (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between gap-4 pt-2 border-t border-[#4e5058]/25 first:border-t-0 first:pt-0"
+                    className="flex items-center justify-between gap-4 pt-2 border-t border-[var(--border-subtle)] first:border-t-0 first:pt-0"
                   >
                     <div>
                       <div className="text-xs font-semibold text-[var(--text-header)]">
@@ -1412,11 +1472,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <button
                       type="button"
+                      role="switch"
+                      aria-checked={overlayConfig[item.key]}
+                      aria-label={item.label}
                       onClick={() =>
                         overlayService.updateConfig({ [item.key]: !overlayConfig[item.key] })
                       }
                       className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${
-                        overlayConfig[item.key] ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                        overlayConfig[item.key] ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                       }`}
                     >
                       <div
@@ -1429,22 +1492,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ))}
 
                 {/* Interactive Lock Toggle */}
-                <div className="flex items-center justify-between gap-4 pt-2 border-t border-[#4e5058]/25">
+                <div className="flex items-center justify-between gap-4 pt-2 border-t border-[var(--border-subtle)]">
                   <div>
                     <div className="text-xs font-semibold text-[var(--text-header)] flex items-center gap-1.5">
                       {overlayConfig.isInteractive ? (
-                        <Unlock className="w-3.5 h-3.5 text-[#23a55a]" />
+                        <Unlock className="w-3.5 h-3.5 text-[var(--status-online)]" />
                       ) : (
-                        <Lock className="w-3.5 h-3.5 text-[#f0b232]" />
+                        <Lock className="w-3.5 h-3.5 text-[var(--status-idle)]" />
                       )}
                       <span>
                         {overlayConfig.isInteractive
-                          ? 'Unlocked (Interactive Controls & Quick Reply)'
-                          : 'Locked (Click-Through HUD)'}
+                          ? 'Unlocked (Interactive)'
+                          : 'Locked (Click-Through)'}
                       </span>
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)]">
-                      Lock the overlay so mouse clicks pass straight through to your game.
+                      Let mouse clicks pass through to your game when locked.
                     </div>
                   </div>
                   <button
@@ -1455,8 +1518,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }}
                     className={`px-3 py-1 rounded text-xs font-bold cursor-pointer border transition-colors ${
                       overlayConfig.isInteractive
-                        ? 'bg-[#23a55a]/20 text-[#23a55a] border-[#23a55a]/40'
-                        : 'bg-[#f0b232]/20 text-[#f0b232] border-[#f0b232]/40'
+                        ? 'bg-emerald-500/15 text-[var(--status-online)] border-emerald-500/40'
+                        : 'bg-amber-500/15 text-[var(--status-idle)] border-amber-500/40'
                     }`}
                   >
                     {overlayConfig.isInteractive ? 'Lock HUD' : 'Unlock HUD'}
@@ -1465,17 +1528,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Hotkey & Preview Toast */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 flex items-center justify-between flex-wrap gap-3">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <div className="text-xs font-bold text-[var(--text-header)]">
-                    Overlay Toggle Hotkey
+                    Toggle Hotkey
                   </div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                     Press{' '}
-                    <kbd className="bg-black/30 border border-[#4e5058]/35 px-1.5 py-0.5 rounded font-mono text-[#949cf7]">
+                    <kbd className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded font-mono text-[var(--text-link)]">
                       {overlayConfig.hotkey || 'Ctrl+Shift+O'}
                     </kbd>{' '}
-                    (or <kbd className="bg-black/30 border border-[#4e5058]/35 px-1.5 py-0.5 rounded font-mono text-[var(--text-normal)]">Alt+Shift+O</kbd>) anywhere.
+                    or <kbd className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded font-mono text-[var(--text-normal)]">Alt+Shift+O</kbd>.
                   </div>
                 </div>
                 <button
@@ -1487,12 +1550,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     overlayService.pushToast({
                       roomId: 'overlay_test',
                       roomName: 'general',
-                      senderName: 'Discord Bridge',
-                      body: 'In-game overlay toast preview active! Quick replies enabled when unlocked.',
-                      source: 'discord',
+                      senderName: 'System',
+                      body: 'Overlay toast preview active.',
+                      source: 'app',
                     });
                   }}
-                  className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Bell className="w-3.5 h-3.5" />
                   <span>Preview Toast</span>
@@ -1510,134 +1573,155 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   : bestIdx,
               0
             );
+            const themePresets: ReadonlyArray<{
+              id: ThemeConfig['activeTheme'];
+              name: string;
+              badge: string;
+              desc: string;
+              colors: string[];
+            }> = [
+              {
+                id: 'dark',
+                name: 'Protutech Obsidian',
+                badge: 'Default',
+                desc: 'Obsidian dark workspace with crisp cyan highlights.',
+                colors: ['#080c16', '#101626', '#141c2f', '#0284c7'],
+              },
+              {
+                id: 'revolt' as ThemeConfig['activeTheme'],
+                name: 'Revolt / Stoat',
+                badge: 'Stoat',
+                desc: 'High-contrast charcoal slate with Stoat crimson accents.',
+                colors: ['#19191d', '#202026', '#26262e', '#ff4654'],
+              },
+              {
+                id: 'classic-dark' as ThemeConfig['activeTheme'],
+                name: 'Classic Dark',
+                badge: 'Classic',
+                desc: 'Familiar matte charcoal palette with blurple accents.',
+                colors: ['#1e1f22', '#2b2d31', '#313338', '#5865f2'],
+              },
+              {
+                id: 'light',
+                name: 'Light Mode',
+                badge: 'Light',
+                desc: 'Clean, bright workspace for daytime clarity.',
+                colors: ['#e3e5e8', '#f2f3f5', '#ffffff', '#0284c7'],
+              },
+              {
+                id: 'midnight',
+                name: 'Midnight AMOLED',
+                badge: 'OLED',
+                desc: 'Pure #000000 black background for OLED displays.',
+                colors: ['#000000', '#080808', '#101010', '#0284c7'],
+              },
+              {
+                id: 'translucent',
+                name: 'Frosted Translucent',
+                badge: 'Aero Glass',
+                desc: 'Glassmorphic frosted acrylic with 20px blur.',
+                colors: ['#070d22', '#0a122a', '#0d1636', '#38bdf8'],
+              },
+              {
+                id: 'transparent',
+                name: 'Pure Transparent',
+                badge: 'Acrylic Clear',
+                desc: 'See-through panels for custom desktop wallpapers.',
+                colors: ['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.15)', '#38bdf8'],
+              },
+              {
+                id: 'catppuccin',
+                name: 'Catppuccin Mocha',
+                badge: 'Pastel',
+                desc: 'Soothing pastel lavender and dark mauve tones.',
+                colors: ['#11111b', '#181825', '#1e1e2e', '#cba6f7'],
+              },
+              {
+                id: 'nord',
+                name: 'Nord Frost',
+                badge: 'Arctic',
+                desc: 'Clean arctic polar palette with icy blue accents.',
+                colors: ['#242933', '#2e3440', '#3b4252', '#88c0d0'],
+              },
+              {
+                id: 'cyberpunk',
+                name: 'Cyberpunk Neon',
+                badge: 'Vibrant',
+                desc: 'Neon synthwave aesthetic with magenta accents.',
+                colors: ['#0d041a', '#14072b', '#1d0b45', '#f43f5e'],
+              },
+              {
+                id: 'crimson',
+                name: 'Crimson Moon',
+                badge: 'Ruby',
+                desc: 'Deep obsidian shadows with striking ruby crimson.',
+                colors: ['#080304', '#0f0508', '#1a080d', '#f43f5e'],
+              },
+              {
+                id: 'emerald',
+                name: 'Emerald Matrix',
+                badge: 'Matrix',
+                desc: 'Dark emerald palette with phosphor highlights.',
+                colors: ['#020d08', '#04170e', '#062819', '#10b981'],
+              },
+              {
+                id: 'solarized',
+                name: 'Twilight Amber',
+                badge: 'Warm Dark',
+                desc: 'Golden amber and brass highlights on warm charcoal.',
+                colors: ['#0e0c07', '#16120b', '#211c12', '#f59e0b'],
+              },
+              {
+                id: 'teamspeak',
+                name: 'TeamSpeak Classic',
+                badge: 'TS3 Palette',
+                desc: 'Classic high-contrast navy slate palette.',
+                colors: ['#182230', '#202c3d', '#263447', '#2563eb'],
+              },
+              {
+                id: 'custom',
+                name: 'Custom CSS Engine',
+                badge: 'Engine',
+                desc: 'Load external or local custom CSS stylesheets.',
+                colors: ['#080c16', '#101626', '#0284c7', '#38bdf8'],
+              },
+            ];
             return (
               <div className="space-y-6 max-w-2xl">
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">Appearance</h2>
                   <p className="text-sm text-[var(--text-muted)]">
-                    Customize your Discord theme, layout format, UI zoom level, and custom CSS stylesheets.
+                    Choose your theme, workspace layout, zoom scale, and custom CSS.
                   </p>
                 </div>
 
-                {/* Theme Presets (Discord Dark & Discord Light first) */}
+                {/* Theme Presets */}
                 <div className="space-y-3">
                   <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
                     Theme Presets
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      {
-                        id: 'dark' as const,
-                        name: 'Discord Dark (Default)',
-                        badge: 'Default',
-                        desc: 'Authentic 1:1 Discord Dark palette (#1e1f22 / #2b2d31 / #313338).',
-                        colors: ['#1e1f22', '#2b2d31', '#313338', '#5865f2'],
-                      },
-                      {
-                        id: 'light' as const,
-                        name: 'Discord Light',
-                        badge: 'Light Mode',
-                        desc: 'Crisp 1:1 Discord Light mode for bright workspaces.',
-                        colors: ['#e3e5e8', '#f2f3f5', '#ffffff', '#5865f2'],
-                      },
-                      {
-                        id: 'midnight' as const,
-                        name: 'Midnight AMOLED',
-                        badge: 'OLED',
-                        desc: 'Pure #000000 black background for OLED displays.',
-                        colors: ['#000000', '#080808', '#101010', '#5865f2'],
-                      },
-                      {
-                        id: 'translucent' as const,
-                        name: 'Frosted Translucent',
-                        badge: 'Aero Glass',
-                        desc: 'Glassmorphic frosted dark acrylic with 20px blur.',
-                        colors: ['#070d22', '#0a122a', '#0d1636', '#5865f2'],
-                      },
-                      {
-                        id: 'transparent' as const,
-                        name: 'Pure Transparent',
-                        badge: 'Acrylic Clear',
-                        desc: 'Ultra-clear see-through panels for custom wallpapers.',
-                        colors: ['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.15)', '#5865f2'],
-                      },
-                      {
-                        id: 'catppuccin' as const,
-                        name: 'Catppuccin Mocha',
-                        badge: 'Pastel',
-                        desc: 'Soothing pastel lavender and dark mauve tones.',
-                        colors: ['#11111b', '#181825', '#1e1e2e', '#cba6f7'],
-                      },
-                      {
-                        id: 'nord' as const,
-                        name: 'Nord Frost',
-                        badge: 'Arctic',
-                        desc: 'Clean arctic polar palette with icy blue accents.',
-                        colors: ['#242933', '#2e3440', '#3b4252', '#88c0d0'],
-                      },
-                      {
-                        id: 'cyberpunk' as const,
-                        name: 'Cyberpunk Neon',
-                        badge: 'Vibrant',
-                        desc: 'Neon synthwave aesthetic with magenta & electric accents.',
-                        colors: ['#0d041a', '#14072b', '#1d0b45', '#f43f5e'],
-                      },
-                      {
-                        id: 'crimson' as const,
-                        name: 'Crimson Moon',
-                        badge: 'Blood Red',
-                        desc: 'Deep obsidian shadows with striking ruby crimson.',
-                        colors: ['#080304', '#0f0508', '#1a080d', '#f43f5e'],
-                      },
-                      {
-                        id: 'emerald' as const,
-                        name: 'Emerald Matrix',
-                        badge: 'Cyber Green',
-                        desc: 'Dark emerald palette with phosphor highlights.',
-                        colors: ['#020d08', '#04170e', '#062819', '#10b981'],
-                      },
-                      {
-                        id: 'solarized' as const,
-                        name: 'Twilight Amber',
-                        badge: 'Warm Dark',
-                        desc: 'Golden amber and brass highlights on warm charcoal.',
-                        colors: ['#0e0c07', '#16120b', '#211c12', '#f59e0b'],
-                      },
-                      {
-                        id: 'teamspeak' as const,
-                        name: 'TeamSpeak Classic',
-                        badge: 'TS3 Palette',
-                        desc: 'Classic high-contrast navy slate palette inspired by TeamSpeak 3/5.',
-                        colors: ['#182230', '#202c3d', '#263447', '#2563eb'],
-                      },
-                      {
-                        id: 'custom' as const,
-                        name: 'Custom CSS Engine',
-                        badge: 'Engine',
-                        desc: 'Load external or local custom CSS theme stylesheets.',
-                        colors: ['#1e1f22', '#2b2d31', '#5865f2', '#38bdf8'],
-                      },
-                    ].map(t => (
+                    {themePresets.map(t => (
                       <div
                         key={t.id}
                         data-testid={`theme-card-${t.id}`}
                         onClick={() => handleSelectTheme(t.id)}
                         className={`p-3.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-between ${
                           themeConfig.activeTheme === t.id
-                            ? 'border-[#5865f2] bg-[#5865f2]/15 ring-1 ring-[#5865f2]/50'
-                            : 'border-[#4e5058]/30 bg-[var(--bg-userpanel)] hover:border-[#4e5058]/60 hover:bg-[var(--bg-channels)]'
+                            ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] ring-1 ring-[var(--discord-blurple)]'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-userpanel)] hover:bg-[var(--bg-channels)]'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between font-semibold text-[var(--text-header)] mb-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-sm">{t.name}</span>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/20 text-[var(--text-muted)]">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-muted)]">
                                 {t.badge}
                               </span>
                             </div>
                             {themeConfig.activeTheme === t.id && (
-                              <Check className="w-4 h-4 text-[#5865f2] flex-shrink-0" />
+                              <Check className="w-4 h-4 text-[var(--discord-blurple)] flex-shrink-0" />
                             )}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] line-clamp-2 mb-2.5">
@@ -1648,7 +1732,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {t.colors.map((c, idx) => (
                             <span
                               key={idx}
-                              className="w-4 h-4 rounded-sm border border-[#4e5058]/40 inline-block shadow-sm"
+                              className="w-4 h-4 rounded-sm border border-[var(--border-subtle)] inline-block shadow-sm"
                               style={{ backgroundColor: c }}
                             />
                           ))}
@@ -1659,13 +1743,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Layout Format Switcher */}
-                <div className="bg-[var(--bg-userpanel)] border border-[#4e5058]/30 rounded-lg p-4 space-y-2.5">
+                <div className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-lg p-4 space-y-2.5">
                   <div>
                     <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                      Application Layout Format
+                      Workspace Layout
                     </div>
                     <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      Switch workspace layout independently without changing your selected color theme.
+                      Switch between standard channel layout and compact tree layout.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1682,16 +1766,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                       className={`py-2.5 px-3 rounded-lg border text-xs font-semibold flex items-center justify-between cursor-pointer transition-all ${
                         (themeConfig.layoutFormat || 'discord') === 'discord'
-                          ? 'border-[#5865f2] bg-[#5865f2]/15 text-[var(--text-header)]'
-                          : 'border-[#4e5058]/30 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
+                          ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                          : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <LayoutGrid className="w-4 h-4 text-[#5865f2]" />
-                        <span>Discord Layout (1:1 Standard)</span>
+                        <LayoutGrid className="w-4 h-4 text-[var(--discord-blurple)]" />
+                        <span>Standard Layout</span>
                       </div>
                       {(themeConfig.layoutFormat || 'discord') === 'discord' && (
-                        <Check className="w-3.5 h-3.5 text-[#5865f2]" />
+                        <Check className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
                       )}
                     </button>
 
@@ -1708,53 +1792,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                       className={`py-2.5 px-3 rounded-lg border text-xs font-semibold flex items-center justify-between cursor-pointer transition-all ${
                         themeConfig.layoutFormat === 'teamspeak'
-                          ? 'border-[#5865f2] bg-[#5865f2]/15 text-[var(--text-header)]'
-                          : 'border-[#4e5058]/30 text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
+                          ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                          : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <ListTree className="w-4 h-4 text-[#5865f2]" />
-                        <span>TeamSpeak Classic Format (Tree + Logs)</span>
+                        <ListTree className="w-4 h-4 text-[var(--discord-blurple)]" />
+                        <span>TeamSpeak Layout</span>
                       </div>
                       {themeConfig.layoutFormat === 'teamspeak' && (
-                        <Check className="w-3.5 h-3.5 text-[#5865f2]" />
+                        <Check className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Zoom Level (like Discord!) */}
-                <div className="bg-[var(--bg-userpanel)] border border-[#4e5058]/30 rounded-lg p-4 space-y-3">
+                {/* Interface Zoom */}
+                <div className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                        Zoom Level (like Discord!)
+                        Interface Zoom
                       </div>
                       <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                        Scale the entire interface cleanly with <kbd className="px-1 py-0.5 rounded bg-black/25 text-[10px] font-mono">Ctrl + =</kbd>, <kbd className="px-1 py-0.5 rounded bg-black/25 text-[10px] font-mono">Ctrl + -</kbd>, or <kbd className="px-1 py-0.5 rounded bg-black/25 text-[10px] font-mono">Ctrl + 0</kbd>.
+                        Scale the interface with <kbd className="px-1 py-0.5 rounded bg-[var(--bg-channels)] text-[10px] font-mono">Ctrl + =</kbd>, <kbd className="px-1 py-0.5 rounded bg-[var(--bg-channels)] text-[10px] font-mono">Ctrl + -</kbd>, or <kbd className="px-1 py-0.5 rounded bg-[var(--bg-channels)] text-[10px] font-mono">Ctrl + 0</kbd>.
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         data-testid="settings-zoom-out-btn"
+                        aria-label="Zoom Out"
                         onClick={() => zoomService.zoomOut()}
-                        className="p-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[#4e5058]/35 cursor-pointer"
+                        className="p-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[var(--border-subtle)] cursor-pointer"
                         title="Zoom Out"
                       >
                         <ZoomOut className="w-3.5 h-3.5" />
                       </button>
                       <span
                         data-testid="settings-zoom-value"
-                        className="min-w-[54px] text-center px-2 py-1 rounded bg-[var(--bg-channels)] border border-[#4e5058]/35 text-xs font-mono font-bold text-[var(--text-header)]"
+                        className="min-w-[54px] text-center px-2 py-1 rounded bg-[var(--bg-channels)] border border-[var(--border-subtle)] text-xs font-mono font-bold text-[var(--text-header)]"
                       >
                         {zoomPercent}%
                       </span>
                       <button
                         type="button"
                         data-testid="settings-zoom-in-btn"
+                        aria-label="Zoom In"
                         onClick={() => zoomService.zoomIn()}
-                        className="p-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[#4e5058]/35 cursor-pointer"
+                        className="p-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[var(--border-subtle)] cursor-pointer"
                         title="Zoom In"
                       >
                         <ZoomIn className="w-3.5 h-3.5" />
@@ -1763,7 +1849,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         type="button"
                         data-testid="settings-zoom-reset-btn"
                         onClick={() => zoomService.resetZoom()}
-                        className="px-2.5 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold cursor-pointer transition-colors"
+                        className="px-2.5 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold cursor-pointer transition-colors"
                       >
                         Reset to 100%
                       </button>
@@ -1777,12 +1863,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     step={1}
                     value={zoomStepIndex}
                     data-testid="settings-zoom-slider"
-                    aria-label="Zoom Level"
+                    aria-label="Interface Zoom"
                     onChange={e => {
                       const nextStep = ZOOM_STEPS[Number(e.target.value)] ?? 100;
                       zoomService.setZoom(nextStep);
                     }}
-                    className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                    className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                   />
 
                   <div className="flex items-center justify-between flex-wrap gap-1 pt-0.5">
@@ -1793,7 +1879,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => zoomService.setZoom(step)}
                         className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
                           zoomPercent === step
-                            ? 'bg-[#5865f2] text-white font-bold'
+                            ? 'bg-[var(--discord-blurple)] text-white font-bold'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                         }`}
                       >
@@ -1803,11 +1889,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Synced Discord Appearance & Behavior */}
-                <div className="bg-[var(--bg-userpanel)] border border-[#4e5058]/30 rounded-lg p-4 space-y-3">
+                {/* Synced Preferences */}
+                <div className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                      Discord Synced Appearance &amp; Behavior
+                      Synced Preferences
                     </span>
                     <span className="text-[10px] text-[var(--text-muted)]">
                       {syncSettings.syncEnabled ? 'Auto-sync ON' : 'Local only'}
@@ -1816,7 +1902,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   <div>
                     <div className="text-[11px] text-[var(--text-muted)] mb-1.5 font-semibold">
-                      Discord Base Theme Mode
+                      Base Theme
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {(
@@ -1835,8 +1921,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }}
                           className={`py-1.5 px-3 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
                             syncSettings.theme === mode.id
-                              ? 'border-[#5865f2] bg-[#5865f2]/20 text-[var(--text-header)]'
-                              : 'border-[#4e5058]/30 text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
+                              ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                              : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
                           }`}
                         >
                           {mode.label}
@@ -1845,12 +1931,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#4e5058]/25">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
                     {(
                       [
                         {
                           key: 'messageDisplayCompact',
-                          label: 'Compact Message Mode',
+                          label: 'Compact Messages',
                           desc: 'Tighter message spacing',
                         },
                         {
@@ -1860,8 +1946,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         },
                         {
                           key: 'animateEmoji',
-                          label: 'Animate Custom Emojis',
-                          desc: 'Play Nitro emoji motion',
+                          label: 'Animate Emojis',
+                          desc: 'Play custom emoji motion',
                         },
                         {
                           key: 'gifAutoPlay',
@@ -1874,7 +1960,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       return (
                         <div
                           key={item.key}
-                          className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[#4e5058]/25"
+                          className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)]"
                         >
                           <div>
                             <div className="text-xs font-semibold text-[var(--text-header)]">
@@ -1891,7 +1977,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               void discordSettingsSync.updateSetting(item.key, !active)
                             }
                             className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors flex-shrink-0 ${
-                              active ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                              active ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                             }`}
                           >
                             <div
@@ -1908,17 +1994,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* Custom CSS Editor */}
                 {themeConfig.activeTheme === 'custom' && (
-                  <div className="space-y-4 pt-2 border-t border-[#4e5058]/30">
+                  <div className="space-y-4 pt-2 border-t border-[var(--border-subtle)]">
                     <div>
                       <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                        Theme URL (Custom CSS Stylesheet URL)
+                        Stylesheet URL
                       </label>
                       <input
                         type="text"
                         placeholder="https://raw.githubusercontent.com/.../theme.css"
                         value={customUrl}
                         onChange={e => setCustomUrl(e.target.value)}
-                        className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                        className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                       />
                     </div>
 
@@ -1937,10 +2023,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setThemeConfig(vencord.getTheme());
                         }
                       }}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] py-2 px-3 rounded text-xs font-semibold border border-[#4e5058]/35 transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] py-2 px-3 rounded text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer"
                     >
-                      <FolderOpen className="w-3.5 h-3.5 text-[#5865f2]" />
-                      <span>Browse Local .CSS Theme File...</span>
+                      <FolderOpen className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+                      <span>Browse Local .CSS File...</span>
                     </button>
 
                     <div>
@@ -1949,17 +2035,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </label>
                       <textarea
                         rows={5}
-                        placeholder=":root { --bg-chat: #313338; }"
+                        placeholder=":root { --bg-chat: #141c2f; }"
                         value={customCss}
                         onChange={e => setCustomCss(e.target.value)}
-                        className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                        className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                       />
                     </div>
 
                     <button
                       type="button"
                       onClick={handleApplyCustomCss}
-                      className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded text-sm font-semibold transition-colors cursor-pointer"
+                      className="bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white px-4 py-2 rounded text-sm font-semibold transition-colors cursor-pointer"
                     >
                       Apply Custom CSS
                     </button>
@@ -1976,24 +2062,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-xl font-bold text-[var(--text-header)]">
-                      Equicord &amp; Vencord Plugins
+                      Plugins
                     </h2>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40 flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-[#5865f2]" />
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-[var(--discord-blurple)]" />
                       Equicord V2
                     </span>
                   </div>
                   <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                    Modular client enhancements and official Equicord extensions. Run community scripts, bypass limitations, enhance voice, and customize your experience.
+                    Enable modular client extensions and custom JavaScript plugins.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     type="button"
                     onClick={handleOpenEquicordModal}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] border border-[#4e5058]/35 rounded text-xs font-bold transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] border border-[var(--border-subtle)] rounded text-xs font-bold transition-colors cursor-pointer"
                   >
-                    <Zap className="w-3.5 h-3.5 text-[#5865f2]" />
+                    <Zap className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
                     <span>Equicord Engine</span>
                   </button>
                   <button
@@ -2003,7 +2089,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       setInstallError('');
                       setInstallSuccess('');
                     }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded text-xs font-bold transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white rounded text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Install Plugin</span>
@@ -2013,23 +2099,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Install Modal */}
               {showInstallModal && (
-                <div className="p-5 rounded-lg bg-[var(--bg-userpanel)] border border-[#5865f2]/40 space-y-4 animate-fadeIn">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#4e5058]/30">
+                <div className="p-5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--discord-blurple)] space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#5865f2]/20 text-[#949cf7] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-[var(--bg-channels)] text-[var(--text-link)] flex items-center justify-center">
                         <Code className="w-4 h-4" />
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-[var(--text-header)]">
-                          Install Equicord Plugin
+                          Install Plugin
                         </h3>
                         <p className="text-[11px] text-[var(--text-muted)]">
-                          Load a community plugin from a URL (e.g. GitHub raw link) or paste raw JavaScript code.
+                          Load a plugin from a raw JavaScript URL or paste code directly.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
+                      aria-label="Close install form"
                       onClick={() => setShowInstallModal(false)}
                       className="text-[var(--text-muted)] hover:text-[var(--text-header)] p-1 rounded hover:bg-[var(--bg-item-hover)] cursor-pointer"
                     >
@@ -2048,7 +2135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           placeholder="e.g. AutoTranslator"
                           value={installName}
                           onChange={e => setInstallName(e.target.value)}
-                          className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                           required
                         />
                       </div>
@@ -2058,10 +2145,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. Equicord Community"
+                          placeholder="e.g. Community"
                           value={installAuthor}
                           onChange={e => setInstallAuthor(e.target.value)}
-                          className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                         />
                       </div>
                     </div>
@@ -2078,7 +2165,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               e.target.value as 'chat' | 'media' | 'ui' | 'privacy' | 'utility'
                             )
                           }
-                          className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                         >
                           <option value="chat">Chat &amp; Messaging</option>
                           <option value="media">Media &amp; Voice</option>
@@ -2096,7 +2183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           placeholder="Short summary of what it does"
                           value={installDesc}
                           onChange={e => setInstallDesc(e.target.value)}
-                          className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                         />
                       </div>
                     </div>
@@ -2108,7 +2195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           onClick={() => setInstallType('url')}
                           className={`text-xs px-3 py-1 rounded font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                             installType === 'url'
-                              ? 'bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40'
+                              ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
                               : 'text-[var(--text-muted)] hover:text-[var(--text-header)] bg-[var(--bg-channels)]'
                           }`}
                         >
@@ -2120,7 +2207,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           onClick={() => setInstallType('code')}
                           className={`text-xs px-3 py-1 rounded font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                             installType === 'code'
-                              ? 'bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40'
+                              ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
                               : 'text-[var(--text-muted)] hover:text-[var(--text-header)] bg-[var(--bg-channels)]'
                           }`}
                         >
@@ -2136,34 +2223,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             placeholder="https://raw.githubusercontent.com/user/repo/main/plugin.js"
                             value={installUrl}
                             onChange={e => setInstallUrl(e.target.value)}
-                            className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                            className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                           />
                           <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                            Direct HTTP/HTTPS link to JavaScript plugin source file.
+                            Direct HTTP/HTTPS link to JavaScript plugin source.
                           </p>
                         </div>
                       ) : (
                         <div>
                           <textarea
                             rows={5}
-                            placeholder="// Example Equicord Plugin&#10;export default {&#10;  name: 'MyPlugin',&#10;  start() { console.log('Plugin started!'); },&#10;  stop() { console.log('Plugin stopped!'); }&#10;};"
+                            placeholder="// Example Plugin&#10;export default {&#10;  name: 'MyPlugin',&#10;  start() { console.log('Plugin started!'); },&#10;  stop() { console.log('Plugin stopped!'); }&#10;};"
                             value={installCode}
                             onChange={e => setInstallCode(e.target.value)}
-                            className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                            className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                           />
                         </div>
                       )}
                     </div>
 
                     {installError && (
-                      <div className="flex items-center gap-2 p-2.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                      <div className="flex items-center gap-2 p-2.5 rounded bg-red-500/10 border border-red-500/30 text-[var(--status-dnd)] text-xs">
                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         <span>{installError}</span>
                       </div>
                     )}
 
                     {installSuccess && (
-                      <div className="flex items-center gap-2 p-2.5 rounded bg-[#23a55a]/10 border border-[#23a55a]/30 text-[#23a55a] text-xs">
+                      <div className="flex items-center gap-2 p-2.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-[var(--status-online)] text-xs">
                         <Check className="w-4 h-4 flex-shrink-0" />
                         <span>{installSuccess}</span>
                       </div>
@@ -2180,7 +2267,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <button
                         type="submit"
                         disabled={installLoading}
-                        className="px-4 py-1.5 text-xs font-semibold text-white bg-[#5865f2] hover:bg-[#4752c4] disabled:opacity-50 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-1.5 text-xs font-semibold text-white bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] disabled:opacity-50 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         {installLoading ? 'Installing...' : 'Install & Run'}
                       </button>
@@ -2191,11 +2278,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Filters and Search Bar */}
               <div className="space-y-2.5">
-                <div className="flex items-center gap-2 bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
                   <Search className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search Equicord & Vencord plugins by name, tag, or description..."
+                    aria-label="Search plugins"
+                    placeholder="Search plugins by name, tag, or description..."
                     value={pluginSearch}
                     onChange={e => setPluginSearch(e.target.value)}
                     className="w-full bg-transparent text-xs text-[var(--text-header)] outline-none placeholder:text-[var(--text-muted)]"
@@ -2203,6 +2291,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {pluginSearch && (
                     <button
                       type="button"
+                      aria-label="Clear plugin search"
                       onClick={() => setPluginSearch('')}
                       className="text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer"
                     >
@@ -2213,7 +2302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   {/* Source filter tabs */}
-                  <div className="flex items-center gap-1 bg-[var(--bg-userpanel)] p-1 rounded-lg border border-[#4e5058]/30">
+                  <div className="flex items-center gap-1 bg-[var(--bg-userpanel)] p-1 rounded-lg border border-[var(--border-subtle)] flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPluginFilter('all')}
@@ -2230,11 +2319,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setPluginFilter('equicord')}
                       className={`text-xs px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1 cursor-pointer ${
                         pluginFilter === 'equicord'
-                          ? 'bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
-                      <Zap className="w-3 h-3 text-[#5865f2]" />
+                      <Zap className="w-3 h-3 text-[var(--discord-blurple)]" />
                       <span>Equicord ({equicordCount})</span>
                     </button>
                     <button
@@ -2242,7 +2331,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setPluginFilter('vencord')}
                       className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
                         pluginFilter === 'vencord'
-                          ? 'bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
@@ -2253,11 +2342,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setPluginFilter('user')}
                       className={`text-xs px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1 cursor-pointer ${
                         pluginFilter === 'user'
-                          ? 'bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/40'
+                          ? 'bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/40'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
-                      <Code className="w-3 h-3 text-[#23a55a]" />
+                      <Code className="w-3 h-3 text-[var(--status-online)]" />
                       <span>Custom ({userCount})</span>
                     </button>
                   </div>
@@ -2266,9 +2355,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex items-center gap-1 text-xs">
                     <span className="text-[var(--text-muted)] text-[11px] font-medium">Category:</span>
                     <select
+                      aria-label="Filter plugins by category"
                       value={pluginCategoryFilter}
                       onChange={e => setPluginCategoryFilter(e.target.value)}
-                      className="bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-2 py-1 text-xs text-[var(--text-header)] outline-none"
+                      className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded px-2 py-1 text-xs text-[var(--text-header)] outline-none"
                     >
                       <option value="all">All Categories</option>
                       <option value="chat">Chat</option>
@@ -2284,13 +2374,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Plugin List */}
               <div className="space-y-2.5">
                 {filteredPlugins.length === 0 ? (
-                  <div className="p-8 text-center rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-2">
+                  <div className="p-8 text-center rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2">
                     <Layers className="w-8 h-8 text-[var(--text-muted)] mx-auto opacity-50" />
                     <p className="text-sm font-semibold text-[var(--text-header)]">
                       No plugins match your search
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">
-                      Try adjusting your keywords or clearing the category filters.
+                      Adjust your keywords or clear the category filters.
                     </p>
                     <button
                       type="button"
@@ -2299,7 +2389,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         setPluginFilter('all');
                         setPluginCategoryFilter('all');
                       }}
-                      className="mt-2 text-xs text-[#00a8fc] hover:underline cursor-pointer"
+                      className="mt-2 text-xs text-[var(--text-link)] hover:underline cursor-pointer"
                     >
                       Reset all filters
                     </button>
@@ -2315,8 +2405,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         key={plugin.id}
                         className={`p-3.5 rounded-lg bg-[var(--bg-userpanel)] border transition-all ${
                           plugin.enabled
-                            ? 'border-[#5865f2]/40'
-                            : 'border-[#4e5058]/25 opacity-80 hover:opacity-100'
+                            ? 'border-[var(--discord-blurple)]'
+                            : 'border-[var(--border-subtle)] opacity-85 hover:opacity-100'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4">
@@ -2327,25 +2417,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               </span>
 
                               {isEquicord && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/30 flex items-center gap-1">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] flex items-center gap-1">
                                   <Zap className="w-2.5 h-2.5" />
                                   Equicord
                                 </span>
                               )}
                               {isUser && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/30 flex items-center gap-1">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/30 flex items-center gap-1">
                                   <Code className="w-2.5 h-2.5" />
                                   Custom
                                 </span>
                               )}
                               {isVencord && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#5865f2]/15 text-[#949cf7] border border-[#5865f2]/25">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]">
                                   Vencord
                                 </span>
                               )}
 
                               {plugin.category && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/20 text-[var(--text-muted)] capitalize">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--bg-channels)] text-[var(--text-muted)] capitalize">
                                   {plugin.category}
                                 </span>
                               )}
@@ -2360,7 +2450,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             </p>
 
                             {isUser && plugin.codeUrl && (
-                              <div className="mt-1 flex items-center gap-1 text-[11px] text-[#00a8fc] truncate">
+                              <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-link)] truncate">
                                 <ExternalLink className="w-3 h-3 flex-shrink-0" />
                                 <span className="truncate">{plugin.codeUrl}</span>
                               </div>
@@ -2371,9 +2461,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {isUser && (
                               <button
                                 type="button"
+                                aria-label={`Uninstall ${plugin.name}`}
                                 onClick={() => handleUninstallPlugin(plugin.id, plugin.name)}
                                 title="Uninstall Plugin"
-                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                                className="p-1.5 text-[var(--status-dnd)] hover:bg-red-500/10 rounded transition-colors cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -2381,9 +2472,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                             <button
                               type="button"
+                              role="switch"
+                              aria-checked={plugin.enabled}
+                              aria-label={`Toggle ${plugin.name}`}
                               onClick={() => handleTogglePlugin(plugin.id, plugin.enabled)}
                               className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                                plugin.enabled ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                                plugin.enabled ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                               }`}
                             >
                               <div
@@ -2405,21 +2499,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ADD PLUGINS / EQUICORD STORE TAB */}
           {activeTab === 'add-plugins' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-[#4e5058]/30 flex-wrap gap-3">
+              <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)] flex-wrap gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#5865f2] flex items-center justify-center text-white">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--discord-blurple)] flex items-center justify-center text-white">
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-[var(--text-header)] flex items-center gap-2">
-                        <span>Equicord Plugin Store</span>
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/30">
-                          Universal Engine
+                        <span>Plugin Store</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]">
+                          Equicord
                         </span>
                       </h2>
                       <p className="text-xs text-[var(--text-muted)]">
-                        Browse, discover, and 1-click install official and community Equicord plugins.
+                        Browse and install built-in or community plugins in one click.
                       </p>
                     </div>
                   </div>
@@ -2432,10 +2526,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       setActiveTab('plugins');
                       setShowInstallModal(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] rounded text-xs font-semibold border border-[#4e5058]/35 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] rounded text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer"
                   >
-                    <Code className="w-3.5 h-3.5 text-[#5865f2]" />
-                    <span>Load Custom URL/Code</span>
+                    <Code className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+                    <span>Load URL / Code</span>
                   </button>
                 </div>
               </div>
@@ -2446,14 +2540,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
+                    aria-label="Search plugin store"
                     value={storeSearch}
                     onChange={e => setStoreSearch(e.target.value)}
-                    placeholder="Search plugins by name, tags, or description..."
-                    className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded-lg pl-9 pr-4 py-2 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[#5865f2]"
+                    placeholder="Search plugins..."
+                    className="w-full bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-lg pl-9 pr-4 py-2 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--discord-blurple)]"
                   />
                   {storeSearch && (
                     <button
                       type="button"
+                      aria-label="Clear store search"
                       onClick={() => setStoreSearch('')}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer"
                     >
@@ -2462,12 +2558,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-center gap-1 bg-[var(--bg-userpanel)] p-1 rounded-lg border border-[#4e5058]/30 flex-wrap">
+                <div className="flex items-center gap-1 bg-[var(--bg-userpanel)] p-1 rounded-lg border border-[var(--border-subtle)] flex-wrap">
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'chat', label: 'Chat' },
                     { id: 'media', label: 'Media' },
-                    { id: 'ui', label: 'UI & Theme' },
+                    { id: 'ui', label: 'UI' },
                     { id: 'privacy', label: 'Privacy' },
                     { id: 'utility', label: 'Utility' },
                   ].map(cat => (
@@ -2477,7 +2573,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setStoreCategory(cat.id)}
                       className={`text-xs px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
                         storeCategory === cat.id
-                          ? 'bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/40'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
@@ -2487,14 +2583,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[#5865f2]/25 flex items-start gap-3">
-                <Package className="w-5 h-5 text-[#5865f2] flex-shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-start gap-3">
+                <Package className="w-5 h-5 text-[var(--discord-blurple)] flex-shrink-0 mt-0.5" />
                 <div className="text-xs space-y-0.5 text-[var(--text-normal)]">
                   <span className="font-bold text-[var(--text-header)] block">
-                    Equicord Full Compatibility Layer
+                    Sandboxed Plugin Runtime
                   </span>
                   <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                    All Equicord plugins run natively via <code className="text-[#949cf7]">window.Equicord</code>, <code className="text-[#949cf7]">window.Vencord</code>, and <code className="text-[#949cf7]">definePlugin()</code> sandboxing. Patches, custom webpack stores, and event hooks are isolated for optimal stability.
+                    Compatible with <code className="text-[var(--text-link)]">window.Equicord</code>, <code className="text-[var(--text-link)]">window.Vencord</code>, and <code className="text-[var(--text-link)]">definePlugin()</code>.
                   </p>
                 </div>
               </div>
@@ -2518,20 +2614,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   return (
                     <div
                       key={catalogItem.id}
-                      className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 hover:border-[#5865f2]/45 transition-all flex flex-col justify-between group"
+                      className="p-3.5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] hover:border-[var(--discord-blurple)] transition-all flex flex-col justify-between group"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-1.5">
                           <div>
-                            <h4 className="font-bold text-[var(--text-header)] text-sm group-hover:text-[#949cf7] transition-colors">
+                            <h4 className="font-bold text-[var(--text-header)] text-sm group-hover:text-[var(--text-link)] transition-colors">
                               {catalogItem.name}
                             </h4>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-[var(--text-muted)]">
-                                by {catalogItem.author || 'Equicord Community'}
+                                by {catalogItem.author || 'Community'}
                               </span>
                               {catalogItem.category && (
-                                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/20 text-[var(--text-muted)] font-semibold">
+                                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-muted)] font-semibold">
                                   {catalogItem.category}
                                 </span>
                               )}
@@ -2547,7 +2643,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 }}
                                 className={`text-xs px-2.5 py-1 rounded font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                                   isEnabled
-                                    ? 'bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/40 hover:bg-[#23a55a]/30'
+                                    ? 'bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/40'
                                     : 'bg-[var(--bg-channels)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
                                 }`}
                               >
@@ -2561,7 +2657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   vencord.installFromCatalog(catalogItem.id);
                                   setPlugins([...vencord.getPlugins()]);
                                 }}
-                                className="text-xs px-3 py-1 rounded font-bold bg-[#5865f2] hover:bg-[#4752c4] text-white flex items-center gap-1 transition-colors cursor-pointer"
+                                className="text-xs px-3 py-1 rounded font-bold bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white flex items-center gap-1 transition-colors cursor-pointer"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>Add</span>
@@ -2576,11 +2672,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
 
                       {catalogItem.tags && catalogItem.tags.length > 0 && (
-                        <div className="flex items-center gap-1 flex-wrap mt-3 pt-2 border-t border-[#4e5058]/25">
+                        <div className="flex items-center gap-1 flex-wrap mt-3 pt-2 border-t border-[var(--border-subtle)]">
                           {catalogItem.tags.slice(0, 4).map(tag => (
                             <span
                               key={tag}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-black/20 text-[var(--text-muted)]"
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-muted)]"
                             >
                               #{tag}
                             </span>
@@ -2607,30 +2703,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="space-y-6 max-w-2xl">
                 <div>
                   <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">
-                    Voice &amp; Video Settings
+                    Voice &amp; Video
                   </h2>
                   <p className="text-sm text-[var(--text-muted)]">
-                    Test microphone playback, choose audio devices, configure Soundboard, and tune LiveKit SFU voice.
+                    Test microphone playback, select devices, and configure camera or screen share.
                   </p>
                 </div>
 
-                {/* Discord-style Mic Test — Hear Yourself (Playback) */}
-                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/35 space-y-3.5">
+                {/* Mic Test — Hear Yourself (Playback) */}
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3.5">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Headphones className="w-4 h-4 text-[#23a55a]" />
+                        <Headphones className="w-4 h-4 text-[var(--status-online)]" />
                         <h3 className="text-sm font-bold text-[var(--text-header)]">
-                          Mic Test — Hear Yourself (Playback)
+                          Mic Test — Hear Yourself
                         </h3>
                         {micLoopbackEnabled && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/35 font-bold">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/35 font-bold">
                             Playback Active
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        Hear your microphone sidetone immediately — works both in and outside a voice call.
+                        Preview your microphone audio directly in or outside of a call.
                       </p>
                     </div>
                   </div>
@@ -2643,8 +2739,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => void handleToggleMicTest()}
                       className={`px-4 py-2 rounded font-semibold text-xs text-white flex items-center gap-2 cursor-pointer transition-colors flex-shrink-0 disabled:opacity-60 ${
                         micLoopbackEnabled
-                          ? 'bg-[#f23f43] hover:bg-[#d83539]'
-                          : 'bg-[#5865f2] hover:bg-[#4752c4]'
+                          ? 'bg-[var(--status-dnd)] hover:opacity-90'
+                          : 'bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)]'
                       }`}
                     >
                       {micLoopbackEnabled ? (
@@ -2660,9 +2756,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       )}
                     </button>
 
-                    {/* Segmented Discord Green/Yellow/Red VU Meter */}
+                    {/* Segmented VU Meter */}
                     <div
-                      className="flex-1 min-w-[180px] bg-[var(--bg-channels)] border border-[#4e5058]/30 rounded px-2.5 py-2 flex items-center gap-2"
+                      className="flex-1 min-w-[180px] bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-2.5 py-2 flex items-center gap-2"
                       title={`Microphone level: ${micAudioLevel}%`}
                     >
                       <div className="flex-1 flex items-center gap-0.5 h-3">
@@ -2671,15 +2767,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           const lit = micAudioLevel >= threshold - 2 && micAudioLevel > 0;
                           const colorClass =
                             idx < 15
-                              ? 'bg-[#23a55a]'
+                              ? 'bg-[var(--status-online)]'
                               : idx < 20
-                              ? 'bg-[#f0b232]'
-                              : 'bg-[#f23f43]';
+                              ? 'bg-[var(--status-idle)]'
+                              : 'bg-[var(--status-dnd)]';
                           return (
                             <span
                               key={idx}
                               className={`flex-1 h-full rounded-[1px] transition-colors ${
-                                lit ? colorClass : 'bg-[#4e5058]/35'
+                                lit ? colorClass : 'bg-[var(--bg-message-input)]'
                               }`}
                             />
                           );
@@ -2687,7 +2783,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                       <span
                         className={`text-[11px] font-mono w-9 text-right ${
-                          isMicSpeaking ? 'text-[#23a55a] font-bold' : 'text-[var(--text-muted)]'
+                          isMicSpeaking ? 'text-[var(--status-online)] font-bold' : 'text-[var(--text-muted)]'
                         }`}
                       >
                         {micAudioLevel}%
@@ -2696,12 +2792,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* Playback / Sidetone Volume Slider */}
-                  <div className="space-y-1.5 pt-2 border-t border-[#4e5058]/25">
+                  <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle)]">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-[var(--text-normal)]">
-                        Playback / Sidetone Volume
+                        Playback Volume
                       </span>
-                      <span className="font-mono font-bold text-[#949cf7]">{loopbackVolume}%</span>
+                      <span className="font-mono font-bold text-[var(--text-link)]">{loopbackVolume}%</span>
                     </div>
                     <input
                       type="range"
@@ -2710,19 +2806,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       step={5}
                       value={loopbackVolume}
                       data-testid="settings-loopback-volume-slider"
-                      aria-label="Playback / Sidetone Volume"
+                      aria-label="Playback Volume"
                       onChange={e => {
                         const val = Number(e.target.value);
                         setLoopbackVolume(val);
                         livekit.setLoopbackVolume(val);
                       }}
-                      className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                      className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                     />
                   </div>
                 </div>
 
                 {/* Input Device & Output Device Selection */}
-                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3">
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
                       Audio Devices
@@ -2730,7 +2826,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => void refreshAudioDevices()}
-                      className="px-2 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[11px] font-semibold text-[var(--text-normal)] border border-[#4e5058]/30 flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[11px] font-semibold text-[var(--text-normal)] border border-[var(--border-subtle)] flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw className="w-3 h-3" />
                       <span>Refresh</span>
@@ -2743,6 +2839,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Input Device
                       </label>
                       <select
+                        aria-label="Input Device"
                         value={selectedInputId}
                         data-testid="settings-input-device-select"
                         onChange={e => {
@@ -2750,7 +2847,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setSelectedInputId(id);
                           void livekit.setInputDevice(id);
                         }}
-                        className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                        className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                       >
                         <option value="default">Default Microphone</option>
                         {uniqueInputs.map((dev, idx) => (
@@ -2766,6 +2863,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         Output Device
                       </label>
                       <select
+                        aria-label="Output Device"
                         value={selectedOutputId}
                         data-testid="settings-output-device-select"
                         onChange={e => {
@@ -2773,7 +2871,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setSelectedOutputId(id);
                           void livekit.setOutputDevice(id);
                         }}
-                        className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[#5865f2]"
+                        className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                       >
                         <option value="default">Default Speaker / Headphones</option>
                         {uniqueOutputs.map((dev, idx) => (
@@ -2787,29 +2885,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Video Settings — Camera Preview & Virtual Backgrounds */}
-                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3">
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                   <div>
                     <div className="text-sm font-bold text-[var(--text-header)]">
-                      Video Settings — Camera Preview &amp; Virtual Backgrounds
+                      Camera Preview &amp; Backgrounds
                     </div>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      Select a webcam, toggle mirror preview, and test blur or virtual backgrounds before joining a call.
+                      Preview your camera, mirror feed, and apply blur or virtual backgrounds.
                     </p>
                   </div>
-                  <CameraPreviewPanel />
+                  <CameraPreviewPanel compact />
                 </div>
 
                 {/* Soundboard Settings Card */}
-                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3.5">
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3.5">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      <Music className="w-4 h-4 text-[#5865f2]" />
+                      <Music className="w-4 h-4 text-[var(--discord-blurple)]" />
                       <div>
                         <div className="text-sm font-bold text-[var(--text-header)]">
-                          Soundboard Settings
+                          Soundboard
                         </div>
                         <div className="text-[11px] text-[var(--text-muted)]">
-                          Control Soundboard playback volume, mute incoming clips, or launch the Soundboard.
+                          Control Soundboard playback volume or open the soundboard panel.
                         </div>
                       </div>
                     </div>
@@ -2817,7 +2915,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       data-testid="settings-open-soundboard-btn"
                       onClick={handleOpenSoundboardModal}
-                      className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Music className="w-3.5 h-3.5" />
                       <span>Open Soundboard</span>
@@ -2828,13 +2926,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-[var(--text-normal)] flex items-center gap-1.5">
                         {soundboardMuted ? (
-                          <VolumeX className="w-3.5 h-3.5 text-[#f23f43]" />
+                          <VolumeX className="w-3.5 h-3.5 text-[var(--status-dnd)]" />
                         ) : (
-                          <Volume2 className="w-3.5 h-3.5 text-[#23a55a]" />
+                          <Volume2 className="w-3.5 h-3.5 text-[var(--status-online)]" />
                         )}
                         <span>Soundboard Master Volume</span>
                       </span>
-                      <span className="font-mono font-bold text-[#949cf7]">{soundboardVolume}%</span>
+                      <span className="font-mono font-bold text-[var(--text-link)]">{soundboardVolume}%</span>
                     </div>
                     <input
                       type="range"
@@ -2845,17 +2943,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       data-testid="settings-soundboard-volume-slider"
                       aria-label="Soundboard Master Volume"
                       onChange={e => soundboardService.setMasterVolume(Number(e.target.value))}
-                      className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                      className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                     />
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[#4e5058]/25">
+                  <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
                     <div>
                       <div className="text-xs font-semibold text-[var(--text-header)]">
                         Mute Soundboard
                       </div>
                       <div className="text-[11px] text-[var(--text-muted)]">
-                        Silence all local and remote Soundboard effects.
+                        Silence local and remote sound effects.
                       </div>
                     </div>
                     <button
@@ -2866,7 +2964,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       data-testid="settings-soundboard-mute-toggle"
                       onClick={() => soundboardService.setMuted(!soundboardMuted)}
                       className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors ${
-                        soundboardMuted ? 'bg-[#f23f43]' : 'bg-[#4e5058]'
+                        soundboardMuted ? 'bg-[var(--status-dnd)]' : 'bg-[var(--bg-message-input)]'
                       }`}
                     >
                       <div
@@ -2879,14 +2977,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#23a55a]/30 flex items-center gap-3">
-                    <Radio className="w-6 h-6 text-[#23a55a] flex-shrink-0" />
+                  <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-emerald-500/30 flex items-center gap-3">
+                    <Radio className="w-6 h-6 text-[var(--status-online)] flex-shrink-0" />
                     <div>
                       <div className="text-sm font-semibold text-[var(--text-header)]">
-                        Ultra-Low Latency Mode
+                        Low-Latency Voice Mode
                       </div>
                       <div className="text-xs text-[var(--text-muted)]">
-                        Targeting sub-40ms round-trip latency via direct WebRTC SFU with 48kHz Opus audio and 0ms jitter buffer target.
+                        Direct WebRTC SFU transport with 48kHz Opus audio.
                       </div>
                     </div>
                   </div>
@@ -2895,8 +2993,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
                       Screen Share Quality
                     </label>
-                    <select className="w-full bg-[var(--bg-userpanel)] border border-[#4e5058]/35 rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[#5865f2]">
-                      <option value="1080p60">1080p @ 60 FPS (Nitro Source)</option>
+                    <select
+                      aria-label="Screen Share Quality"
+                      data-testid="settings-screen-quality-select"
+                      value={screenQuality}
+                      onChange={e => {
+                        const val = e.target.value as '1080p60' | '1440p60' | '4k60' | '720p30';
+                        setScreenQuality(val);
+                        try {
+                          localStorage.setItem('protutech_screen_quality', val);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      className="w-full bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
+                    >
+                      <option value="1080p60">1080p @ 60 FPS (Source)</option>
                       <option value="1440p60">1440p @ 60 FPS</option>
                       <option value="4k60">4K @ 60 FPS</option>
                       <option value="720p30">720p @ 30 FPS</option>
@@ -2905,7 +3017,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   <div>
                     <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
-                      Noise Suppression (Synced)
+                      Noise Suppression
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {(
@@ -2923,8 +3035,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           }
                           className={`py-2 px-3 rounded border text-xs font-semibold cursor-pointer transition-colors ${
                             syncSettings.noiseSuppression === mode.id
-                              ? 'border-[#5865f2] bg-[#5865f2]/20 text-[var(--text-header)]'
-                              : 'border-[#4e5058]/30 bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
+                              ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)]'
                           }`}
                         >
                           {mode.label}
@@ -2934,16 +3046,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* Synced Audio Gain & Processing */}
-                  <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-4">
+                  <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-4">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-[var(--text-header)]">
-                          Input Volume (Mic Gain)
+                          Input Volume
                         </span>
-                        <span className="font-mono text-[#949cf7]">{syncSettings.inputVolume}%</span>
+                        <span className="font-mono text-[var(--text-link)]">{syncSettings.inputVolume}%</span>
                       </div>
                       <input
                         type="range"
+                        aria-label="Input Volume"
                         min={0}
                         max={200}
                         step={5}
@@ -2954,19 +3067,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             Number(e.target.value)
                           )
                         }
-                        className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                        className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-[var(--text-header)]">
-                          Output Volume (Master Gain)
+                          Output Volume
                         </span>
-                        <span className="font-mono text-[#949cf7]">{syncSettings.outputVolume}%</span>
+                        <span className="font-mono text-[var(--text-link)]">{syncSettings.outputVolume}%</span>
                       </div>
                       <input
                         type="range"
+                        aria-label="Output Volume"
                         min={0}
                         max={200}
                         step={5}
@@ -2977,11 +3091,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             Number(e.target.value)
                           )
                         }
-                        className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#1e1f22] rounded-lg"
+                        className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#4e5058]/25">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-subtle)]">
                       {(
                         [
                           {
@@ -3000,7 +3114,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         return (
                           <div
                             key={item.key}
-                            className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[#4e5058]/25"
+                            className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)]"
                           >
                             <div>
                               <div className="text-xs font-semibold text-[var(--text-header)]">
@@ -3017,7 +3131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 void discordSettingsSync.updateSetting(item.key, !active)
                               }
                               className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors flex-shrink-0 ${
-                                active ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                                active ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                               }`}
                             >
                               <div
@@ -3032,44 +3146,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  {/* External Voice Gateways & Call Proxies */}
-                  <div className="pt-4 border-t border-[#4e5058]/30 space-y-3">
+                  {/* External Call Bridge */}
+                  <div className="pt-4 border-t border-[var(--border-subtle)] space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-xs font-bold text-[#f0b232] uppercase tracking-wider flex items-center gap-1.5">
-                          <ShieldAlert className="w-4 h-4 text-[#f0b232]" />
-                          <span>External Voice Gateways &amp; Call Proxies</span>
+                        <div className="text-xs font-bold text-[var(--status-idle)] uppercase tracking-wider flex items-center gap-1.5">
+                          <ShieldAlert className="w-4 h-4 text-[var(--status-idle)]" />
+                          <span>External Call Bridge</span>
                         </div>
                         <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                          Optional tool: Proxy audio to Discord Voice calls or connect to Stoat-hosted instances.
+                          Bridge audio to external Discord or Stoat/Revolt voice channels.
                         </p>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-[#f0b232]/15 text-[#f0b232] font-bold border border-[#f0b232]/30 uppercase">
-                        Optional Tool
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-[var(--status-idle)] font-bold border border-amber-500/30 uppercase">
+                        Optional
                       </span>
                     </div>
 
-                    <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#f0b232]/25 space-y-3">
+                    <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                       <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-[#f0b232]/15 border border-[#f0b232]/25 flex items-center justify-center text-[#f0b232]">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-[var(--status-idle)]">
                             <Radio className="w-4 h-4" />
                           </div>
                           <div>
                             <div className="text-xs font-bold text-[var(--text-header)] flex items-center gap-1.5">
                               <span>Active Gateway:</span>
-                              <span className="text-[#f0b232] font-mono">
+                              <span className="text-[var(--status-idle)] font-mono">
                                 {proxySession.status === 'connected'
                                   ? proxySession.provider === 'discord_proxy'
-                                    ? 'Discord Voice Proxy'
-                                    : 'Stoat-Hosted WebRTC'
-                                  : 'Native LiveKit SFU (Default)'}
+                                    ? 'External Bridge'
+                                    : 'Stoat / Revolt'
+                                  : 'Native LiveKit SFU'}
                               </span>
                             </div>
                             <div className="text-[11px] text-[var(--text-muted)]">
                               {proxySession.status === 'connected'
                                 ? `In Call: ${proxySession.targetName} (${proxySession.ping}ms)`
-                                : 'Native sub-30ms SFU active. External proxy disabled.'}
+                                : 'Native WebRTC SFU active.'}
                             </div>
                           </div>
                         </div>
@@ -3077,17 +3191,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setShowVoiceProxyModal(true)}
-                          className="px-3 py-1.5 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                          className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
                         >
                           <PhoneCall className="w-3.5 h-3.5" />
-                          <span>Configure Voice Proxy...</span>
+                          <span>Configure Bridge...</span>
                         </button>
                       </div>
 
-                      <div className="p-2.5 rounded-lg bg-[#f0b232]/10 border border-[#f0b232]/25 text-[11px] text-[var(--text-normal)] leading-relaxed flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-[#f0b232] flex-shrink-0 mt-0.5" />
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[11px] text-[var(--text-normal)] leading-relaxed flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-[var(--status-idle)] flex-shrink-0 mt-0.5" />
                         <span>
-                          <b>TOS Warning:</b> Unofficial Discord voice proxying operates outside Discord&apos;s official client and may carry account risks. Stoat calls connect to open-source decentralized WebRTC nodes without Discord affiliation.
+                          External voice bridging operates outside official client software; Stoat nodes connect directly over open WebRTC.
                         </span>
                       </div>
                     </div>
@@ -3103,11 +3217,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">My Account</h2>
                 <p className="text-sm text-[var(--text-muted)]">
-                  Manage your homeserver credentials, privacy, and Discord bridge sync.
+                  Manage your account ID, privacy preferences, and optional bridge token.
                 </p>
               </div>
 
-              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[#4e5058]/30 space-y-4">
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-4">
                 <div>
                   <div className="text-xs font-bold text-[var(--text-muted)] uppercase">User ID</div>
                   <div className="text-sm font-mono text-[var(--text-header)] mt-1">{userId}</div>
@@ -3115,21 +3229,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div>
                   <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Homeserver</div>
-                  <div className="text-sm font-mono text-[#5865f2] mt-1">
+                  <div className="text-sm font-mono text-[var(--text-link)] mt-1">
                     https://chat.protutech.vip
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#4e5058]/25 flex items-center gap-2 text-xs text-[var(--status-online)] font-semibold">
+                <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center gap-2 text-xs text-[var(--status-online)] font-semibold">
                   <Shield className="w-4 h-4" />
-                  <span>End-to-End Encryption &amp; Double Puppeting Active</span>
+                  <span>Encrypted Session &amp; Bridge Sync Ready</span>
                 </div>
               </div>
 
-              {/* Privacy & Safety (Synced Bidirectionally with Discord) */}
-              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[#4e5058]/30 space-y-3">
+              {/* Privacy & Sync */}
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-3">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                  Privacy &amp; Safety (Discord Bidirectional Sync)
+                  Privacy &amp; Sync
                 </div>
 
                 {(
@@ -3137,12 +3251,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {
                       key: 'dmSpamFilter',
                       label: 'Direct Message Spam Filter',
-                      desc: 'Automatically scan and filter suspicious DM invites and links.',
+                      desc: 'Filter suspicious DM invites and links.',
                     },
                     {
                       key: 'allowDmsFromServerMembers',
-                      label: 'Allow Direct Messages from Server Members',
-                      desc: 'Let members in shared Discord and self-hosted servers message you.',
+                      label: 'Allow Server Member DMs',
+                      desc: 'Let members in shared servers message you.',
                     },
                   ] as const
                 ).map(item => {
@@ -3150,7 +3264,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   return (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between gap-4 pt-2 border-t border-[#4e5058]/25 first:border-t-0 first:pt-0"
+                      className="flex items-center justify-between gap-4 pt-2 border-t border-[var(--border-subtle)] first:border-t-0 first:pt-0"
                     >
                       <div>
                         <div className="text-xs font-semibold text-[var(--text-header)]">
@@ -3167,7 +3281,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           void discordSettingsSync.updateSetting(item.key, !active)
                         }
                         className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors flex-shrink-0 ${
-                          active ? 'bg-[#23a55a]' : 'bg-[#4e5058]'
+                          active ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                         }`}
                       >
                         <div
@@ -3181,37 +3295,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 })}
               </div>
 
-              {/* Optional Discord Token Connection */}
-              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[#5865f2]/30 space-y-3">
+              {/* External Bridge Token (Optional) */}
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
-                    <KeyRound className="w-4 h-4 text-[#5865f2]" />
-                    <span>Discord Token (Optional Live API Sync)</span>
+                    <KeyRound className="w-4 h-4 text-[var(--discord-blurple)]" />
+                    <span>External Bridge Token (Optional)</span>
                   </div>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                       syncSettings.discordTokenConnected
-                        ? 'bg-[#23a55a]/20 text-[#23a55a]'
-                        : 'bg-black/20 text-[var(--text-muted)]'
+                        ? 'bg-emerald-500/20 text-[var(--status-online)]'
+                        : 'bg-[var(--bg-channels)] text-[var(--text-muted)]'
                     }`}
                   >
-                    {syncSettings.discordTokenConnected ? 'Connected' : 'Hybrid Local Only'}
+                    {syncSettings.discordTokenConnected ? 'Connected' : 'Local Only'}
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Optional: Save your Discord user token locally (`protutech_discord_token`) to forward settings, quests, and bridge requests directly to Discord API.
+                  Optional token stored locally to enable live external bridge sync.
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <input
                       type={showDiscordToken ? 'text' : 'password'}
+                      aria-label="External bridge token"
                       value={discordTokenInput}
                       onChange={e => setDiscordTokenInput(e.target.value)}
-                      placeholder="Paste optional Discord token..."
-                      className="w-full bg-[var(--bg-channels)] border border-[#4e5058]/35 focus:border-[#5865f2] rounded px-3 py-2 pr-9 text-xs font-mono text-[var(--text-header)] outline-none"
+                      placeholder="Paste optional bridge token..."
+                      className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded px-3 py-2 pr-9 text-xs font-mono text-[var(--text-header)] outline-none"
                     />
                     <button
                       type="button"
+                      aria-label={showDiscordToken ? 'Hide bridge token' : 'Show bridge token'}
                       onClick={() => setShowDiscordToken(v => !v)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                     >
@@ -3225,9 +3341,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       setTokenSavedNotice('Token saved ✓');
                       window.setTimeout(() => setTokenSavedNotice(null), 2000);
                     }}
-                    className="px-3 py-2 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold cursor-pointer"
+                    className="px-3 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                   >
-                    Save Token
+                    Save
                   </button>
                   {syncSettings.discordTokenConnected && (
                     <button
@@ -3245,7 +3361,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
                 {tokenSavedNotice && (
-                  <div className="text-xs text-[#23a55a] font-semibold">{tokenSavedNotice}</div>
+                  <div className="text-xs text-[var(--status-online)] font-semibold">{tokenSavedNotice}</div>
                 )}
               </div>
             </div>
@@ -3254,28 +3370,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* DESKTOP APP TAB */}
           {activeTab === 'desktop' && (
             <div className="space-y-6 max-w-2xl">
-              <div>
-                <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">
-                  Desktop Application
-                </h2>
-                <p className="text-sm text-[var(--text-muted)]">
-                  Standalone native desktop client (Electron &amp; Rust/Tauri v2) with ultra-low latency, global hotkeys, window management, and Microsoft Store packaging.
-                </p>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-xl font-bold text-[var(--text-header)] mb-1 flex items-center gap-2">
+                    <span>Desktop App</span>
+                    <span
+                      data-testid="settings-app-version"
+                      className="text-xs bg-[var(--discord-blurple)] text-white px-2 py-0.5 rounded font-mono"
+                    >
+                      v{appVersion}
+                    </span>
+                  </h2>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Native desktop client settings, window bounds recovery, and store downloads.
+                  </p>
+                </div>
               </div>
 
               {/* Window Size & Position Recovery Card */}
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/35 flex items-center justify-between flex-wrap gap-3">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <div className="text-sm font-bold text-[var(--text-header)]">
-                    Window Size &amp; Display Bounds
+                    Window Size &amp; Position
                   </div>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                    Center the application window inside your primary display and reset saved bounds if anything appears off-screen.
+                    Center the window on your primary display and reset saved bounds.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {windowBoundsResetNotice && (
-                    <span className="text-xs font-semibold text-[#23a55a]">Window reset ✓</span>
+                    <span className="text-xs font-semibold text-[var(--status-online)]">Window reset ✓</span>
                   )}
                   <button
                     type="button"
@@ -3285,32 +3409,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       setWindowBoundsResetNotice(true);
                       window.setTimeout(() => setWindowBoundsResetNotice(false), 2500);
                     }}
-                    className="px-3.5 py-2 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-3.5 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset Window Size &amp; Position</span>
+                    <span>Reset Window</span>
                   </button>
                 </div>
               </div>
 
               {/* Microsoft Store Publish & Install Card */}
-              <div className="p-5 rounded-lg bg-[var(--bg-userpanel)] border border-[#5865f2]/35 space-y-3">
+              <div className="p-5 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#5865f2] flex items-center justify-center text-white flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--discord-blurple)] flex items-center justify-center text-white flex-shrink-0">
                       <Store className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-[var(--text-header)] text-sm">
-                          Microsoft Store Publish &amp; Install Hub
+                          Microsoft Store Hub
                         </h3>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#5865f2]/20 text-[#949cf7] border border-[#5865f2]/30 font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] font-bold">
                           APPX / MSIX
                         </span>
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        1-click Windows Store install, direct <code className="text-[#949cf7]">.appx</code> package, and Partner Center submission checklist.
+                        Install via Windows Store or download the direct <code className="text-[var(--text-link)]">.appx</code> package.
                       </p>
                     </div>
                   </div>
@@ -3320,16 +3444,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenStoreHub}
-                    className="px-4 py-2 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Store className="w-4 h-4" />
-                    <span>Open Microsoft Store Hub</span>
+                    <span>Open Store Hub</span>
                   </button>
                   <a
                     href="ms-windows-store://pdp/?productid=00013812596749763330"
                     target="_blank"
                     rel="noreferrer"
-                    className="px-3.5 py-2 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] text-xs font-semibold border border-[#4e5058]/35 transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] text-xs font-semibold border border-[var(--border-subtle)] transition-colors flex items-center gap-1.5"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>Launch Store App</span>
@@ -3339,91 +3463,91 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {isNativeDesktop ? (
                 <div className="space-y-4">
-                  <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[#4e5058]/30 space-y-3">
+                  <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)]" />
                         <span className="font-semibold text-[var(--text-header)]">
-                          Native {runtimeKind === 'tauri' ? 'Tauri v2 (Rust)' : 'Electron'} Windows Client Active
+                          Native {runtimeKind === 'tauri' ? 'Tauri v2 (Rust)' : 'Electron'} Client Active
                         </span>
                       </div>
-                      <span className="text-xs bg-[#5865f2] text-white px-2 py-0.5 rounded font-mono">
-                        v1.0.0
+                      <span className="text-xs bg-[var(--discord-blurple)] text-white px-2 py-0.5 rounded font-mono">
+                        v{appVersion}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-muted)]">
-                      Running with hardware-accelerated WebRTC Opus 48kHz audio, H.264 video codec, and system tray persistence.
+                      Hardware-accelerated 48kHz Opus audio, H.264 capture, and system tray persistence.
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                      Global Desktop Hotkeys
+                      Global Hotkeys
                     </div>
-                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[#4e5058]/30 flex items-center justify-between">
-                      <span className="text-sm text-[var(--text-header)]">Toggle In-Game Overlay</span>
-                      <kbd className="bg-black/30 border border-[#4e5058]/35 px-2 py-1 rounded text-xs font-mono text-[#949cf7]">
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[var(--border-subtle)] flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-header)]">Toggle Overlay</span>
+                      <kbd className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-2 py-1 rounded text-xs font-mono text-[var(--text-link)]">
                         Ctrl + Shift + O
                       </kbd>
                     </div>
-                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[#4e5058]/30 flex items-center justify-between">
-                      <span className="text-sm text-[var(--text-header)]">Toggle Microphone Mute</span>
-                      <kbd className="bg-black/30 border border-[#4e5058]/35 px-2 py-1 rounded text-xs font-mono text-[var(--text-normal)]">
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[var(--border-subtle)] flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-header)]">Toggle Mute</span>
+                      <kbd className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-2 py-1 rounded text-xs font-mono text-[var(--text-normal)]">
                         Ctrl + Shift + M
                       </kbd>
                     </div>
-                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[#4e5058]/30 flex items-center justify-between">
-                      <span className="text-sm text-[var(--text-header)]">Toggle Headphone Deafen</span>
-                      <kbd className="bg-black/30 border border-[#4e5058]/35 px-2 py-1 rounded text-xs font-mono text-[var(--text-normal)]">
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[var(--border-subtle)] flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-header)]">Toggle Deafen</span>
+                      <kbd className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-2 py-1 rounded text-xs font-mono text-[var(--text-normal)]">
                         Ctrl + Shift + D
                       </kbd>
                     </div>
-                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[#4e5058]/30 flex items-center justify-between">
+                    <div className="p-3 bg-[var(--bg-userpanel)] rounded border border-[var(--border-subtle)] flex items-center justify-between">
                       <span className="text-sm text-[var(--text-header)]">Close Window Behavior</span>
                       <span className="text-xs text-[var(--status-online)] font-semibold">
-                        Minimizes to System Tray
+                        Minimizes to Tray
                       </span>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-[var(--bg-userpanel)] rounded-lg p-6 border border-[#5865f2]/35 space-y-4">
+                  <div className="bg-[var(--bg-userpanel)] rounded-lg p-6 border border-[var(--border-subtle)] space-y-4">
                     <div className="flex items-center gap-3">
-                      <Monitor className="w-8 h-8 text-[#5865f2]" />
+                      <Monitor className="w-8 h-8 text-[var(--discord-blurple)]" />
                       <div>
                         <h3 className="font-bold text-[var(--text-header)] text-base">
                           Protutech for Windows
                         </h3>
                         <p className="text-xs text-[var(--text-muted)]">
-                          64-bit Standalone Executable (.exe) &amp; Store AppX
+                          Standalone Executable (.exe) &amp; Store AppX (v{appVersion})
                         </p>
                       </div>
                     </div>
                     <p className="text-sm text-[var(--text-normal)]">
-                      Install or run the native desktop client for global hotkeys (overlay, push-to-mute), seamless 1080p60/4K60 screen capture, background system tray audio, and local custom CSS theme loading.
+                      Download the desktop app for global hotkeys, 1080p60/4K60 capture, and system tray audio.
                     </p>
                     <div className="flex flex-wrap gap-3 pt-2">
                       <a
                         href="/downloads/ProtutechChat-Store.appx"
-                        className="inline-flex items-center gap-2 bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2.5 rounded font-semibold text-sm transition-colors"
+                        className="inline-flex items-center gap-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white px-4 py-2.5 rounded font-semibold text-sm transition-colors"
                       >
                         <Download className="w-4 h-4" />
-                        <span>Download Store (.appx)</span>
+                        <span>Store (.appx)</span>
                       </a>
                       <a
                         href="/downloads/ProtutechChat-Setup.exe"
-                        className="inline-flex items-center gap-2 bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] px-4 py-2.5 rounded font-semibold text-sm border border-[#4e5058]/35 transition-colors"
+                        className="inline-flex items-center gap-2 bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] px-4 py-2.5 rounded font-semibold text-sm border border-[var(--border-subtle)] transition-colors"
                       >
                         <Download className="w-4 h-4" />
-                        <span>Download Windows Installer (.exe)</span>
+                        <span>Installer (.exe)</span>
                       </a>
                       <a
                         href="/downloads/ProtutechChat-Portable.exe"
-                        className="inline-flex items-center gap-2 bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] px-4 py-2.5 rounded font-semibold text-sm border border-[#4e5058]/35 transition-colors"
+                        className="inline-flex items-center gap-2 bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] px-4 py-2.5 rounded font-semibold text-sm border border-[var(--border-subtle)] transition-colors"
                       >
                         <Download className="w-4 h-4" />
-                        <span>Download Portable (.exe)</span>
+                        <span>Portable (.exe)</span>
                       </a>
                     </div>
                   </div>
@@ -3437,47 +3561,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-6 max-w-2xl">
               <div>
                 <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">
-                  Protutech Application Icon
+                  App Icon
                 </h2>
                 <p className="text-sm text-[var(--text-muted)]">
-                  Personalize your Protutech experience with custom app icons. Updates your browser favicon, tab insignia, desktop taskbar, and dock instantly.
+                  Customize your browser tab, taskbar, and dock icon.
                 </p>
               </div>
 
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/35">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)]">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3 flex items-center justify-between">
-                  <span>Live Dock &amp; Taskbar Preview</span>
-                  <span className="text-[10px] font-mono">Real-time update</span>
+                  <span>Dock &amp; Taskbar Preview</span>
+                  <span className="text-[10px] font-mono">Live</span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--bg-channels)] p-4 rounded-lg border border-[#4e5058]/25">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1e1f22] border border-[#4e5058]/40">
-                    <div className="relative group p-1.5 rounded-lg bg-white/10">
+                <div className="flex flex-col sm:flex-row items-center gap-6 bg-[var(--bg-channels)] p-4 rounded-lg border border-[var(--border-subtle)]">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-popout)] border border-[var(--border-subtle)]">
+                    <div className="relative group p-1.5 rounded-lg bg-[var(--bg-userpanel)]">
                       <img
                         src={currentIcon}
                         alt="Current Icon"
                         className="w-10 h-10 rounded-lg object-contain"
                       />
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-[#5865f2]" />
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-[var(--discord-blurple)]" />
                     </div>
                   </div>
 
                   <div className="flex-1 text-center sm:text-left">
                     <div className="text-sm font-bold text-[var(--text-header)] flex items-center justify-center sm:justify-start gap-2">
-                      <span>Currently Active Icon</span>
-                      <CheckCircle className="w-4 h-4 text-[#23a55a]" />
+                      <span>Active Icon</span>
+                      <CheckCircle className="w-4 h-4 text-[var(--status-online)]" />
                     </div>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      Applied across window title bar, browser tabs, and desktop taskbar.
+                      Applied across title bar, browser tabs, and taskbar.
                     </p>
                     <div className="mt-2.5 flex items-center gap-2 justify-center sm:justify-start">
                       <button
                         type="button"
                         onClick={() => handleSelectIcon('/protutech_logo.png')}
-                        className="px-2.5 py-1 text-xs font-semibold rounded bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[#4e5058]/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 py-1 text-xs font-semibold rounded bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[var(--border-subtle)] transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
-                        <RotateCcw className="w-3 h-3 text-[#5865f2]" />
-                        <span>Reset to Official Emblem</span>
+                        <RotateCcw className="w-3 h-3 text-[var(--discord-blurple)]" />
+                        <span>Reset Icon</span>
                       </button>
                     </div>
                   </div>
@@ -3486,7 +3610,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="space-y-3">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                  Official Preset Insignias
+                  Preset Icons
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {APP_ICON_PRESETS.map(preset => {
@@ -3497,12 +3621,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => handleSelectIcon(preset.url)}
                         className={`p-3.5 rounded-lg border transition-all cursor-pointer flex items-center gap-3 relative group ${
                           isSelected
-                            ? 'bg-[#5865f2]/15 border-[#5865f2] ring-1 ring-[#5865f2]/40'
-                            : 'bg-[var(--bg-userpanel)] border-[#4e5058]/30 hover:border-[#4e5058]/60 hover:bg-[var(--bg-channels)]'
+                            ? 'bg-[var(--bg-item-active)] border-[var(--discord-blurple)] ring-1 ring-[var(--discord-blurple)]'
+                            : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)] hover:bg-[var(--bg-channels)]'
                         }`}
                       >
                         <div
-                          className={`w-12 h-12 rounded-xl p-1.5 flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${preset.previewGradient} border border-[#4e5058]/30`}
+                          className={`w-12 h-12 rounded-xl p-1.5 flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${preset.previewGradient} border border-[var(--border-subtle)]`}
                         >
                           <img
                             src={preset.url}
@@ -3515,7 +3639,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <span className="text-sm font-bold text-[var(--text-header)] truncate">
                               {preset.name}
                             </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-[#5865f2]/20 text-[#949cf7]">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-[var(--bg-channels)] text-[var(--text-link)]">
                               {preset.tag}
                             </span>
                           </div>
@@ -3524,7 +3648,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </p>
                         </div>
                         {isSelected && (
-                          <div className="w-5 h-5 rounded-full bg-[#5865f2] text-white flex items-center justify-center flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-[var(--discord-blurple)] text-white flex items-center justify-center flex-shrink-0">
                             <Check className="w-3.5 h-3.5 stroke-[3]" />
                           </div>
                         )}
@@ -3534,23 +3658,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[#4e5058]/30 space-y-3">
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-header)]">
-                  <Upload className="w-4 h-4 text-[#5865f2]" />
-                  <span>Upload Custom App Icon</span>
+                  <Upload className="w-4 h-4 text-[var(--discord-blurple)]" />
+                  <span>Upload Custom Icon</span>
                 </div>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Upload any custom image file (PNG, JPG, SVG, WebP recommended 512x512). The image is processed locally in your browser and instantly set as your application icon.
+                  Upload any image file (PNG, JPG, SVG, or WebP) to customize your app icon locally.
                 </p>
 
                 {customIconError && (
-                  <div className="mb-2 p-2.5 rounded bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2">
+                  <div className="mb-2 p-2.5 rounded bg-red-500/10 border border-red-500/30 text-[var(--status-dnd)] text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{customIconError}</span>
                   </div>
                 )}
 
-                <label className="inline-flex items-center gap-2 px-4 py-2 rounded bg-[#5865f2] hover:bg-[#4752c4] text-white font-semibold text-xs transition-colors cursor-pointer">
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold text-xs transition-colors cursor-pointer">
                   <Upload className="w-3.5 h-3.5" />
                   <span>Choose Image File...</span>
                   <input

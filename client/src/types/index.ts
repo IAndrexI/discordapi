@@ -190,6 +190,8 @@ export interface VencordPlugin {
 export interface ThemeConfig {
   activeTheme:
     | 'dark'
+    | 'revolt'
+    | 'classic-dark'
     | 'light'
     | 'midnight'
     | 'translucent'

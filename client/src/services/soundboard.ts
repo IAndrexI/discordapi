@@ -43,7 +43,7 @@ const BUILTIN_CLIPS: SoundboardClip[] = [
   { id: 'builtin_victory', name: 'Victory Fanfare', emoji: '🏆', category: 'builtin', volume: 100, durationMs: 1350 },
   { id: 'builtin_siren', name: 'Siren', emoji: '🚨', category: 'builtin', volume: 100, durationMs: 1350 },
   { id: 'builtin_bass_drop', name: 'Bass Drop', emoji: '🔊', category: 'builtin', volume: 100, durationMs: 1250 },
-  { id: 'builtin_discord_chime', name: 'Discord Chime', emoji: '✨', category: 'builtin', volume: 100, durationMs: 600 },
+  { id: 'builtin_discord_chime', name: 'Protutech Chime', emoji: '✨', category: 'builtin', volume: 100, durationMs: 600 },
 ];
 
 function clampVolume(vol: number, fallback: number = 100): number {

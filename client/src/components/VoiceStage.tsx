@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Camera,
   MicOff,
   Maximize2,
   Minimize2,
@@ -32,6 +33,7 @@ export interface VoiceStageProps {
   onToggleCoBrowse?: () => void;
   isCoBrowsing?: boolean;
   onOpenSoundboard?: () => void;
+  onOpenCameraPreview?: () => void;
   onDisconnect?: () => void;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
@@ -69,6 +71,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   onToggleCoBrowse,
   isCoBrowsing = false,
   onOpenSoundboard,
+  onOpenCameraPreview,
   onDisconnect,
   isExpanded,
   onToggleExpand,
@@ -216,6 +219,14 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     }
   };
 
+  const handleCameraPreviewClick = () => {
+    if (onOpenCameraPreview) {
+      onOpenCameraPreview();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('protutech:open-camera-preview'));
+    }
+  };
+
   const handleDisconnectClick = () => {
     if (onDisconnect) {
       onDisconnect();
@@ -230,18 +241,18 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     return (
       <div
         data-testid="voice-stage"
-        className="h-[44px] min-h-[44px] bg-[#111214] border-b border-[#1e1f22] px-3 flex items-center justify-between gap-2 flex-shrink-0"
+        className="h-[44px] min-h-[44px] bg-[var(--bg-servers)] border-b border-[var(--border-subtle)] px-3 flex items-center justify-between gap-2 flex-shrink-0"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full bg-[#23a55a] flex-shrink-0" />
-          <span className="text-xs font-semibold text-[#f2f3f5] truncate">{roomName}</span>
-          <span className="text-[11px] text-[#949ba4] flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-[var(--status-online)] flex-shrink-0" />
+          <span className="text-xs font-semibold text-[var(--text-header)] truncate">{roomName}</span>
+          <span className="text-[11px] text-[var(--text-muted)] flex-shrink-0">
             • {participants.length} connected
           </span>
           {soundToast && (
             <span
               data-testid="voice-stage-soundboard-toast"
-              className="px-2 py-0.5 rounded-full bg-[#5865f2]/20 border border-[#5865f2]/50 text-[#f2f3f5] text-[11px] font-semibold flex items-center gap-1 animate-pill truncate max-w-[220px]"
+              className="px-2 py-0.5 rounded-full bg-[var(--discord-blurple)]/20 border border-[var(--discord-blurple)]/50 text-[var(--text-header)] text-[11px] font-semibold flex items-center gap-1 animate-pill truncate max-w-[220px]"
             >
               <span>{soundToast.emoji}</span>
               <span className="truncate">
@@ -254,10 +265,23 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             type="button"
+            onClick={handleCameraPreviewClick}
+            data-testid="voicestage-camera-preview-btn"
+            aria-label="Camera Preview"
+            title="Camera Preview"
+            className="px-2 py-1 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] hover:text-[var(--text-header)] text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <Camera className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+            <span className="hidden sm:inline">Camera Preview</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleSoundboardClick}
             data-testid="voicestage-soundboard-btn"
+            aria-label="Open Soundboard"
             title="Open Soundboard"
-            className="px-2 py-1 rounded bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-2 py-1 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] hover:text-[var(--text-header)] text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Music className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Soundboard</span>
@@ -267,8 +291,10 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             type="button"
             onClick={handleToggleCollapse}
             data-testid="voicestage-expand-stage-btn"
+            aria-label="Expand Voice Stage"
+            aria-expanded={!effectiveCollapsed}
             title="Expand Voice Stage"
-            className="px-2.5 py-1 rounded bg-[#2b2d31] hover:bg-[#35373c] text-[#f2f3f5] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-2.5 py-1 rounded bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
           >
             <ChevronDown className="w-3.5 h-3.5" />
             <span>Expand Stage</span>
@@ -279,7 +305,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             onClick={handleDisconnectClick}
             title="Disconnect from Voice"
             aria-label="Disconnect from Voice"
-            className="p-1.5 rounded bg-[#f23f43]/15 hover:bg-[#f23f43] text-[#f23f43] hover:text-white cursor-pointer transition-colors"
+            className="p-1.5 rounded bg-[var(--status-dnd)]/15 hover:bg-[var(--status-dnd)] text-[var(--status-dnd)] hover:text-white cursor-pointer transition-colors"
           >
             <PhoneOff className="w-3.5 h-3.5" />
           </button>
@@ -291,47 +317,50 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   return (
     <div
       data-testid="voice-stage"
-      className="bg-[#000000] border-b border-[#1e1f22] p-3 flex flex-col gap-3 animate-fadeIn overflow-hidden"
+      className="bg-[var(--bg-servers)] border-b border-[var(--border-subtle)] p-3 flex flex-col gap-3 animate-fadeIn overflow-visible"
     >
-      {/* Discord-style Stage Header */}
+      {/* Stage Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#23a55a] flex-shrink-0" />
-          <span className="font-semibold text-[#f2f3f5] text-sm truncate">{roomName}</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] flex-shrink-0" />
+          <span className="font-semibold text-[var(--text-header)] text-sm truncate">{roomName}</span>
 
           {currentProvider === 'discord_proxy' ? (
-            <span className="bg-[#f0b232]/15 text-[#f0b232] border border-[#f0b232]/30 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+            <span className="bg-[var(--status-idle)]/15 text-[var(--status-idle)] border border-[var(--status-idle)]/30 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
               <Globe className="w-3 h-3" />
-              <span>DISCORD PROXY</span>
+              <span>CALL BRIDGE</span>
             </span>
           ) : currentProvider === 'stoat_hosted' ? (
-            <span className="bg-[#5865f2]/20 text-[#dbdee1] border border-[#5865f2]/40 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+            <span className="bg-[var(--discord-blurple)]/20 text-[var(--text-header)] border border-[var(--discord-blurple)]/40 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
               <Globe className="w-3 h-3" />
-              <span>STOAT HOSTED</span>
+              <span>STOAT BRIDGE</span>
             </span>
           ) : (
-            <span className="bg-[#5865f2] text-white text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+            <span
+              title={isSfu ? 'SFU Live' : 'WebRTC Live'}
+              className="bg-[var(--discord-blurple)] text-white text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1"
+            >
               <Radio className="w-3 h-3" />
-              <span>{isSfu ? 'SFU LIVE' : 'WEBRTC LIVE'}</span>
+              <span>LIVE</span>
             </span>
           )}
 
           {livekit.isStudioAudio && currentProvider === 'native_livekit' && (
-            <span className="bg-[#23a55a]/15 text-[#23a55a] border border-[#23a55a]/30 text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+            <span className="bg-[var(--status-online)]/15 text-[var(--status-online)] border border-[var(--status-online)]/30 text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
               <Sparkles className="w-2.5 h-2.5" />
               <span>48kHz</span>
             </span>
           )}
 
           <span
-            className="bg-[#1e1f22] text-[#949ba4] border border-white/[0.08] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
+            className="bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
             title="Zero-jitter WebRTC playout buffer enabled"
           >
-            <Zap className="w-2.5 h-2.5 text-[#23a55a]" />
-            <span>0ms buffer</span>
+            <Zap className="w-2.5 h-2.5 text-[var(--status-online)]" />
+            <span>0ms</span>
           </span>
 
-          <span className="text-xs text-[#949ba4] font-medium">
+          <span className="text-xs text-[var(--text-muted)] font-medium">
             {participants.length} connected
           </span>
 
@@ -339,7 +368,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           {soundToast && (
             <div
               data-testid="voice-stage-soundboard-toast"
-              className="px-2.5 py-1 rounded-full bg-[#5865f2]/20 border border-[#5865f2]/60 text-[#f2f3f5] text-xs font-semibold flex items-center gap-1.5 shadow-md animate-pill"
+              className="px-2.5 py-1 rounded-full bg-[var(--discord-blurple)]/20 border border-[var(--discord-blurple)]/60 text-[var(--text-header)] text-xs font-semibold flex items-center gap-1.5 shadow-md animate-pill"
             >
               <span>{soundToast.emoji}</span>
               <span>
@@ -353,23 +382,38 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         <div className="flex items-center gap-1.5 text-xs flex-wrap flex-shrink-0">
           <button
             type="button"
+            data-testid="voicestage-camera-preview-btn"
+            aria-label="Camera Preview"
+            onClick={handleCameraPreviewClick}
+            title="Camera Preview & Backgrounds"
+            className="px-2.5 py-1.5 rounded-md bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <Camera className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+            <span>Camera Preview</span>
+          </button>
+
+          <button
+            type="button"
             data-testid="voicestage-soundboard-btn"
+            aria-label="Soundboard"
             onClick={handleSoundboardClick}
             title="Open Soundboard"
-            className="px-2.5 py-1.5 rounded-md bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white border border-white/[0.08] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="px-2.5 py-1.5 rounded-md bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
           >
-            <Music className="w-3.5 h-3.5 text-[#5865f2]" />
+            <Music className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
             <span>Soundboard</span>
           </button>
 
           <button
             type="button"
             data-testid="voicestage-cobrowse-btn"
+            aria-label="Co-Browse"
+            aria-expanded={isCoBrowsing}
             onClick={handleCoBrowseClick}
             className={`px-2.5 py-1.5 rounded-md font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${
               isCoBrowsing
-                ? 'bg-[#5865f2] text-white border-[#5865f2]'
-                : 'bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white border-white/[0.08]'
+                ? 'bg-[var(--discord-blurple)] text-white border-[var(--discord-blurple)]'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -379,12 +423,14 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           <button
             type="button"
             data-testid="voicestage-theater-btn"
+            aria-label={effectiveExpanded ? 'Compact Voice Stage' : 'Expand Voice Stage'}
+            aria-expanded={effectiveExpanded}
             onClick={handleToggleExpand}
             title={effectiveExpanded ? 'Default Stage Size' : 'Theater Expand Stage'}
             className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
               effectiveExpanded
-                ? 'bg-[#5865f2]/25 border-[#5865f2]/60 text-white'
-                : 'bg-[#1e1f22] hover:bg-[#35373c] border-white/[0.08] text-[#dbdee1] hover:text-white'
+                ? 'bg-[var(--discord-blurple)]/25 border-[var(--discord-blurple)]/60 text-[var(--text-header)]'
+                : 'bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border-[var(--border-subtle)] text-[var(--text-normal)] hover:text-[var(--text-header)]'
             }`}
           >
             {effectiveExpanded ? (
@@ -398,9 +444,11 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           <button
             type="button"
             data-testid="voicestage-collapse-btn"
+            aria-label="Hide Voice Stage"
+            aria-expanded={!effectiveCollapsed}
             onClick={handleToggleCollapse}
             title="Collapse Voice Stage"
-            className="px-2 py-1.5 rounded-md bg-[#1e1f22] hover:bg-[#35373c] border border-white/[0.08] text-[#dbdee1] hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+            className="px-2 py-1.5 rounded-md bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] hover:text-[var(--text-header)] flex items-center gap-1 cursor-pointer transition-colors"
           >
             <ChevronUp className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Hide</span>
@@ -412,7 +460,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
               onClick={handleDisconnectClick}
               title="Disconnect"
               aria-label="Disconnect"
-              className="p-1.5 rounded-md bg-[#f23f43]/15 hover:bg-[#f23f43] text-[#f23f43] hover:text-white border border-[#f23f43]/30 cursor-pointer transition-colors"
+              className="p-1.5 rounded-md bg-[var(--status-dnd)]/15 hover:bg-[var(--status-dnd)] text-[var(--status-dnd)] hover:text-white border border-[var(--status-dnd)]/30 cursor-pointer transition-colors"
             >
               <PhoneOff className="w-3.5 h-3.5" />
             </button>
@@ -425,12 +473,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         <div
           ref={spotlightContainerRef}
           data-testid="voice-spotlight-container"
-          className={`relative rounded-lg overflow-hidden bg-black w-full flex items-center justify-center border border-white/10 shadow-2xl group ${
+          className={`relative rounded-lg overflow-hidden bg-[var(--bg-popout)] w-full flex items-center justify-center border border-[var(--border-subtle)] shadow-2xl group ${
             isFullscreen
               ? 'w-screen h-screen max-h-none'
               : effectiveExpanded
-                ? 'h-[62vh] max-h-[75vh]'
-                : 'h-[38vh] min-h-[180px] max-h-[46vh]'
+                ? 'h-[calc(62vh/var(--app-zoom,1))] max-h-[calc(75vh/var(--app-zoom,1))]'
+                : 'h-[calc(38vh/var(--app-zoom,1))] min-h-[180px] max-h-[calc(46vh/var(--app-zoom,1))]'
           }`}
         >
           <video
@@ -443,18 +491,18 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           />
 
           {/* Spotlight Badges & Real Telemetry */}
-          <div className="absolute top-2.5 left-2.5 bg-[#111214]/85 backdrop-blur-md px-2.5 py-1 rounded-md flex items-center gap-2 text-[#f2f3f5] text-xs font-semibold border border-white/10 shadow-lg flex-wrap max-w-[calc(100%-20px)]">
-            <Tv className="w-3.5 h-3.5 text-[#dbdee1] flex-shrink-0" />
+          <div className="absolute top-2.5 left-2.5 bg-[var(--bg-popout)]/85 backdrop-blur-md px-2.5 py-1 rounded-md flex items-center gap-2 text-[var(--text-header)] text-xs font-semibold border border-[var(--border-subtle)] shadow-lg flex-wrap max-w-[calc(100%-20px)]">
+            <Tv className="w-3.5 h-3.5 text-[var(--text-normal)] flex-shrink-0" />
             <span className="truncate max-w-[160px]">
               {spotlightParticipant.name}
               {isSpotlightScreen ? "'s Stream" : ' (Spotlight)'}
             </span>
-            <span className="bg-[#f23f43] text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+            <span className="bg-[var(--status-dnd)] text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
               {isSpotlightScreen ? 'LIVE' : 'CAM'}
             </span>
             <span
               data-testid="spotlight-telemetry"
-              className="bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1"
+              className="bg-[var(--status-online)]/20 text-[var(--status-online)] border border-[var(--status-online)]/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1"
             >
               <Activity className="w-2.5 h-2.5" />
               <span>
@@ -469,16 +517,19 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             {manualSpotlightId && (
               <button
                 type="button"
+                aria-label="Unpin Spotlight"
                 onClick={() => setManualSpotlightId(null)}
-                className="bg-[#111214]/90 hover:bg-[#1e1f22] text-[#dbdee1] hover:text-white px-2.5 py-1.5 rounded-md text-xs font-semibold border border-white/10 shadow-md cursor-pointer"
+                className="bg-[var(--bg-popout)]/90 hover:bg-[var(--bg-card)] text-[var(--text-normal)] hover:text-[var(--text-header)] px-2.5 py-1.5 rounded-md text-xs font-semibold border border-[var(--border-subtle)] shadow-md cursor-pointer"
               >
                 Unpin
               </button>
             )}
             <button
               type="button"
+              aria-label={effectiveExpanded ? 'Exit Theater Mode' : 'Theater Mode'}
+              aria-expanded={effectiveExpanded}
               onClick={handleToggleExpand}
-              className="bg-[#111214]/90 hover:bg-[#1e1f22] p-1.5 rounded-md text-[#dbdee1] hover:text-white border border-white/10 shadow-md cursor-pointer"
+              className="bg-[var(--bg-popout)]/90 hover:bg-[var(--bg-card)] p-1.5 rounded-md text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] shadow-md cursor-pointer"
               title={effectiveExpanded ? 'Exit Theater Mode' : 'Theater Mode'}
             >
               {effectiveExpanded ? (
@@ -489,8 +540,10 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             </button>
             <button
               type="button"
+              aria-label={isFullscreen ? 'Exit Full Screen' : 'Full Screen Spotlight'}
+              aria-expanded={isFullscreen}
               onClick={handleToggleFullscreen}
-              className="bg-[#111214]/90 hover:bg-[#1e1f22] p-1.5 rounded-md text-[#dbdee1] hover:text-white border border-white/10 shadow-md cursor-pointer"
+              className="bg-[var(--bg-popout)]/90 hover:bg-[var(--bg-card)] p-1.5 rounded-md text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] shadow-md cursor-pointer"
               title={isFullscreen ? 'Exit Full Screen' : 'Full Screen Spotlight'}
             >
               {isFullscreen ? (
@@ -503,18 +556,19 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         </div>
       )}
 
-      {/* Participants Grid */}
+      {/* Participants Grid (overflow-visible so volume popovers are never clipped) */}
       <div
-        className={`grid gap-2.5 ${
+        className={`grid gap-2.5 overflow-visible ${
           spotlightParticipant && spotlightTrack
             ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6'
             : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
         }`}
       >
-        {participants.map((p) => (
+        {participants.map((p, idx) => (
           <ParticipantTile
             key={p.identity}
             participant={p}
+            isFirst={idx === 0}
             compact={Boolean(spotlightParticipant && spotlightTrack)}
             isSpotlighted={spotlightParticipant?.identity === p.identity}
             onToggleSpotlight={() =>
@@ -529,6 +583,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
 interface ParticipantTileProps {
   participant: VoiceParticipant;
+  isFirst?: boolean;
   compact?: boolean;
   isSpotlighted: boolean;
   onToggleSpotlight: () => void;
@@ -536,15 +591,43 @@ interface ParticipantTileProps {
 
 const ParticipantTile: React.FC<ParticipantTileProps> = ({
   participant: p,
+  isFirst = false,
   compact = false,
   isSpotlighted,
   onToggleSpotlight,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const blurVideoRef = useRef<HTMLVideoElement>(null);
+  const volumePopupRef = useRef<HTMLDivElement>(null);
+  const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume ?? p.volume ?? 100;
+
+  useEffect(() => {
+    if (!showVolumePopup) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        volumePopupRef.current?.contains(target) ||
+        volumeBtnRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setShowVolumePopup(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowVolumePopup(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showVolumePopup]);
 
   useEffect(() => {
     const mainEl = videoRef.current;
@@ -596,17 +679,17 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
   return (
     <div
       data-testid={`participant-tile-${p.identity}`}
-      className={`relative rounded-lg bg-[#1e1f22] flex flex-col items-center justify-center overflow-visible border transition-all duration-150 group ${
+      className={`relative rounded-lg bg-[var(--bg-card)] flex flex-col items-center justify-center overflow-visible border transition-all duration-150 group ${
         compact ? 'aspect-video max-h-24' : 'aspect-video'
       } ${
         p.isSpeaking
-          ? 'border-[#23a55a] ring-2 ring-[#23a55a]/70'
+          ? 'border-[var(--status-online)] ring-2 ring-[var(--status-online)]/70'
           : isSpotlighted
-            ? 'border-[#5865f2]'
-            : 'border-white/[0.06]'
+            ? 'border-[var(--discord-blurple)]'
+            : 'border-[var(--border-subtle)]'
       }`}
     >
-      <div className="w-full h-full rounded-lg overflow-hidden flex items-center justify-center relative bg-[#111214]">
+      <div className="w-full h-full rounded-lg overflow-hidden flex items-center justify-center relative bg-[var(--bg-popout)]">
         {/* Custom Webcam Background Layer */}
         {p.hasVideo && p.videoTrack && hasVirtualBg && (
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -660,8 +743,8 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
               compact ? 'w-9 h-9 text-xs' : 'w-12 h-12 text-sm'
             } rounded-full flex items-center justify-center font-bold text-white transition-all duration-150 ${
               p.isSpeaking
-                ? 'bg-[#5865f2] ring-2 ring-[#23a55a] scale-105'
-                : 'bg-[#313338]'
+                ? 'bg-[var(--discord-blurple)] ring-2 ring-[var(--status-online)] scale-105'
+                : 'bg-[var(--bg-channels)] border border-[var(--border-subtle)] text-[var(--text-header)]'
             }`}
           >
             {p.name.slice(0, 2).toUpperCase()}
@@ -672,17 +755,17 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
         {(p.hasScreenShare || camTelemetry || typeof p.ping === 'number') && (
           <div className="absolute top-1.5 left-1.5 z-20 flex items-center gap-1 flex-wrap">
             {p.hasScreenShare && (
-              <span className="px-1.5 py-0.5 rounded bg-[#f23f43] text-white text-[9px] font-bold uppercase tracking-wider">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--status-dnd)] text-white text-[9px] font-bold uppercase tracking-wider">
                 LIVE
               </span>
             )}
             {camTelemetry && (
-              <span className="px-1 py-0.5 rounded bg-[#23a55a]/90 text-white text-[9px] font-mono font-bold">
+              <span className="px-1 py-0.5 rounded bg-[var(--status-online)]/90 text-white text-[9px] font-mono font-bold">
                 {camTelemetry.isLive ? `CAM ${camTelemetry.fps}fps` : camTelemetry.readyState}
               </span>
             )}
             {typeof p.ping === 'number' && !compact && (
-              <span className="px-1 py-0.5 rounded bg-black/75 text-[#949ba4] text-[9px] font-mono">
+              <span className="px-1 py-0.5 rounded bg-[var(--bg-popout)]/85 text-[var(--text-muted)] text-[9px] font-mono border border-[var(--border-subtle)]">
                 {p.ping}ms
               </span>
             )}
@@ -690,10 +773,10 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
         )}
 
         {/* Name Tag & Mute Status */}
-        <div className="absolute bottom-1.5 left-1.5 right-1.5 z-20 bg-[#111214]/80 backdrop-blur-sm rounded px-2 py-0.5 flex items-center justify-between text-[#f2f3f5] text-[11px] font-medium truncate">
+        <div className="absolute bottom-1.5 left-1.5 right-1.5 z-20 bg-[var(--bg-popout)]/85 backdrop-blur-sm border border-[var(--border-subtle)] rounded px-2 py-0.5 flex items-center justify-between text-[var(--text-header)] text-[11px] font-medium truncate">
           <span className="truncate">{p.name}</span>
           <div className="flex items-center gap-1">
-            {p.isMuted && <MicOff className="w-3 h-3 text-[#f23f43] flex-shrink-0" />}
+            {p.isMuted && <MicOff className="w-3 h-3 text-[var(--status-dnd)] flex-shrink-0" />}
           </div>
         </div>
 
@@ -702,15 +785,17 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
           {canSpotlight && (
             <button
               type="button"
+              aria-label={isSpotlighted ? 'Exit Spotlight' : 'Spotlight Video'}
+              aria-expanded={isSpotlighted}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleSpotlight();
               }}
               title={isSpotlighted ? 'Exit Spotlight' : 'Spotlight Video'}
-              className={`p-1 rounded border border-white/10 cursor-pointer shadow-md ${
+              className={`p-1 rounded border border-[var(--border-subtle)] cursor-pointer shadow-md ${
                 isSpotlighted
-                  ? 'bg-[#5865f2] text-white'
-                  : 'bg-[#111214]/80 hover:bg-[#111214] text-[#dbdee1] hover:text-white'
+                  ? 'bg-[var(--discord-blurple)] text-white'
+                  : 'bg-[var(--bg-popout)]/85 hover:bg-[var(--bg-card)] text-[var(--text-normal)] hover:text-[var(--text-header)]'
               }`}
             >
               <Maximize2 className="w-3 h-3" />
@@ -718,18 +803,21 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
           )}
 
           <button
+            ref={volumeBtnRef}
             type="button"
+            aria-label={`Adjust volume for ${p.name}`}
+            aria-expanded={showVolumePopup}
             onClick={(e) => {
               e.stopPropagation();
-              setShowVolumePopup(!showVolumePopup);
+              setShowVolumePopup((prev) => !prev);
             }}
             title="Adjust Participant Volume (0% - 200%)"
-            className="p-1 rounded bg-[#111214]/80 hover:bg-[#111214] text-[#dbdee1] hover:text-white border border-white/10 cursor-pointer shadow-md"
+            className="p-1 rounded bg-[var(--bg-popout)]/85 hover:bg-[var(--bg-card)] text-[var(--text-normal)] hover:text-[var(--text-header)] border border-[var(--border-subtle)] cursor-pointer shadow-md"
           >
             {volume === 0 ? (
-              <VolumeX className="w-3 h-3 text-[#f23f43]" />
+              <VolumeX className="w-3 h-3 text-[var(--status-dnd)]" />
             ) : (
-              <Sliders className="w-3 h-3 text-[#dbdee1]" />
+              <Sliders className="w-3 h-3 text-[var(--text-normal)]" />
             )}
           </button>
         </div>
@@ -738,15 +826,20 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       {/* Per-User Volume Slider Popover (0 - 200%) */}
       {showVolumePopup && (
         <div
+          ref={volumePopupRef}
+          role="dialog"
+          aria-label={`Volume controls for ${p.name}`}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-full mt-1 z-30 left-1/2 -translate-x-1/2 w-48 bg-[#111214] border border-white/10 rounded-lg p-3 shadow-2xl flex flex-col gap-2 animate-fadeIn"
+          className={`absolute top-full mt-1.5 z-[90] w-48 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg p-3 shadow-2xl flex flex-col gap-2 animate-fadeIn ${
+            isFirst ? 'left-0' : 'right-0'
+          }`}
         >
-          <div className="flex items-center justify-between text-xs text-[#f2f3f5] font-semibold">
+          <div className="flex items-center justify-between text-xs text-[var(--text-header)] font-semibold">
             <span className="flex items-center gap-1.5">
-              <Volume2 className="w-3.5 h-3.5 text-[#5865f2]" />
+              <Volume2 className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
               <span>User Volume</span>
             </span>
-            <span className="text-[11px] font-mono text-[#dbdee1]">{volume}%</span>
+            <span className="text-[11px] font-mono text-[var(--text-normal)]">{volume}%</span>
           </div>
 
           <input
@@ -755,29 +848,33 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             max="200"
             step="1"
             value={volume}
+            aria-label={`Volume for ${p.name}`}
             onChange={(e) => handleVolumeChange(Number(e.target.value))}
-            className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#2b2d31] rounded-lg"
+            className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
           />
 
-          <div className="flex items-center justify-between text-[10px] text-[#949ba4]">
+          <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
             <button
               type="button"
+              aria-label="Mute participant"
               onClick={() => handleVolumeChange(0)}
-              className="hover:text-[#f23f43] transition-colors cursor-pointer"
+              className="hover:text-[var(--status-dnd)] transition-colors cursor-pointer"
             >
               Mute (0%)
             </button>
             <button
               type="button"
+              aria-label="Reset participant volume to 100%"
               onClick={() => handleVolumeChange(100)}
-              className="hover:text-white transition-colors cursor-pointer"
+              className="hover:text-[var(--text-header)] transition-colors cursor-pointer"
             >
               100%
             </button>
             <button
               type="button"
+              aria-label="Boost participant volume to 200%"
               onClick={() => handleVolumeChange(200)}
-              className="hover:text-[#5865f2] transition-colors cursor-pointer font-bold"
+              className="hover:text-[var(--discord-blurple)] transition-colors cursor-pointer font-bold"
             >
               Boost (200%)
             </button>

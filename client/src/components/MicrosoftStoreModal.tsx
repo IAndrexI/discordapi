@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Download,
@@ -56,6 +56,15 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
     submit: false,
   });
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const isLocalShell =
@@ -81,23 +90,35 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
   const completedCount = Object.values(checklist).filter(Boolean).length;
 
   return (
-    <div className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-3xl max-h-[90vh] bg-[#0b101d] border border-cyan-500/25 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 z-[65] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ms-store-modal-title"
+        className="w-[min(48rem,100%)] max-w-full max-h-full bg-[var(--bg-chat)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+      >
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-sky-950/70 via-[#0d1527] to-indigo-950/70 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg">
+        <div className="px-5 py-4 bg-[var(--bg-userpanel)] border-b border-[var(--border-subtle)] flex items-center justify-between flex-shrink-0 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center shadow-lg flex-shrink-0">
               <Package className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Microsoft Store Hub</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 id="ms-store-modal-title" className="text-base sm:text-lg font-bold text-[var(--text-header)]">
+                  Microsoft Store Hub
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]">
                   {APPX_METADATA.artifactName}
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
-                1-Click Windows Store Install, AppX Packaging &amp; Partner Center Readiness
+              <p className="text-xs text-[var(--text-muted)]">
+                Install the Windows Store package or review AppX submission readiness.
               </p>
             </div>
           </div>
@@ -105,40 +126,41 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Close Microsoft Store Hub"
+            className="w-8 h-8 rounded-full bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-5">
+        <div className="flex-1 min-h-0 p-4 sm:p-6 overflow-y-auto space-y-5">
           {/* Quick Install Hero */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-sky-500/15 via-[#0f172a] to-indigo-500/15 border border-sky-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="text-sm font-bold text-white">
+              <div className="text-sm font-bold text-[var(--text-header)]">
                 Install {APPX_METADATA.displayName} on Windows 10 / 11
               </div>
-              <p className="text-xs text-gray-300">
-                Verified AppX / MSIX bundle with hardware H.264, global hotkeys, and background tray audio.
+              <p className="text-xs text-[var(--text-muted)]">
+                Desktop AppX package with global hotkeys and tray support.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
               <a
                 href={STORE_LINK}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold shadow-md transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold shadow-md transition-all"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>1-Click Store Install</span>
+                <span>Store Install</span>
               </a>
 
               <a
                 href={appxDownloadUrl}
                 download={APPX_METADATA.artifactName}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] border border-[var(--border-subtle)] text-xs font-semibold transition-colors"
               >
-                <Download className="w-3.5 h-3.5 text-cyan-300" />
+                <Download className="w-3.5 h-3.5 text-[var(--text-link)]" />
                 <span>Direct .appx</span>
               </a>
             </div>
@@ -146,56 +168,57 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
 
           {/* AppX Identity Metadata & Build Command */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl bg-[#0e1526] border border-white/10 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-300 uppercase tracking-wider">
+            <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-link)] uppercase tracking-wider">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Package Identity (build.appx)</span>
+                <span>Package Identity</span>
               </div>
 
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between gap-2">
-                  <span className="text-gray-400">App ID</span>
-                  <span className="font-mono text-white">{APPX_METADATA.applicationId}</span>
+                  <span className="text-[var(--text-muted)]">App ID</span>
+                  <span className="font-mono text-[var(--text-header)]">{APPX_METADATA.applicationId}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-gray-400">Identity Name</span>
-                  <span className="font-mono text-cyan-300">{APPX_METADATA.identityName}</span>
+                  <span className="text-[var(--text-muted)]">Identity Name</span>
+                  <span className="font-mono text-[var(--text-link)]">{APPX_METADATA.identityName}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-gray-400">Publisher Display</span>
-                  <span className="font-mono text-white">{APPX_METADATA.publisherDisplayName}</span>
+                  <span className="text-[var(--text-muted)]">Publisher</span>
+                  <span className="font-mono text-[var(--text-header)]">{APPX_METADATA.publisherDisplayName}</span>
                 </div>
                 <div className="pt-1">
-                  <span className="text-gray-400 block mb-0.5">Publisher CN</span>
-                  <code className="block text-[10px] font-mono text-gray-300 bg-black/40 px-2 py-1 rounded border border-white/5 break-all">
+                  <span className="text-[var(--text-muted)] block mb-0.5">Publisher CN</span>
+                  <code className="block text-[10px] font-mono text-[var(--text-normal)] bg-[var(--bg-popout)] px-2 py-1 rounded border border-[var(--border-subtle)] break-all">
                     {APPX_METADATA.publisher}
                   </code>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0e1526] border border-white/10 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-300 uppercase tracking-wider">
+            <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-link)] uppercase tracking-wider">
                 <Terminal className="w-4 h-4" />
-                <span>Build Store Package</span>
+                <span>Build Package</span>
               </div>
 
-              <p className="text-xs text-gray-400">
-                Builds Vite production bundle, packages <code className="text-cyan-300">{APPX_METADATA.artifactName}</code>, and syncs to <code className="text-gray-300">../downloads/</code>.
+              <p className="text-xs text-[var(--text-muted)]">
+                Packages <code className="text-[var(--text-link)]">{APPX_METADATA.artifactName}</code> and syncs downloads.
               </p>
 
-              <div className="flex items-center gap-2 bg-black/50 border border-white/10 rounded-lg px-3 py-2">
-                <code className="flex-1 text-xs font-mono text-emerald-300 truncate">
+              <div className="flex items-center gap-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
+                <code className="flex-1 text-xs font-mono text-[var(--status-online)] truncate">
                   {BUILD_COMMAND}
                 </code>
                 <button
                   type="button"
                   onClick={() => copyText('cmd', BUILD_COMMAND)}
-                  className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-xs font-semibold text-white flex items-center gap-1 transition-colors cursor-pointer"
+                  aria-label="Copy build command"
+                  className="px-2 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-header)] flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   {copiedKey === 'cmd' ? (
                     <>
-                      <Check className="w-3 h-3 text-emerald-400" />
+                      <Check className="w-3 h-3 text-[var(--status-online)]" />
                       <span>Copied</span>
                     </>
                   ) : (
@@ -207,13 +230,13 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-gray-400">
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
                 <span>Web Store URL:</span>
                 <a
                   href={STORE_WEB_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sky-400 hover:underline flex items-center gap-1"
+                  className="text-[var(--text-link)] hover:underline flex items-center gap-1"
                 >
                   <span>apps.microsoft.com</span>
                   <ExternalLink className="w-3 h-3" />
@@ -223,13 +246,13 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
           </div>
 
           {/* Store Tiles Preview */}
-          <div className="p-4 rounded-xl bg-[#0e1526] border border-white/10 space-y-3">
+          <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-300 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-link)] uppercase tracking-wider">
                 <ImageIcon className="w-4 h-4" />
-                <span>AppX Store Tile Assets (build/appx/)</span>
+                <span>Store Tile Assets</span>
               </div>
-              <span className="text-[11px] font-mono text-gray-400">
+              <span className="text-[11px] font-mono text-[var(--text-muted)]">
                 BG: {APPX_METADATA.backgroundColor}
               </span>
             </div>
@@ -238,10 +261,10 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
               {STORE_TILES.map(tile => (
                 <div
                   key={tile.name}
-                  className="p-2.5 rounded-lg bg-black/40 border border-white/10 flex flex-col items-center text-center gap-1.5"
+                  className="p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)] flex flex-col items-center text-center gap-1.5"
                 >
                   <div
-                    className={`rounded-lg border border-cyan-500/30 flex items-center justify-center bg-[#090d16] ${
+                    className={`rounded-lg border border-[var(--border-subtle)] flex items-center justify-center bg-[#090d16] ${
                       tile.name.startsWith('Wide') ? 'w-20 h-10' : 'w-10 h-10'
                     }`}
                   >
@@ -251,24 +274,24 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
                       className="w-7 h-7 object-contain"
                     />
                   </div>
-                  <div className="text-[11px] font-semibold text-white truncate w-full">
+                  <div className="text-[11px] font-semibold text-[var(--text-header)] truncate w-full">
                     {tile.name}
                   </div>
-                  <div className="text-[10px] font-mono text-cyan-400">{tile.size}</div>
-                  <div className="text-[10px] text-gray-500">{tile.desc}</div>
+                  <div className="text-[10px] font-mono text-[var(--text-link)]">{tile.size}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">{tile.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Partner Center Submission Checklist */}
-          <div className="p-4 rounded-xl bg-[#0e1526] border border-white/10 space-y-3">
+          <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-300 uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-link)] uppercase tracking-wider">
                 <FileText className="w-4 h-4" />
-                <span>Partner Center Submission Checklist</span>
+                <span>Submission Checklist</span>
               </div>
-              <span className="text-xs font-mono text-emerald-400">
+              <span className="text-xs font-mono text-[var(--status-online)]">
                 {completedCount} / 5 Ready
               </span>
             </div>
@@ -309,18 +332,18 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
                     onClick={() => toggleCheck(item.id)}
                     className={`w-full text-left p-2.5 rounded-lg border flex items-start gap-2.5 transition-colors cursor-pointer ${
                       checked
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-white'
-                        : 'bg-black/30 border-white/10 text-gray-300 hover:bg-white/5'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-[var(--text-header)]'
+                        : 'bg-[var(--bg-channels)] border-[var(--border-subtle)] text-[var(--text-normal)] hover:bg-[var(--bg-item-hover)]'
                     }`}
                   >
                     {checked ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-[var(--status-online)] mt-0.5 flex-shrink-0" />
                     ) : (
-                      <Circle className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                      <Circle className="w-4 h-4 text-[var(--text-muted)] mt-0.5 flex-shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold">{item.title}</div>
-                      <div className="text-[11px] text-gray-400 break-all">{item.detail}</div>
+                      <div className="text-[11px] text-[var(--text-muted)] break-all">{item.detail}</div>
                     </div>
                   </button>
                 );
@@ -331,24 +354,24 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
               <button
                 type="button"
                 onClick={() => copyText('privacy', PRIVACY_URL)}
-                className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-gray-300 flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-normal)] flex items-center gap-1.5 cursor-pointer"
               >
                 {copiedKey === 'privacy' ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
+                  <Check className="w-3 h-3 text-[var(--status-online)]" />
                 ) : (
-                  <Copy className="w-3 h-3 text-cyan-400" />
+                  <Copy className="w-3 h-3 text-[var(--text-link)]" />
                 )}
                 <span>Copy Privacy URL</span>
               </button>
               <button
                 type="button"
                 onClick={() => copyText('terms', TERMS_URL)}
-                className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-gray-300 flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-normal)] flex items-center gap-1.5 cursor-pointer"
               >
                 {copiedKey === 'terms' ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
+                  <Check className="w-3 h-3 text-[var(--status-online)]" />
                 ) : (
-                  <Copy className="w-3 h-3 text-cyan-400" />
+                  <Copy className="w-3 h-3 text-[var(--text-link)]" />
                 )}
                 <span>Copy Terms URL</span>
               </button>
@@ -356,17 +379,14 @@ export const MicrosoftStoreModal: React.FC<MicrosoftStoreModalProps> = ({
           </div>
 
           {/* Rust / Tauri MSIX Note */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-indigo-500/10 border border-amber-500/25 flex items-start gap-3">
-            <Cpu className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+          <div className="p-3.5 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-start gap-3">
+            <Cpu className="w-5 h-5 text-[var(--status-idle)] mt-0.5 flex-shrink-0" />
             <div className="space-y-1 text-xs">
-              <div className="font-bold text-amber-200">
-                Rust / Tauri v2 MSIX Alternative (Ultra-Light Footprint)
+              <div className="font-bold text-[var(--text-header)]">
+                Tauri v2 MSIX Alternative
               </div>
-              <p className="text-gray-300 leading-relaxed">
-                Alongside Electron&apos;s <code className="text-cyan-300">ProtutechChat-Store.appx</code>, the{' '}
-                <code className="text-amber-300">src-tauri/</code> Rust backend compiles to a ~12 MB native WebView2 binary. Package it as an MSIX for Microsoft Store using{' '}
-                <code className="text-emerald-300">cargo tauri build</code> + Windows MSIX Packaging Tool /{' '}
-                <code className="text-emerald-300">MakeAppx.exe</code> with the same Publisher CN &amp; Identity.
+              <p className="text-[var(--text-muted)] leading-relaxed">
+                Package the lightweight <code className="text-[var(--text-link)]">src-tauri/</code> build as an MSIX using <code className="text-[var(--status-online)]">cargo tauri build</code> and <code className="text-[var(--status-online)]">MakeAppx.exe</code>.
               </p>
             </div>
           </div>

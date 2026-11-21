@@ -147,10 +147,10 @@ function isDiscordPuppetId(userId: string): boolean {
 function fallbackDisplayName(userId: string): string {
   const localpart = userId.split(':')[0].replace(/^@/, '');
   if (localpart.startsWith('_discord_')) {
-    return localpart.replace(/^_discord_/, 'Discord User ');
+    return localpart.replace(/^_discord_/, 'Bridged User ');
   }
   if (localpart.startsWith('discord_')) {
-    return localpart.replace(/^discord_/, 'Discord User ');
+    return localpart.replace(/^discord_/, 'Bridged User ');
   }
   return localpart || 'User';
 }
@@ -277,13 +277,13 @@ function buildFallbackSeedRooms(mode: EngineMode): {
 
   const dcRoom: MatrixRoom = {
     id: '!disc_general:local.protutech',
-    name: 'discord-general',
-    topic: 'Hybrid Bridged Discord Lounge',
+    name: 'bridge-general',
+    topic: 'Hybrid Bridged Lounge',
     isDirect: false,
     isGroupChat: false,
     isVoice: false,
     guildId: 'guild_discord_bridged',
-    guildName: 'Discord Bridged Lounge',
+    guildName: 'Bridged Lounge',
     isSynced: true,
     syncSource: 'discord',
     serverKind: 'discord',
@@ -292,7 +292,7 @@ function buildFallbackSeedRooms(mode: EngineMode): {
   };
   const dcGuild: DiscordGuild = {
     id: 'guild_discord_bridged',
-    name: 'Discord Bridged Lounge',
+    name: 'Bridged Lounge',
     channels: [dcRoom],
     hasVoice: true,
     isAlwaysSynced: true,

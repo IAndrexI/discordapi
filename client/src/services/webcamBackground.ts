@@ -20,7 +20,7 @@ function svgToDataUri(innerSvg: string): string {
 export const WEBCAM_PRESETS: WebcamPreset[] = [
   {
     id: 'discord_cozy_studio',
-    name: 'Cozy Blurple Studio',
+    name: 'Cozy Studio',
     category: 'studio',
     previewUrl: svgToDataUri(`
       <defs>
@@ -665,6 +665,12 @@ class WebcamBackgroundService {
     return 'None';
   }
 
+  private hasLiveVideoTrack(stream: MediaStream | null | undefined): boolean {
+    if (!stream) return false;
+    const tracks = stream.getVideoTracks();
+    return tracks.some((t) => t.readyState === 'live');
+  }
+
   public async acquireCameraPreviewStream(deviceId?: string): Promise<MediaStream> {
     const targetDeviceId = deviceId !== undefined ? deviceId : this.cameraDeviceId;
     const mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
@@ -672,7 +678,7 @@ class WebcamBackgroundService {
     if (mediaDevices?.getUserMedia) {
       if (targetDeviceId && targetDeviceId !== 'default') {
         try {
-          return await mediaDevices.getUserMedia({
+          const stream = await mediaDevices.getUserMedia({
             video: {
               deviceId: { exact: targetDeviceId },
               width: { ideal: 1280 },
@@ -681,13 +687,17 @@ class WebcamBackgroundService {
             },
             audio: false,
           });
+          if (this.hasLiveVideoTrack(stream)) {
+            return stream;
+          }
+          stream.getTracks().forEach((t) => t.stop());
         } catch {
           // Fall through to generic webcam attempt
         }
       }
 
       try {
-        return await mediaDevices.getUserMedia({
+        const stream = await mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1280 },
             height: { ideal: 720 },
@@ -695,12 +705,43 @@ class WebcamBackgroundService {
           },
           audio: false,
         });
+        if (this.hasLiveVideoTrack(stream)) {
+          return stream;
+        }
+        stream.getTracks().forEach((t) => t.stop());
       } catch {
         // Fall back to synthetic 30fps studio webcam portrait stream
       }
     }
 
     return this.createSyntheticPortraitStream();
+  }
+
+  private drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ) {
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      return;
+    }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
 
   private createSyntheticPortraitStream(): MediaStream {
@@ -713,6 +754,7 @@ class WebcamBackgroundService {
     let blinkTimer = 0;
     let timerId: number | null = null;
     let disposed = false;
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     const particles = Array.from({ length: 18 }, (_, i) => ({
       x: ((i * 173) % 1160) + 60,
@@ -744,22 +786,22 @@ class WebcamBackgroundService {
 
       // Studio room backdrop (visible when raw or blurred)
       const roomGrad = ctx.createLinearGradient(0, 0, w, h);
-      roomGrad.addColorStop(0, '#131624');
-      roomGrad.addColorStop(0.5, '#1b1f33');
-      roomGrad.addColorStop(1, '#10121c');
+      roomGrad.addColorStop(0, '#0a0f1d');
+      roomGrad.addColorStop(0.5, '#121a2d');
+      roomGrad.addColorStop(1, '#080c16');
       ctx.fillStyle = roomGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // Soft depth rim lights on room walls
-      const leftRim = ctx.createRadialGradient(180, 220, 20, 180, 220, 340);
-      leftRim.addColorStop(0, 'rgba(88, 101, 242, 0.32)');
-      leftRim.addColorStop(1, 'rgba(88, 101, 242, 0)');
+      // Subtle ambient glow rim lights
+      const leftRim = ctx.createRadialGradient(210, 230, 20, 210, 230, 360);
+      leftRim.addColorStop(0, 'rgba(0, 242, 254, 0.24)');
+      leftRim.addColorStop(1, 'rgba(0, 242, 254, 0)');
       ctx.fillStyle = leftRim;
       ctx.fillRect(0, 0, w, h);
 
-      const rightRim = ctx.createRadialGradient(w - 180, 240, 20, w - 180, 240, 320);
-      rightRim.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-      rightRim.addColorStop(1, 'rgba(6, 182, 212, 0)');
+      const rightRim = ctx.createRadialGradient(w - 210, 240, 20, w - 210, 240, 340);
+      rightRim.addColorStop(0, 'rgba(127, 0, 255, 0.22)');
+      rightRim.addColorStop(1, 'rgba(127, 0, 255, 0)');
       ctx.fillStyle = rightRim;
       ctx.fillRect(0, 0, w, h);
 
@@ -775,8 +817,8 @@ class WebcamBackgroundService {
 
       // Subject key-light halo behind head & shoulders
       const halo = ctx.createRadialGradient(cx + swayX, 340 + breathY, 40, cx + swayX, 340 + breathY, 270);
-      halo.addColorStop(0, 'rgba(88, 101, 242, 0.28)');
-      halo.addColorStop(1, 'rgba(88, 101, 242, 0)');
+      halo.addColorStop(0, 'rgba(2, 132, 199, 0.30)');
+      halo.addColorStop(1, 'rgba(2, 132, 199, 0)');
       ctx.fillStyle = halo;
       ctx.fillRect(0, 0, w, h);
 
@@ -785,8 +827,8 @@ class WebcamBackgroundService {
       ctx.translate(swayX, breathY);
 
       const torsoGrad = ctx.createLinearGradient(cx - 220, 440, cx + 220, h);
-      torsoGrad.addColorStop(0, '#313854');
-      torsoGrad.addColorStop(1, '#1e2235');
+      torsoGrad.addColorStop(0, '#273452');
+      torsoGrad.addColorStop(1, '#161e31');
       ctx.beginPath();
       ctx.moveTo(cx - 230, h);
       ctx.quadraticCurveTo(cx - 210, 485, cx - 80, 455);
@@ -797,7 +839,7 @@ class WebcamBackgroundService {
       ctx.fill();
 
       // Subtle rim highlight along shoulders
-      ctx.strokeStyle = 'rgba(148, 156, 247, 0.45)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
       ctx.lineWidth = 3;
       ctx.stroke();
 
@@ -808,7 +850,7 @@ class WebcamBackgroundService {
       // Hoodie collar
       ctx.beginPath();
       ctx.ellipse(cx, 462, 72, 26, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#3b4266';
+      ctx.fillStyle = '#2d3b5c';
       ctx.fill();
 
       // Head & face lighting
@@ -825,26 +867,24 @@ class WebcamBackgroundService {
       ctx.arc(cx, 272, 92, Math.PI * 0.96, Math.PI * 2.04);
       ctx.quadraticCurveTo(cx + 46, 232, cx, 238);
       ctx.quadraticCurveTo(cx - 46, 232, cx - 90, 278);
-      ctx.fillStyle = '#1f2336';
+      ctx.fillStyle = '#182032';
       ctx.fill();
 
       // Headset headband & earcups
       ctx.beginPath();
       ctx.arc(cx, 298, 98, Math.PI * 1.05, Math.PI * 1.95);
-      ctx.strokeStyle = '#5865f2';
+      ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = 10;
       ctx.stroke();
 
-      ctx.fillStyle = '#181a24';
-      ctx.strokeStyle = '#5865f2';
+      ctx.fillStyle = '#101626';
+      ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(cx - 106, 274, 24, 68, 10);
+      this.drawRoundedRect(ctx, cx - 106, 274, 24, 68, 10);
       ctx.fill();
       ctx.stroke();
 
-      ctx.beginPath();
-      ctx.roundRect(cx + 82, 274, 24, 68, 10);
+      this.drawRoundedRect(ctx, cx + 82, 274, 24, 68, 10);
       ctx.fill();
       ctx.stroke();
 
@@ -875,14 +915,63 @@ class WebcamBackgroundService {
       ctx.stroke();
 
       ctx.restore();
+
+      // Live PREVIEW / timecode / active background HUD pill (un-mirrored for CameraPreviewPanel)
+      const elapsedMs = Math.max(
+        0,
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt
+      );
+      const totalSec = Math.floor(elapsedMs / 1000);
+      const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+      const secs = String(totalSec % 60).padStart(2, '0');
+      const tenths = String(Math.floor((elapsedMs % 1000) / 100));
+      const bgLabel = this.getBackgroundDisplayName(this.currentConfig);
+      const hudText = `PREVIEW  ${mins}:${secs}.${tenths}  •  ${bgLabel}`;
+
+      ctx.save();
+      if (this.mirrorPreview) {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.font = 'bold 16px ui-monospace, SFMono-Regular, Menlo, monospace';
+      const measured = ctx.measureText(hudText).width;
+      const pillW = Math.min(w - 160, Math.max(260, Math.round(measured + 58)));
+      const pillH = 34;
+      const pillX = Math.round((w - pillW) / 2);
+      const pillY = h - 62;
+
+      ctx.fillStyle = 'rgba(8, 12, 22, 0.78)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.lineWidth = 1.5;
+      this.drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 17);
+      ctx.fill();
+      ctx.stroke();
+
+      const pulseAlpha = 0.55 + 0.45 * Math.sin(phase * 2.2);
+      ctx.beginPath();
+      ctx.arc(pillX + 20, pillY + pillH / 2, 5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(16, 185, 129, ${pulseAlpha.toFixed(2)})`;
+      ctx.fill();
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(hudText, pillX + 34, pillY + pillH / 2 + 0.5, pillW - 48);
+      ctx.restore();
     };
 
     renderFrame();
 
+    const maybeCanvas = canvas as HTMLCanvasElement & {
+      captureStream?: (frameRate?: number) => MediaStream;
+      mozCaptureStream?: (frameRate?: number) => MediaStream;
+    };
     const stream =
-      typeof canvas.captureStream === 'function'
-        ? canvas.captureStream(30)
-        : new MediaStream();
+      typeof maybeCanvas.captureStream === 'function'
+        ? maybeCanvas.captureStream(30)
+        : typeof maybeCanvas.mozCaptureStream === 'function'
+          ? maybeCanvas.mozCaptureStream(30)
+          : new MediaStream();
 
     const videoTrack = stream.getVideoTracks()[0];
     if (videoTrack) {

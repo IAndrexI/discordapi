@@ -68,6 +68,15 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleToggleDisclaimer = (checked: boolean) => {
@@ -181,58 +190,67 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
   const isStoatInCall = session.provider === 'stoat_hosted' && session.status === 'connected';
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-2xl bg-[#1e222d] border border-cyan-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-4 backdrop-blur-md animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voice-proxy-title"
+        className="w-[min(42rem,100%)] max-w-full max-h-full bg-[var(--bg-chat)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+      >
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-black/30">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-cyan-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300">
+        <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-userpanel)] flex-shrink-0 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--bg-channels)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--status-idle)] flex-shrink-0">
               <Radio className="w-5 h-5 animate-pulse" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">External Voice Call Proxy &amp; Gateway</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 uppercase tracking-wider">
-                  Optional Tool
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Connect your audio stream to Discord Voice calls or open-source Stoat-hosted instances.
+            <div className="min-w-0">
+              <h2 id="voice-proxy-title" className="text-base font-bold text-[var(--text-header)]">
+                External Call Bridge
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                Bridge voice audio to external Discord or Stoat / Revolt rooms.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Close External Call Bridge"
+            className="w-8 h-8 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* TOS & Security Warning Banner */}
-        <div className="p-4 bg-amber-950/40 border-b border-amber-500/30">
+        <div className="p-3.5 sm:p-4 bg-amber-500/10 border-b border-amber-500/25 flex-shrink-0">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <ShieldAlert className="w-5 h-5 text-[var(--status-idle)] flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-xs space-y-1.5">
-              <div className="font-bold text-amber-300 flex items-center gap-2">
-                <span>THIRD-PARTY VOICE GATEWAY DISCLAIMER &amp; WARNING</span>
+              <div className="font-bold text-[var(--status-idle)]">
+                External Bridge Notice
               </div>
-              <p className="text-gray-300 leading-relaxed">
-                Operating as a third-party proxy to connect directly into <b>Discord Voice servers</b> runs outside the official client. Discord's Terms of Service restrict non-official client voice gateways. Connecting your account may trigger security challenges or risk account standing.
+              <p className="text-[var(--text-normal)] leading-relaxed">
+                Bridging external voice gateways runs outside official client software; use at your own discretion.
               </p>
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-0.5">
                 <input
                   type="checkbox"
                   id="disclaimer-checkbox"
                   checked={disclaimerAgreed}
                   onChange={e => handleToggleDisclaimer(e.target.checked)}
-                  className="rounded border-gray-600 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                  className="rounded border-[var(--border-subtle)] text-amber-500 focus:ring-amber-400 cursor-pointer"
                 />
                 <label
                   htmlFor="disclaimer-checkbox"
-                  className="text-amber-200 font-semibold cursor-pointer select-none"
+                  className="text-[var(--text-header)] font-semibold cursor-pointer select-none"
                 >
-                  I understand and accept the risks. Enable the external voice proxy tool.
+                  Enable external voice bridge
                 </label>
               </div>
             </div>
@@ -241,123 +259,128 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
 
         {/* Status Callout if currently connected */}
         {session.status === 'connected' && (
-          <div className="p-3 bg-emerald-950/50 border-b border-emerald-500/30 flex items-center justify-between text-xs text-white">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <span className="font-bold text-emerald-300">
-                Active Call ({session.provider === 'discord_proxy' ? 'Discord Proxy' : 'Stoat Hosted'}):
+          <div className="p-3 bg-emerald-500/10 border-b border-emerald-500/30 flex items-center justify-between text-xs text-[var(--text-header)] flex-shrink-0 flex-wrap gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] animate-ping flex-shrink-0" />
+              <span className="font-bold text-[var(--status-online)]">
+                Active ({session.provider === 'discord_proxy' ? 'Bridge' : 'Stoat'}):
               </span>
-              <span className="text-gray-300 font-mono">{session.targetName}</span>
-              <span className="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono text-[10px]">
+              <span className="text-[var(--text-normal)] font-mono truncate">{session.targetName}</span>
+              <span className="bg-emerald-500/20 text-[var(--status-online)] px-1.5 py-0.2 rounded font-mono text-[10px]">
                 {session.ping}ms RTC
               </span>
             </div>
             <button
+              type="button"
               onClick={handleDisconnect}
               className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
             >
               <PhoneOff className="w-3.5 h-3.5" />
-              <span>Leave Call</span>
+              <span>Leave</span>
             </button>
           </div>
         )}
 
         {/* Tab Navigation */}
-        <div className="flex items-center border-b border-white/10 px-4 bg-black/20 text-xs">
+        <div className="flex items-center border-b border-[var(--border-subtle)] px-4 bg-[var(--bg-channels)] text-xs flex-shrink-0">
           <button
+            type="button"
             onClick={() => setActiveTab('discord')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            className={`py-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'discord'
-                ? 'border-amber-400 text-amber-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
             }`}
           >
             <Radio className="w-3.5 h-3.5" />
-            <span>Discord Call Proxy</span>
+            <span>Bridge</span>
             {isDiscordInCall && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="w-2 h-2 rounded-full bg-[var(--status-online)]" />
             )}
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('stoat')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            className={`py-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'stoat'
-                ? 'border-cyan-400 text-cyan-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
             }`}
           >
             <Server className="w-3.5 h-3.5" />
-            <span>Stoat-Hosted Calls (Revolt/Vortex)</span>
+            <span>Stoat / Revolt</span>
             {isStoatInCall && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="w-2 h-2 rounded-full bg-[var(--status-online)]" />
             )}
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('logs')}
-            className={`py-3 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ml-auto ${
+            className={`py-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ml-auto ${
               activeTab === 'logs'
-                ? 'border-purple-400 text-purple-300'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span>Gateway Diagnostics ({logs.length})</span>
+            <span>Logs ({logs.length})</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 space-y-4">
           {actionError && (
-            <div className="p-3 rounded-lg bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center gap-2 animate-fadeIn">
+            <div className="p-3 rounded-lg bg-red-500/15 border border-red-500/35 text-[var(--status-dnd)] text-xs flex items-center gap-2 animate-fadeIn">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{actionError}</span>
             </div>
           )}
 
-          {/* TAB 1: DISCORD CALL PROXY */}
+          {/* TAB 1: BRIDGE */}
           {activeTab === 'discord' && (
             <form onSubmit={handleConnectDiscord} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-black/30 border border-white/5 space-y-2">
-                <div className="text-xs font-bold text-gray-300 flex items-center justify-between">
-                  <span>Discord Gateway Proxy Configuration</span>
-                  <span className="text-[10px] text-gray-500 font-mono">Client-Side Sandbox</span>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-1">
+                <div className="text-xs font-bold text-[var(--text-header)] flex items-center justify-between">
+                  <span>Voice Gateway Bridge</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-mono">48kHz Opus</span>
                 </div>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Acts as a voice proxy between your local client and Discord's voice servers. Audio is encoded locally in 48kHz Opus and transmitted via the gateway.
+                <p className="text-xs text-[var(--text-muted)]">
+                  Streams local Opus audio to an external voice gateway channel.
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                  Discord User / Voice Token <span className="text-amber-400">*</span>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                  Bridge Token <span className="text-[var(--status-idle)]">*</span>
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+                  <Lock className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-3" />
                   <input
                     type={showToken ? 'text' : 'password'}
                     value={discordToken}
                     onChange={e => setDiscordToken(e.target.value)}
-                    placeholder="Enter your Discord user token or voice session secret"
+                    placeholder="Enter token or voice session secret"
                     disabled={!disclaimerAgreed}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg pl-9 pr-10 py-2.5 text-xs text-white outline-none focus:border-amber-400 transition-colors disabled:opacity-50"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg pl-9 pr-10 py-2.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors disabled:opacity-50"
                   />
                   <button
                     type="button"
+                    aria-label={showToken ? 'Hide token' : 'Show token'}
                     onClick={() => setShowToken(!showToken)}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-3 text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                   >
                     {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  🔒 Kept strictly in your local browser sandbox; never logged or saved to the Matrix homeserver.
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                  Stored locally in your browser session only.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Guild / Server ID (Optional for DMs)
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Server ID (Optional)
                   </label>
                   <input
                     type="text"
@@ -365,13 +388,13 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                     onChange={e => setDiscordGuildId(e.target.value)}
                     placeholder="e.g. 1029384756..."
                     disabled={!disclaimerAgreed}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400 transition-colors disabled:opacity-50 font-mono"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors disabled:opacity-50 font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Target Voice Channel ID <span className="text-amber-400">*</span>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Voice Channel ID <span className="text-[var(--status-idle)]">*</span>
                   </label>
                   <input
                     type="text"
@@ -379,7 +402,7 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                     onChange={e => setDiscordChannelId(e.target.value)}
                     placeholder="e.g. 987654321..."
                     disabled={!disclaimerAgreed}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400 transition-colors disabled:opacity-50 font-mono"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors disabled:opacity-50 font-mono"
                   />
                 </div>
               </div>
@@ -387,8 +410,8 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
               {/* Channel helper presets if bridged channels exist */}
               {availableChannels.length > 0 && (
                 <div>
-                  <label className="text-xs font-bold text-gray-400 block mb-1">
-                    Quick-Select From Synced Channels:
+                  <label className="text-xs font-bold text-[var(--text-muted)] block mb-1">
+                    Synced Channels:
                   </label>
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
                     {availableChannels.slice(0, 5).map(ch => (
@@ -399,7 +422,7 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                           setDiscordChannelId(ch.id);
                           if (ch.guildId) setDiscordGuildId(ch.guildId);
                         }}
-                        className="px-2.5 py-1 rounded bg-black/40 hover:bg-white/10 text-gray-300 border border-white/10 text-[11px] whitespace-nowrap cursor-pointer"
+                        className="px-2.5 py-1 rounded bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] border border-[var(--border-subtle)] text-[11px] whitespace-nowrap cursor-pointer"
                       >
                         #{ch.name}
                       </button>
@@ -410,24 +433,24 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
                     Audio Bitrate
                   </label>
                   <select
                     value={discordBitrate}
                     onChange={e => setDiscordBitrate(Number(e.target.value))}
                     disabled={!disclaimerAgreed}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400 disabled:opacity-50"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] disabled:opacity-50"
                   >
-                    <option value={64000}>64 kbps (Eco / Gaming)</option>
-                    <option value={96000}>96 kbps (Standard Discord)</option>
-                    <option value={128000}>128 kbps (Nitro Studio 48kHz)</option>
+                    <option value={64000}>64 kbps (Eco)</option>
+                    <option value={96000}>96 kbps (Standard)</option>
+                    <option value={128000}>128 kbps (Studio 48kHz)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Proxy Relay Endpoint
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Relay Endpoint
                   </label>
                   <input
                     type="text"
@@ -435,16 +458,16 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                     onChange={e => setProxyRelayUrl(e.target.value)}
                     disabled={!disclaimerAgreed}
                     placeholder="https://chat.protutech.vip/api/voice-proxy/discord"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400 disabled:opacity-50 font-mono text-[11px]"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] disabled:opacity-50 font-mono text-[11px]"
                   />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex items-center justify-between">
-                <div className="text-xs text-gray-400 flex items-center gap-1">
-                  <Info className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Uses WebRTC RTP &amp; Opus encoding.</span>
+              <div className="pt-2 flex items-center justify-between flex-wrap gap-2">
+                <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                  <span>WebRTC RTP &amp; Opus</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -452,7 +475,7 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                     <button
                       type="button"
                       onClick={handleDisconnect}
-                      className="px-4 py-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-200 border border-red-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 rounded-lg bg-red-600/20 hover:bg-red-600/35 text-[var(--status-dnd)] border border-red-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <PhoneOff className="w-3.5 h-3.5" />
                       <span>Disconnect</span>
@@ -462,83 +485,80 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                   <button
                     type="submit"
                     disabled={!disclaimerAgreed || isConnecting}
-                    className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     <PhoneCall className="w-3.5 h-3.5" />
-                    <span>{isConnecting ? 'Connecting Proxy...' : isDiscordInCall ? 'Reconnect Discord Call' : 'Connect via Discord Proxy'}</span>
+                    <span>{isConnecting ? 'Connecting...' : isDiscordInCall ? 'Reconnect Call' : 'Connect Bridge'}</span>
                   </button>
                 </div>
               </div>
             </form>
           )}
 
-          {/* TAB 2: STOAT-HOSTED CALLS */}
+          {/* TAB 2: STOAT / REVOLT */}
           {activeTab === 'stoat' && (
             <form onSubmit={handleConnectStoat} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 space-y-2">
-                <div className="text-xs font-bold text-cyan-300 flex items-center justify-between">
-                  <span>Open-Source Stoat Voice Node (Revolt / Vortex)</span>
-                  <span className="text-[10px] text-cyan-400 font-mono">WebRTC SFU</span>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-1">
+                <div className="text-xs font-bold text-[var(--text-link)] flex items-center justify-between">
+                  <span>Stoat / Revolt Voice Node</span>
+                  <span className="text-[10px] font-mono">WebRTC SFU</span>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Stoat is an open-source decentralized voice server utilizing WebRTC SFU technology. Connect to Revolt voice instances, community Stoat nodes, or your own self-hosted Stoat instance.
+                <p className="text-xs text-[var(--text-muted)]">
+                  Connect to public Revolt/Vortex voice nodes or self-hosted Stoat instances.
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                  Stoat Voice Server URL <span className="text-cyan-400">*</span>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                  Server URL <span className="text-[var(--text-link)]">*</span>
                 </label>
                 <div className="relative">
-                  <Server className="w-4 h-4 text-cyan-400 absolute left-3 top-3" />
+                  <Server className="w-4 h-4 text-[var(--text-link)] absolute left-3 top-3" />
                   <input
                     type="text"
                     value={stoatServerUrl}
                     onChange={e => setStoatServerUrl(e.target.value)}
-                    placeholder="https://vortex.revolt.chat or https://stoat.yourserver.com"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg pl-9 pr-3 py-2.5 text-xs text-white outline-none focus:border-cyan-400 transition-colors font-mono"
+                    placeholder="https://vortex.revolt.chat"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg pl-9 pr-3 py-2.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors font-mono"
                     required
                   />
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Enter the WebSocket or HTTP URL of the Stoat / Vortex voice gateway instance.
-                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Channel / Room ID <span className="text-cyan-400">*</span>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Room ID <span className="text-[var(--text-link)]">*</span>
                   </label>
                   <input
                     type="text"
                     value={stoatRoomId}
                     onChange={e => setStoatRoomId(e.target.value)}
-                    placeholder="e.g. 01G8Z... or room-alpha"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-400 transition-colors font-mono"
+                    placeholder="e.g. room-alpha"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors font-mono"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Access Token (Optional for public rooms)
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                    Access Token (Optional)
                   </label>
                   <input
                     type="password"
                     value={stoatToken}
                     onChange={e => setStoatToken(e.target.value)}
                     placeholder="Participant Token"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-400 transition-colors font-mono"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)] transition-colors font-mono"
                   />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex items-center justify-between">
-                <div className="text-xs text-gray-400 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Sub-30ms low-latency WebRTC peer transport.</span>
+              <div className="pt-2 flex items-center justify-between flex-wrap gap-2">
+                <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-[var(--text-link)]" />
+                  <span>Low-latency WebRTC transport</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -546,7 +566,7 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                     <button
                       type="button"
                       onClick={handleDisconnect}
-                      className="px-4 py-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-200 border border-red-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 rounded-lg bg-red-600/20 hover:bg-red-600/35 text-[var(--status-dnd)] border border-red-500/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <PhoneOff className="w-3.5 h-3.5" />
                       <span>Leave Room</span>
@@ -556,37 +576,37 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                   <button
                     type="submit"
                     disabled={isConnecting}
-                    className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <PhoneCall className="w-3.5 h-3.5" />
-                    <span>{isConnecting ? 'Connecting Stoat...' : isStoatInCall ? 'Reconnect Stoat Call' : 'Connect to Stoat Call'}</span>
+                    <span>{isConnecting ? 'Connecting...' : isStoatInCall ? 'Reconnect Stoat' : 'Connect Stoat'}</span>
                   </button>
                 </div>
               </div>
             </form>
           )}
 
-          {/* TAB 3: LIVE GATEWAY LOGS */}
+          {/* TAB 3: LOGS */}
           {activeTab === 'logs' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-300 font-bold flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-purple-400" />
-                  <span>Live Signaling &amp; Gateway Packet Console</span>
+                <span className="text-[var(--text-header)] font-bold flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-[var(--text-link)]" />
+                  <span>Signaling &amp; Gateway Logs</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setLogs([])}
-                  className="text-gray-400 hover:text-white text-[11px] hover:underline cursor-pointer"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-header)] text-[11px] hover:underline cursor-pointer"
                 >
-                  Clear Console
+                  Clear Logs
                 </button>
               </div>
 
-              <div className="p-3 bg-black/60 rounded-xl border border-white/10 font-mono text-[11px] h-60 overflow-y-auto space-y-1">
+              <div className="p-3 bg-[var(--bg-popout)] rounded-xl border border-[var(--border-subtle)] font-mono text-[11px] h-56 overflow-y-auto space-y-1">
                 {logs.length === 0 ? (
-                  <div className="text-gray-500 italic py-6 text-center">
-                    No gateway traffic yet. Initiate a connection to inspect signaling frames.
+                  <div className="text-[var(--text-muted)] italic py-6 text-center">
+                    No gateway traffic yet.
                   </div>
                 ) : (
                   logs.map((log, i) => (
@@ -594,15 +614,15 @@ export const VoiceProxyModal: React.FC<VoiceProxyModalProps> = ({
                       key={i}
                       className={`leading-relaxed ${
                         log.level === 'error'
-                          ? 'text-red-400'
+                          ? 'text-[var(--status-dnd)]'
                           : log.level === 'warn'
-                          ? 'text-amber-400'
+                          ? 'text-[var(--status-idle)]'
                           : log.level === 'success'
-                          ? 'text-emerald-400'
-                          : 'text-cyan-300'
+                          ? 'text-[var(--status-online)]'
+                          : 'text-[var(--text-link)]'
                       }`}
                     >
-                      <span className="text-gray-500">
+                      <span className="text-[var(--text-muted)]">
                         [{new Date(log.timestamp).toLocaleTimeString()}]
                       </span>{' '}
                       {log.message}

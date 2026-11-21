@@ -135,7 +135,7 @@ const DEFAULT_QUESTS: DiscordQuestItem[] = [
     progress: 50,
     accepted: true,
     claimed: false,
-    rewardLabel: 'Neon Pulse Ring + 500 Discord Orbs',
+    rewardLabel: 'Neon Pulse Ring + 500 Orbs',
     rewardDecoration: 'neon_pulse',
     rewardBadge: 'Watch Party Host',
   },
@@ -148,7 +148,7 @@ const DEFAULT_QUESTS: DiscordQuestItem[] = [
     progress: 75,
     accepted: true,
     claimed: false,
-    rewardLabel: 'Discord Crown Avatar Decoration',
+    rewardLabel: 'Crown Avatar Decoration',
     rewardDecoration: 'discord_crown',
     rewardBadge: 'Crown Earner',
   },
@@ -174,7 +174,7 @@ const DEFAULT_FRIENDS: FriendItem[] = [
     activity: 'Streaming Elden Ring (1080p60)',
     relation: 'friend',
     channelTarget: 'discord-lounge',
-    voiceChannel: 'Discord Voice Bridge',
+    voiceChannel: 'Voice Bridge',
     avatarColor: '#8b5cf6',
   },
   {
@@ -221,8 +221,8 @@ const DEFAULT_FRIENDS: FriendItem[] = [
 const DEFAULT_INBOX: InboxEntry[] = [
   {
     id: 'inb_1',
-    title: 'Discord Bridge Sync Active',
-    sender: 'Discord Gateway Bridge',
+    title: 'Bridge Sync Active',
+    sender: 'Gateway Bridge',
     channelName: 'general',
     body: '@andrex Bidirectional profile, quests, and channel sync is online.',
     kind: 'discord',
@@ -256,7 +256,7 @@ const DEFAULT_DISCOVER_SERVERS: DiscoverGuildItem[] = [
     id: 'disc_protutech_hub',
     name: 'Protutech Gaming & Voice Hub',
     category: 'Gaming',
-    description: 'Official self-hosted + Discord bridged hub for ultra-low latency 48kHz calls and co-op.',
+    description: 'Official self-hosted and bridged hub for low-latency 48kHz calls and co-op.',
     memberCount: 1420,
     onlineCount: 318,
     defaultChannel: 'general',
@@ -565,7 +565,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
             seenIds.add(`msg_${m.id}`);
             items.push({
               id: `msg_${m.id}`,
-              title: m.source === 'discord' ? `Discord Bridge • #${room.name}` : `Message in #${room.name}`,
+              title: m.source === 'discord' ? `Bridge • #${room.name}` : `Message in #${room.name}`,
               sender: m.senderName,
               channelName: room.name,
               body: m.body,
@@ -777,23 +777,35 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
   const previewDecorationClass = userProfileService.getDecorationClass(profile.avatarDecoration);
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-5xl h-[700px] max-h-[92vh] bg-[#0a0f1d] border border-indigo-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="community-hub-title"
+        className="w-[min(64rem,100%)] max-w-full h-[min(680px,100%)] max-h-full bg-[var(--bg-chat)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+      >
         {/* Header & Navigation Tabs */}
-        <div className="px-6 py-4 bg-gradient-to-r from-indigo-950/80 via-[#0e1529] to-cyan-950/70 border-b border-white/10 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5865F2] to-cyan-500 flex items-center justify-center text-white shadow-lg">
+        <div className="px-4 sm:px-6 py-4 bg-[var(--bg-userpanel)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-4 flex-wrap flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-extrabold text-white">Discord Interactive Hub</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold">
-                  {syncSettings.discordTokenConnected ? 'Live API + Bridge' : 'Hybrid Bridge'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 id="community-hub-title" className="text-base sm:text-lg font-extrabold text-[var(--text-header)]">
+                  Community Hub
+                </h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] font-bold">
+                  {syncSettings.discordTokenConnected ? 'Live Bridge' : 'Hybrid'}
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
-                Quests, Friends &amp; Active Now, Nitro Decorations, Unified Inbox, and Server Discovery.
+              <p className="text-xs text-[var(--text-muted)]">
+                Quests, Friends, Perks, Inbox, and Server Discovery.
               </p>
             </div>
           </div>
@@ -801,32 +813,32 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Discord Hub"
-            className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white flex items-center justify-center cursor-pointer"
+            aria-label="Close Community Hub"
+            className="w-9 h-9 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center cursor-pointer flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Sub-nav Tabs */}
-        <div className="px-6 py-2.5 bg-[#080d19] border-b border-white/10 flex items-center gap-2 overflow-x-auto">
+        <div className="px-4 sm:px-6 py-2.5 bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] flex items-center gap-2 overflow-x-auto flex-shrink-0">
           {(
             [
               { id: 'quests', label: 'Quests', icon: Trophy, badge: `${quests.filter((q) => !q.claimed).length}` },
               {
                 id: 'friends',
-                label: 'Friends & Active Now',
+                label: 'Friends',
                 icon: Users,
                 badge: `${friends.filter((f) => f.relation === 'friend' && f.status !== 'offline').length}`,
               },
-              { id: 'nitro', label: 'Nitro & Decorations', icon: Gem },
+              { id: 'nitro', label: 'Perks', icon: Gem },
               {
                 id: 'inbox',
-                label: 'Inbox & Mentions',
+                label: 'Inbox',
                 icon: Inbox,
                 badge: `${unifiedInbox.filter((i) => !i.read).length || ''}`,
               },
-              { id: 'discover', label: 'Discover Servers', icon: Compass },
+              { id: 'discover', label: 'Discover', icon: Compass },
             ] as const
           ).map((tab) => {
             const Icon = tab.icon;
@@ -838,14 +850,14 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
                   active
-                    ? 'bg-gradient-to-r from-[#5865F2]/30 to-cyan-500/20 text-white border border-indigo-400/40 shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                    ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)] shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border border-transparent'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? 'text-cyan-300' : ''}`} />
+                <Icon className={`w-4 h-4 ${active ? 'text-[var(--text-link)]' : ''}`} />
                 <span>{tab.label}</span>
                 {'badge' in tab && tab.badge && tab.badge !== '0' && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-bold">
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-[var(--bg-userpanel)] text-[var(--text-link)] font-bold border border-[var(--border-subtle)]">
                     {tab.badge}
                   </span>
                 )}
@@ -856,29 +868,29 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
 
         {/* Toast Banner */}
         {statusBanner && (
-          <div className="mx-6 mt-3 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+          <div className="mx-4 sm:mx-6 mt-3 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-[var(--status-online)] text-xs font-bold flex items-center gap-2 animate-fadeIn flex-shrink-0">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{statusBanner}</span>
           </div>
         )}
 
         {/* TAB CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
           {/* 1. QUESTS TAB */}
           {activeTab === 'quests' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-amber-400" />
-                    <span>Discord &amp; Equicord Quests</span>
+                  <h3 className="text-base font-bold text-[var(--text-header)] flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-[var(--status-idle)]" />
+                    <span>Community Quests</span>
                   </h3>
-                  <p className="text-xs text-gray-400">
-                    Complete Stream, Play, Orbs, or Decoration quests manually or with 1-click Equicord Auto-Complete.
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Track quests or complete them in one click to unlock profile decorations.
                   </p>
                 </div>
                 {questsLoading && (
-                  <span className="text-xs text-cyan-300 font-mono">Syncing quests...</span>
+                  <span className="text-xs text-[var(--text-link)] font-mono">Syncing quests...</span>
                 )}
               </div>
 
@@ -890,67 +902,67 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       key={quest.id}
                       className={`p-4 rounded-xl border flex flex-col justify-between gap-4 transition-all ${
                         quest.claimed
-                          ? 'bg-emerald-950/15 border-emerald-500/30'
+                          ? 'bg-[var(--bg-userpanel)] border-emerald-500/40'
                           : isComplete
-                          ? 'bg-amber-950/15 border-amber-500/40'
-                          : 'bg-[#11182c] border-white/10'
+                          ? 'bg-[var(--bg-userpanel)] border-amber-500/40'
+                          : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)]'
                       }`}
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-sm text-white">{quest.title}</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full uppercase font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              <span className="font-bold text-sm text-[var(--text-header)]">{quest.title}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full uppercase font-bold bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]">
                                 {quest.category}
                               </span>
                             </div>
-                            <div className="text-[11px] text-cyan-300 font-semibold mt-0.5">
+                            <div className="text-[11px] text-[var(--text-link)] font-semibold mt-0.5">
                               {quest.game}
                             </div>
                           </div>
                           <span
                             className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
                               quest.claimed
-                                ? 'bg-emerald-500/20 text-emerald-300'
+                                ? 'bg-emerald-500/20 text-[var(--status-online)]'
                                 : isComplete
-                                ? 'bg-amber-500/20 text-amber-300'
+                                ? 'bg-amber-500/20 text-[var(--status-idle)]'
                                 : quest.accepted
-                                ? 'bg-cyan-500/20 text-cyan-300'
-                                : 'bg-white/10 text-gray-400'
+                                ? 'bg-cyan-500/20 text-[var(--text-link)]'
+                                : 'bg-[var(--bg-channels)] text-[var(--text-muted)]'
                             }`}
                           >
                             {quest.claimed
                               ? 'Claimed'
                               : isComplete
-                              ? 'Ready to Claim'
+                              ? 'Ready'
                               : quest.accepted
                               ? 'In Progress'
                               : 'Available'}
                           </span>
                         </div>
 
-                        <p className="text-xs text-gray-400 leading-relaxed">{quest.description}</p>
+                        <p className="text-xs text-[var(--text-muted)] leading-relaxed">{quest.description}</p>
 
-                        <div className="p-2.5 rounded-lg bg-black/30 border border-white/5 flex items-center gap-2 text-xs text-amber-200">
-                          <Gift className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <div className="p-2.5 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)] flex items-center gap-2 text-xs text-[var(--text-normal)]">
+                          <Gift className="w-4 h-4 text-[var(--status-idle)] flex-shrink-0" />
                           <span>Reward: {quest.rewardLabel}</span>
                         </div>
 
                         {/* Progress Bar */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-gray-400 font-semibold">Progress</span>
-                            <span className="font-mono font-bold text-cyan-300">
+                            <span className="text-[var(--text-muted)] font-semibold">Progress</span>
+                            <span className="font-mono font-bold text-[var(--text-link)]">
                               {quest.progress}%
                             </span>
                           </div>
-                          <div className="w-full h-2.5 rounded-full bg-black/50 overflow-hidden border border-white/10">
+                          <div className="w-full h-2.5 rounded-full bg-[var(--bg-channels)] overflow-hidden border border-[var(--border-subtle)]">
                             <div
                               className={`h-full transition-all duration-300 ${
                                 isComplete
-                                  ? 'bg-gradient-to-r from-emerald-400 to-cyan-400'
-                                  : 'bg-gradient-to-r from-[#5865F2] to-cyan-400'
+                                  ? 'bg-[var(--status-online)]'
+                                  : 'bg-[var(--discord-blurple)]'
                               }`}
                               style={{ width: `${quest.progress}%` }}
                             />
@@ -959,7 +971,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       </div>
 
                       {/* Quest Action Buttons */}
-                      <div className="flex items-center flex-wrap gap-2 pt-2 border-t border-white/10">
+                      <div className="flex items-center flex-wrap gap-2 pt-2 border-t border-[var(--border-subtle)]">
                         {!quest.accepted && !isComplete && (
                           <button
                             type="button"
@@ -967,7 +979,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                               void postQuestProgress(quest, { accepted: true, progress: Math.max(quest.progress, 5) });
                               showBanner(`Accepted "${quest.title}" ✓`);
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-bold cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                           >
                             Accept Quest
                           </button>
@@ -981,9 +993,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                               void postQuestProgress(quest, { accepted: true, progress: next });
                               showBanner(`Updated "${quest.title}" to ${next}%`);
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] text-xs font-semibold cursor-pointer"
                           >
-                            +25% Progress
+                            +25%
                           </button>
                         )}
 
@@ -996,12 +1008,12 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                                 { accepted: true, progress: 100 },
                                 { autoComplete: true }
                               );
-                              showBanner(`Equicord Auto-Completed "${quest.title}" to 100% ⚡`);
+                              showBanner(`Auto-completed "${quest.title}" to 100% ⚡`);
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm"
+                            className="px-3 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm"
                           >
                             <Zap className="w-3.5 h-3.5" />
-                            <span>Equicord Auto-Complete Quest</span>
+                            <span>Auto-Complete</span>
                           </button>
                         )}
 
@@ -1012,14 +1024,14 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                             onClick={() => void handleClaimQuestReward(quest)}
                             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
                               quest.claimed
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
-                                : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 cursor-pointer shadow-md'
+                                ? 'bg-emerald-500/20 text-[var(--status-online)] border border-emerald-500/30 cursor-default'
+                                : 'bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer shadow-md'
                             }`}
                           >
                             {quest.claimed ? (
                               <>
                                 <Check className="w-3.5 h-3.5" />
-                                <span>Reward Claimed</span>
+                                <span>Claimed</span>
                               </>
                             ) : (
                               <>
@@ -1058,8 +1070,8 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                         friendsSubTab === sub.id
                           ? sub.id === 'add'
                             ? 'bg-emerald-600 text-white'
-                            : 'bg-white/15 text-white'
-                          : 'text-gray-400 hover:text-white bg-white/5'
+                            : 'bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)] bg-[var(--bg-userpanel)]'
                       }`}
                     >
                       {sub.label}
@@ -1070,43 +1082,44 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                 {friendsSubTab === 'add' ? (
                   <form
                     onSubmit={handleSendFriendRequest}
-                    className="p-5 rounded-xl bg-[#11182c] border border-white/10 space-y-3"
+                    className="p-5 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3"
                   >
-                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                      <UserPlus className="w-4 h-4 text-emerald-400" />
-                      <span>Add Discord or Protutech Friend</span>
+                    <h4 className="text-sm font-bold text-[var(--text-header)] flex items-center gap-2">
+                      <UserPlus className="w-4 h-4 text-[var(--status-online)]" />
+                      <span>Add Friend</span>
                     </h4>
-                    <p className="text-xs text-gray-400">
-                      Enter a Discord username or Protutech handle to send a bridged friend request.
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Enter a username or bridged handle to send a friend request.
                     </p>
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
+                        aria-label="Friend username"
                         value={addFriendInput}
                         onChange={(e) => setAddFriendInput(e.target.value)}
                         placeholder="e.g. cyber_alex or alex#1337"
-                        className="flex-1 bg-black/40 border border-white/10 focus:border-cyan-400 rounded-lg px-3 py-2 text-xs text-white outline-none"
+                        className="flex-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none"
                         required
                       />
                       <button
                         type="submit"
-                        className="px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-bold cursor-pointer"
+                        className="px-4 py-2 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                       >
-                        Send Friend Request
+                        Send Request
                       </button>
                     </div>
                   </form>
                 ) : (
                   <div className="space-y-2.5">
                     {filteredFriends.length === 0 ? (
-                      <div className="p-8 text-center rounded-xl bg-white/[0.02] border border-white/10 text-xs text-gray-400">
+                      <div className="p-8 text-center rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
                         No friends in this view.
                       </div>
                     ) : (
                       filteredFriends.map((friend) => (
                         <div
                           key={friend.id}
-                          className="p-3.5 rounded-xl bg-[#11182c] border border-white/10 flex items-center justify-between gap-3"
+                          className="p-3.5 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex items-center justify-between gap-3 flex-wrap"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="relative flex-shrink-0">
@@ -1117,27 +1130,27 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                                 {friend.displayName.slice(0, 2).toUpperCase()}
                               </div>
                               <span
-                                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-[#11182c] ${
+                                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-[var(--bg-userpanel)] ${
                                   friend.status === 'online'
-                                    ? 'bg-emerald-500'
+                                    ? 'bg-[var(--status-online)]'
                                     : friend.status === 'idle'
-                                    ? 'bg-amber-500'
+                                    ? 'bg-[var(--status-idle)]'
                                     : friend.status === 'dnd'
-                                    ? 'bg-red-500'
-                                    : 'bg-slate-500'
+                                    ? 'bg-[var(--status-dnd)]'
+                                    : 'bg-[var(--status-offline)]'
                                 }`}
                               />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-white truncate">
+                                <span className="font-bold text-sm text-[var(--text-header)] truncate">
                                   {friend.displayName}
                                 </span>
-                                <span className="text-[11px] text-gray-500 font-mono">
+                                <span className="text-[11px] text-[var(--text-muted)] font-mono">
                                   @{friend.username}
                                 </span>
                               </div>
-                              <div className="text-xs text-gray-400 truncate">
+                              <div className="text-xs text-[var(--text-muted)] truncate">
                                 {friend.activity || friend.status}
                               </div>
                             </div>
@@ -1149,9 +1162,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => jumpToChannel(friend.channelTarget)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                                  className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] text-xs font-semibold flex items-center gap-1 cursor-pointer"
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5 text-cyan-300" />
+                                  <MessageSquare className="w-3.5 h-3.5 text-[var(--text-link)]" />
                                   <span>Message</span>
                                 </button>
                                 <button
@@ -1186,7 +1199,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                                   onClick={() => {
                                     persistFriends(friends.filter((f) => f.id !== friend.id));
                                   }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-red-500/20 text-gray-300 text-xs cursor-pointer"
+                                  className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-red-500/20 text-[var(--text-normal)] text-xs cursor-pointer"
                                 >
                                   Ignore
                                 </button>
@@ -1195,9 +1208,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => persistFriends(friends.filter((f) => f.id !== friend.id))}
-                                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-red-500/20 text-gray-300 text-xs cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-red-500/20 text-[var(--text-normal)] text-xs cursor-pointer"
                               >
-                                Cancel Request
+                                Cancel
                               </button>
                             )}
                           </div>
@@ -1209,27 +1222,27 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
               </div>
 
               {/* Active Now Column */}
-              <div className="bg-[#0d1323] border border-white/10 rounded-xl p-4 space-y-3 h-fit">
-                <h4 className="text-xs font-extrabold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-3 h-fit">
+                <h4 className="text-xs font-extrabold text-[var(--text-link)] uppercase tracking-wider flex items-center gap-1.5">
                   <Radio className="w-4 h-4" />
                   <span>Active Now</span>
                 </h4>
                 {activeFriendsNow.map((f) => (
                   <div
                     key={`active_${f.id}`}
-                    className="p-3 rounded-xl bg-black/35 border border-white/10 space-y-2"
+                    className="p-3 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{f.displayName}</span>
-                      <span className="text-[10px] text-emerald-400 font-semibold">Live</span>
+                      <span className="text-xs font-bold text-[var(--text-header)]">{f.displayName}</span>
+                      <span className="text-[10px] text-[var(--status-online)] font-semibold">Live</span>
                     </div>
-                    <p className="text-[11px] text-gray-400">{f.activity}</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">{f.activity}</p>
                     <button
                       type="button"
                       onClick={() => void handleJoinFriendCall(f)}
-                      className="w-full py-1.5 rounded-lg bg-white/10 hover:bg-cyan-500/20 text-cyan-300 text-[11px] font-bold cursor-pointer"
+                      className="w-full py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-link)] text-[11px] font-bold cursor-pointer"
                     >
-                      Join Voice / Watch
+                      Join Voice
                     </button>
                   </div>
                 ))}
@@ -1237,24 +1250,24 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
             </div>
           )}
 
-          {/* 3. NITRO & DECORATIONS TAB */}
+          {/* 3. PERKS TAB */}
           {activeTab === 'nitro' && (
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
               <div className="lg:col-span-3 space-y-5">
                 {/* Avatar Decorations */}
-                <div className="p-4 rounded-xl bg-[#11182c] border border-white/10 space-y-3">
+                <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <Crown className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-sm font-bold text-[var(--text-header)] flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-[var(--status-idle)]" />
                         <span>Avatar Decorations</span>
                       </h3>
-                      <p className="text-xs text-gray-400">
-                        Equicord Nitro Perks unlocked — apply any decoration ring immediately.
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Apply any unlocked avatar ring immediately.
                       </p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 font-bold">
-                      Nitro Unlocked
+                      Perks Active
                     </span>
                   </div>
 
@@ -1271,12 +1284,12 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                           }}
                           className={`p-3 rounded-xl border text-left flex items-center gap-2.5 cursor-pointer transition-all ${
                             active
-                              ? 'border-cyan-400 bg-cyan-500/15 text-white'
-                              : 'border-white/10 bg-black/30 text-gray-300 hover:border-white/25'
+                              ? 'border-[var(--discord-blurple)] bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                              : 'border-[var(--border-subtle)] bg-[var(--bg-channels)] text-[var(--text-normal)] hover:bg-[var(--bg-item-hover)]'
                           }`}
                         >
                           <div
-                            className={`w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center flex-shrink-0 ${dec.cssClass}`}
+                            className={`w-8 h-8 rounded-full bg-[var(--bg-popout)] flex items-center justify-center flex-shrink-0 ${dec.cssClass}`}
                           >
                             <span
                               className="w-3.5 h-3.5 rounded-full"
@@ -1291,9 +1304,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                 </div>
 
                 {/* Custom Profile Banner Colors & Perks */}
-                <div className="p-4 rounded-xl bg-[#11182c] border border-white/10 space-y-4">
-                  <h4 className="text-sm font-bold text-white">
-                    Custom Profile Banner &amp; Nitro Overrides
+                <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-4">
+                  <h4 className="text-sm font-bold text-[var(--text-header)]">
+                    Profile Banner &amp; Overrides
                   </h4>
 
                   <div className="flex items-center gap-3 flex-wrap">
@@ -1301,6 +1314,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       <button
                         key={col}
                         type="button"
+                        aria-label={`Set banner color ${col}`}
                         onClick={() => {
                           userProfileService.updateProfile({ bannerColor: col });
                           if (syncSettings.syncEnabled) {
@@ -1310,16 +1324,17 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                         }}
                         className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-transform ${
                           profile.bannerColor === col
-                            ? 'border-white scale-110'
-                            : 'border-white/20'
+                            ? 'border-[var(--text-header)] scale-110'
+                            : 'border-[var(--border-subtle)]'
                         }`}
                         style={{ backgroundColor: col }}
                       />
                     ))}
-                    <label className="flex items-center gap-1.5 text-xs text-gray-300 ml-2">
+                    <label className="flex items-center gap-1.5 text-xs text-[var(--text-normal)] ml-2">
                       <span>Custom:</span>
                       <input
                         type="color"
+                        aria-label="Custom banner color"
                         value={profile.bannerColor || '#0e7490'}
                         onChange={(e) => {
                           const col = e.target.value;
@@ -1328,35 +1343,38 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                             void discordSettingsSync.updateSetting('bannerColor', col);
                           }
                         }}
-                        className="w-8 h-7 rounded bg-transparent border border-white/15 cursor-pointer"
+                        className="w-8 h-7 rounded bg-transparent border border-[var(--border-subtle)] cursor-pointer"
                       />
                     </label>
                   </div>
 
                   {/* Perks Switches */}
-                  <div className="space-y-2.5 pt-2 border-t border-white/10">
+                  <div className="space-y-2.5 pt-2 border-t border-[var(--border-subtle)]">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs font-bold text-white">
-                          4K60 Streaming &amp; FakeNitro Override
+                        <div className="text-xs font-bold text-[var(--text-header)]">
+                          4K60 Stream Override
                         </div>
-                        <div className="text-[11px] text-gray-400">
-                          Enables Equicord FakeNitro + Ultra 1080p60/4K60 screen share encoding.
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          Enable high-bitrate 1080p60/4K60 screen sharing.
                         </div>
                       </div>
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={fakeNitroEnabled}
+                        aria-label="Toggle 4K60 Stream Override"
                         onClick={() => {
                           const next = !fakeNitroEnabled;
                           setFakeNitroEnabled(next);
                           vencord.togglePlugin('fakeNitro', next);
                           vencord.togglePlugin('nitroBypass', next);
                           showBanner(
-                            `4K60 FakeNitro Override ${next ? 'enabled' : 'disabled'} ✓`
+                            `4K60 Override ${next ? 'enabled' : 'disabled'} ✓`
                           );
                         }}
                         className={`w-11 h-6 rounded-full p-1 transition-colors cursor-pointer ${
-                          fakeNitroEnabled ? 'bg-fuchsia-500' : 'bg-neutral-700'
+                          fakeNitroEnabled ? 'bg-[var(--discord-blurple)]' : 'bg-[var(--bg-message-input)]'
                         }`}
                       >
                         <div
@@ -1369,22 +1387,25 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
 
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs font-bold text-white">
+                        <div className="text-xs font-bold text-[var(--text-header)]">
                           Animated Emojis &amp; Stickers
                         </div>
-                        <div className="text-[11px] text-gray-400">
-                          Synced bidirectionally via Discord Settings Sync.
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          Synced with your account preferences.
                         </div>
                       </div>
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={syncSettings.animateEmoji}
+                        aria-label="Toggle Animated Emojis"
                         onClick={() => {
                           const next = !syncSettings.animateEmoji;
                           void discordSettingsSync.updateSetting('animateEmoji', next);
                           showBanner(`Animated Emoji ${next ? 'enabled' : 'disabled'} ✓`);
                         }}
                         className={`w-11 h-6 rounded-full p-1 transition-colors cursor-pointer ${
-                          syncSettings.animateEmoji ? 'bg-cyan-500' : 'bg-neutral-700'
+                          syncSettings.animateEmoji ? 'bg-[var(--status-online)]' : 'bg-[var(--bg-message-input)]'
                         }`}
                       >
                         <div
@@ -1396,9 +1417,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Nitro Badges */}
-                  <div className="pt-2 border-t border-white/10 space-y-2">
-                    <div className="text-[11px] font-bold text-gray-400 uppercase">
+                  {/* Badges */}
+                  <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase">
                       Profile Badges
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1419,8 +1440,8 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                             }}
                             className={`px-2.5 py-1 rounded-full text-xs font-bold border cursor-pointer transition-colors ${
                               owned
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
+                                ? 'bg-amber-500/20 text-[var(--status-idle)] border-amber-500/40'
+                                : 'bg-[var(--bg-channels)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-header)]'
                             }`}
                           >
                             {owned ? `✓ ${badge}` : `+ ${badge}`}
@@ -1432,11 +1453,11 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                 </div>
               </div>
 
-              {/* Live Nitro Card Preview */}
+              {/* Live Card Preview */}
               <div className="lg:col-span-2">
                 <div
-                  className="rounded-2xl overflow-hidden bg-[#11182c] border shadow-xl"
-                  style={{ borderColor: profile.accentColor || '#00f2fe' }}
+                  className="rounded-2xl overflow-hidden bg-[var(--bg-userpanel)] border shadow-xl"
+                  style={{ borderColor: profile.accentColor || 'var(--discord-blurple)' }}
                 >
                   <div
                     className="h-24 w-full"
@@ -1448,10 +1469,10 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                         <img
                           src={profile.avatarUrl}
                           alt="Avatar Preview"
-                          className="w-full h-full rounded-full object-cover border-4 border-[#11182c]"
+                          className="w-full h-full rounded-full object-cover border-4 border-[var(--bg-userpanel)]"
                         />
                       ) : (
-                        <div className="w-full h-full rounded-full border-4 border-[#11182c] bg-[#5865F2] flex items-center justify-center text-white text-xl font-extrabold">
+                        <div className="w-full h-full rounded-full border-4 border-[var(--bg-userpanel)] bg-[var(--discord-blurple)] flex items-center justify-center text-white text-xl font-extrabold">
                           {(profile.displayName || profile.username || 'AN')
                             .slice(0, 2)
                             .toUpperCase()}
@@ -1460,11 +1481,11 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                     </div>
 
                     <div className="mt-3">
-                      <h4 className="text-base font-extrabold text-white">
+                      <h4 className="text-base font-extrabold text-[var(--text-header)]">
                         {profile.displayName || profile.username || 'Andrex'}
                       </h4>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {profile.bio || 'Equicord Nitro Perks & Custom Decorations active.'}
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        {profile.bio || 'Profile banner and perks active.'}
                       </p>
                     </div>
 
@@ -1472,7 +1493,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       {profile.badges.map((b) => (
                         <span
                           key={b}
-                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-cyan-300"
+                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]"
                         >
                           {b}
                         </span>
@@ -1493,7 +1514,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                     [
                       { id: 'all', label: 'All Activity' },
                       { id: 'mention', label: 'Mentions' },
-                      { id: 'discord', label: 'Discord Bridge' },
+                      { id: 'discord', label: 'Bridge' },
                       { id: 'system', label: 'System' },
                     ] as const
                   ).map((f) => (
@@ -1503,8 +1524,8 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       onClick={() => setInboxFilter(f.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                         inboxFilter === f.id
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'bg-white/5 text-gray-400 hover:text-white'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
+                          : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
                       {f.label}
@@ -1524,9 +1545,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                     }
                     showBanner('Marked all inbox items as read ✓');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs text-gray-200 font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-header)] font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
-                  <BellOff className="w-3.5 h-3.5 text-cyan-400" />
+                  <BellOff className="w-3.5 h-3.5 text-[var(--text-link)]" />
                   <span>Mark All Read</span>
                 </button>
               </div>
@@ -1537,31 +1558,31 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                     key={entry.id}
                     className={`p-4 rounded-xl border flex items-start justify-between gap-4 ${
                       entry.read
-                        ? 'bg-[#0e1424] border-white/10'
-                        : 'bg-[#121c33] border-cyan-500/35'
+                        ? 'bg-[var(--bg-channels)] border-[var(--border-subtle)]'
+                        : 'bg-[var(--bg-userpanel)] border-[var(--discord-blurple)]'
                     }`}
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-white">{entry.title}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-cyan-300 font-semibold">
+                        <span className="font-bold text-sm text-[var(--text-header)]">{entry.title}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-link)] font-semibold">
                           #{entry.channelName}
                         </span>
-                        <span className="text-[10px] text-gray-500">
+                        <span className="text-[10px] text-[var(--text-muted)]">
                           {new Date(entry.timestamp).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-300">{entry.body}</p>
-                      <div className="text-[11px] text-gray-500">From: {entry.sender}</div>
+                      <p className="text-xs text-[var(--text-normal)]">{entry.body}</p>
+                      <div className="text-[11px] text-[var(--text-muted)]">From: {entry.sender}</div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => jumpToChannel(entry.channelName)}
-                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-link)] text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer"
                     >
                       <span>Jump</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1577,13 +1598,14 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="relative flex-1 min-w-[220px]">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
+                    aria-label="Search servers"
                     value={discoverSearch}
                     onChange={(e) => setDiscoverSearch(e.target.value)}
-                    placeholder="Discover public & self-hosted community servers..."
-                    className="w-full bg-[#11182c] border border-white/10 focus:border-cyan-400 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none"
+                    placeholder="Search public and self-hosted servers..."
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-xl pl-9 pr-4 py-2 text-xs text-[var(--text-header)] outline-none"
                   />
                 </div>
 
@@ -1595,8 +1617,8 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                       onClick={() => setDiscoverCategory(cat)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                         discoverCategory === cat
-                          ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-400/40'
-                          : 'bg-white/5 text-gray-400 hover:text-white'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
+                          : 'bg-[var(--bg-userpanel)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
                       {cat}
@@ -1609,7 +1631,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                 {filteredDiscover.map((srv) => (
                   <div
                     key={srv.id}
-                    className="p-4 rounded-xl bg-[#11182c] border border-white/10 flex flex-col justify-between gap-4"
+                    className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex flex-col justify-between gap-4"
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -1621,24 +1643,24 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                             <Server className="w-5 h-5" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-white">{srv.name}</h4>
-                            <div className="text-[11px] text-gray-400">
+                            <h4 className="font-bold text-sm text-[var(--text-header)]">{srv.name}</h4>
+                            <div className="text-[11px] text-[var(--text-muted)]">
                               {srv.category} • {srv.onlineCount} online / {srv.memberCount} members
                             </div>
                           </div>
                         </div>
 
                         {srv.isBridged && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] font-bold">
                             Bridged
                           </span>
                         )}
                       </div>
 
-                      <p className="text-xs text-gray-400 leading-relaxed">{srv.description}</p>
+                      <p className="text-xs text-[var(--text-muted)] leading-relaxed">{srv.description}</p>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                       {srv.joined ? (
                         <button
                           type="button"
@@ -1652,9 +1674,9 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
                         <button
                           type="button"
                           onClick={() => void handleJoinDiscoverServer(srv)}
-                          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#5865F2] to-cyan-600 hover:from-[#4752c4] hover:to-cyan-500 text-white text-xs font-bold cursor-pointer"
+                          className="px-3.5 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                         >
-                          Join / Bridge Server
+                          Join Server
                         </button>
                       )}
                     </div>

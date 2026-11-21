@@ -206,7 +206,7 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
   const [useProxyBypass, setUseProxyBypass] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [sharedFeedbackUrl, setSharedFeedbackUrl] = useState<string | null>(null);
-  const [lastSyncedLabel, setLastSyncedLabel] = useState<string>('Synced with Call');
+  const [lastSyncedLabel, setLastSyncedLabel] = useState<string>('Synced');
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const htmlVideoRef = useRef<HTMLVideoElement>(null);
@@ -516,37 +516,38 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
     <div
       ref={containerRef}
       data-testid="shared-browser-stage"
-      className="bg-[#0b101d] border-b border-cyan-500/30 flex flex-col max-h-[600px] min-h-[380px] shadow-2xl animate-fadeIn"
+      className="bg-[var(--bg-servers)] border-b border-[var(--border-subtle)] flex flex-col flex-shrink-0 min-h-[260px] max-h-[calc(55vh/var(--app-zoom,1))] overflow-hidden shadow-2xl animate-fadeIn"
     >
       {/* Top Bar: Co-Browse Title + Smart Search/URL Bar + Sync Pill + Close */}
-      <div className="px-4 py-2.5 bg-gradient-to-r from-[#0e1629] via-[#111c34] to-[#0e1629] border-b border-white/10 flex items-center justify-between gap-3 flex-wrap">
+      <div className="px-4 py-2.5 bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
-            <Globe className="w-4 h-4 text-cyan-300" />
+          <div className="w-7 h-7 rounded-lg bg-[var(--discord-blurple)]/20 border border-[var(--discord-blurple)]/40 flex items-center justify-center">
+            <Globe className="w-4 h-4 text-[var(--text-link)]" />
           </div>
           <div>
-            <div className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>Co-Browse &amp; Search Together</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-1">
+            <div className="text-xs font-bold text-[var(--text-header)] flex items-center gap-1.5">
+              <span>Co-Browse</span>
+              <span className="px-1.5 py-0.2 rounded bg-[var(--status-online)]/20 text-[var(--status-online)] border border-[var(--status-online)]/30 text-[10px] font-semibold flex items-center gap-1">
                 <Radio className="w-2.5 h-2.5" />
                 <span>{lastSyncedLabel}</span>
               </span>
             </div>
-            <div className="text-[10px] text-gray-400">#{roomName}</div>
+            <div className="text-[10px] text-[var(--text-muted)]">#{roomName}</div>
           </div>
         </div>
 
         {/* Search & URL Form */}
-        <form onSubmit={handleFormSubmit} className="flex-1 min-w-[240px] max-w-xl flex items-center gap-1.5">
+        <form onSubmit={handleFormSubmit} className="flex-1 min-w-[200px] max-w-xl flex items-center gap-1.5">
           {activeUrl && (
             <button
               type="button"
+              aria-label="Back to Search Results"
               onClick={() => {
                 setActiveUrl('');
                 setActiveVideoEmbedUrl('');
                 void publishCoBrowseState({ url: '', videoUrl: '' });
               }}
-              className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-gray-200 text-xs font-semibold flex items-center gap-1 cursor-pointer flex-shrink-0"
+              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] text-xs font-semibold flex items-center gap-1 cursor-pointer flex-shrink-0"
               title="Back to Search Results"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -554,21 +555,23 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
             </button>
           )}
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2.5" />
             <input
               type="text"
               data-testid="cobrowse-search-input"
+              aria-label="Search web, videos, Wikipedia or enter URL"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search web, videos, Wikipedia or enter any URL..."
-              className="w-full bg-black/50 border border-white/15 focus:border-cyan-400 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-400 outline-none"
+              placeholder="Search web, videos, Wiki or enter URL..."
+              className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--text-normal)] placeholder:text-[var(--text-muted)] outline-none"
             />
           </div>
           <button
             type="submit"
             data-testid="cobrowse-search-btn"
+            aria-label="Search"
             disabled={isSearching}
-            className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold shadow cursor-pointer flex items-center gap-1.5 disabled:opacity-60 flex-shrink-0"
+            className="px-3.5 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold shadow cursor-pointer flex items-center gap-1.5 disabled:opacity-60 flex-shrink-0 transition-colors"
           >
             {isSearching ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -583,21 +586,23 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
           {activeUrl && (
             <button
               type="button"
+              aria-label="Share to Chat"
               onClick={() => handleShareItem(activeTitle || activeUrl, activeUrl)}
-              className="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/40 text-indigo-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-[var(--discord-blurple)]/20 hover:bg-[var(--discord-blurple)]/30 border border-[var(--discord-blurple)]/40 text-[var(--text-header)] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>{sharedFeedbackUrl === activeUrl ? 'Shared ✓' : 'Share to Chat'}</span>
+              <span>{sharedFeedbackUrl === activeUrl ? 'Shared ✓' : 'Share'}</span>
             </button>
           )}
           <button
             type="button"
+            aria-label="Fullscreen Co-Browse"
             onClick={() => {
               if (containerRef.current?.requestFullscreen) {
                 void containerRef.current.requestFullscreen().catch(() => {});
               }
             }}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white cursor-pointer"
+            className="p-1.5 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer transition-colors"
             title="Fullscreen Co-Browse"
           >
             <Maximize2 className="w-3.5 h-3.5" />
@@ -606,8 +611,9 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
             type="button"
             onClick={onClose}
             data-testid="cobrowse-close-btn"
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-gray-300 hover:text-red-300 cursor-pointer"
-            title="Close Co-Browse Stage"
+            aria-label="Close Co-Browse Stage"
+            className="p-1.5 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--status-dnd)]/20 border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--status-dnd)] cursor-pointer transition-colors"
+            title="Close Co-Browse"
           >
             <X className="w-4 h-4" />
           </button>
@@ -616,13 +622,13 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
 
       {/* Search Filter Tabs */}
       {!activeUrl && (
-        <div className="px-4 py-2 bg-[#090e1a] border-b border-white/5 flex items-center justify-between gap-2 flex-wrap">
+        <div className="px-4 py-2 bg-[var(--bg-userpanel)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 flex-wrap flex-shrink-0">
           <div className="flex items-center gap-1.5">
             {(
               [
-                { id: 'all', label: 'All Web', icon: Globe },
-                { id: 'video', label: 'Videos / Watch Together', icon: Tv },
-                { id: 'wiki', label: 'Wikipedia', icon: BookOpen },
+                { id: 'all', label: 'All', icon: Globe },
+                { id: 'video', label: 'Videos', icon: Tv },
+                { id: 'wiki', label: 'Wiki', icon: BookOpen },
               ] as const
             ).map((tab) => {
               const Icon = tab.icon;
@@ -632,6 +638,7 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                   key={tab.id}
                   type="button"
                   data-testid={`cobrowse-tab-${tab.id}`}
+                  aria-pressed={active}
                   onClick={() => {
                     setSearchType(tab.id);
                     if (searchInput.trim()) {
@@ -640,8 +647,8 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                   }}
                   className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                     active
-                      ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-500/40'
-                      : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-transparent'
+                      ? 'bg-[var(--discord-blurple)]/20 text-[var(--text-header)] border border-[var(--discord-blurple)]/45'
+                      : 'bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)]'
                   }`}
                 >
                   <Icon className="w-3 h-3" />
@@ -651,8 +658,8 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
             })}
           </div>
           {searchSourceLabel && (
-            <span className="text-[11px] text-gray-400 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-cyan-400" />
+            <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-[var(--text-link)]" />
               <span>{searchSourceLabel}</span>
             </span>
           )}
@@ -661,47 +668,50 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
 
       {/* Main Content Area: Either Synchronized Viewport OR Search Results */}
       {activeUrl ? (
-        <div className="flex-1 flex flex-col min-h-[300px] bg-black relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-popout)] relative">
           {/* Viewer Toolbar */}
-          <div className="px-3 py-1.5 bg-[#0e1526] border-b border-white/10 flex items-center justify-between gap-2 text-xs">
+          <div className="px-3 py-1.5 bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-2 text-xs flex-shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               {(isHtml5Video || isYouTubeOrVideoEmbed) && (
                 <button
                   type="button"
                   onClick={handleTogglePlayPause}
-                  className="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex items-center gap-1 cursor-pointer flex-shrink-0"
+                  aria-label={isPlaying ? 'Pause Together' : 'Play Together'}
+                  className="px-2.5 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold flex items-center gap-1 cursor-pointer flex-shrink-0 transition-colors"
                 >
                   {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                  <span>{isPlaying ? 'Pause Together' : 'Play Together'}</span>
+                  <span>{isPlaying ? 'Pause' : 'Play'}</span>
                 </button>
               )}
-              <span className="text-gray-300 font-mono text-[11px] truncate">{activeUrl}</span>
+              <span className="text-[var(--text-normal)] font-mono text-[11px] truncate">{activeUrl}</span>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
               {!isHtml5Video && !isYouTubeOrVideoEmbed && (
                 <button
                   type="button"
+                  aria-pressed={useProxyBypass}
                   onClick={() => setUseProxyBypass((v) => !v)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 cursor-pointer transition-colors ${
                     useProxyBypass
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                      : 'bg-white/10 text-gray-300 border-white/10'
+                      ? 'bg-[var(--status-online)]/20 text-[var(--status-online)] border-[var(--status-online)]/40'
+                      : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-subtle)]'
                   }`}
-                  title="Proxies webpages through local backend to bypass X-Frame-Options restrictions"
+                  title="Proxies webpages through local backend to bypass frame restrictions"
                 >
                   <ShieldCheck className="w-3 h-3" />
-                  <span>{useProxyBypass ? 'Anti-Block Proxy ON' : 'Direct Frame'}</span>
+                  <span>{useProxyBypass ? 'Proxy ON' : 'Direct'}</span>
                 </button>
               )}
               <button
                 type="button"
+                aria-label="Reload Viewport"
                 onClick={() => {
                   if (iframeRef.current) {
                     iframeRef.current.src = iframeSrc;
                   }
                 }}
-                className="p-1 rounded hover:bg-white/10 text-gray-300 cursor-pointer"
+                className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                 title="Reload Viewport"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -710,7 +720,8 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                 href={activeUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="p-1 rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                aria-label="Open in External Browser"
+                className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)]"
                 title="Open in External Browser"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -719,7 +730,7 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
           </div>
 
           {/* Video or Proxied Web Frame */}
-          <div className="flex-1 w-full h-[360px] bg-black relative">
+          <div className="flex-1 w-full min-h-[160px] bg-black relative">
             {isHtml5Video ? (
               <video
                 ref={htmlVideoRef}
@@ -750,19 +761,19 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[var(--bg-servers)]">
           {!hasSearched ? (
-            <div className="rounded-xl bg-[#0f172a]/80 border border-white/10 p-5 space-y-4">
+            <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center">
-                  <Search className="w-5 h-5 text-cyan-300" />
+                <div className="w-9 h-9 rounded-xl bg-[var(--discord-blurple)]/20 border border-[var(--discord-blurple)]/35 flex items-center justify-center flex-shrink-0">
+                  <Search className="w-4 h-4 text-[var(--text-link)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">
-                    Built-In Search Engine &amp; Watch Together
+                  <h3 className="text-sm font-bold text-[var(--text-header)]">
+                    Search &amp; Watch Together
                   </h3>
-                  <p className="text-xs text-gray-400">
-                    Search Wikipedia, web pages, or videos and open any link inside the synchronized call browser.
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Search Wikipedia, web pages, or videos inside the synced call browser.
                   </p>
                 </div>
               </div>
@@ -770,9 +781,9 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
               <div className="flex flex-wrap gap-2">
                 {[
                   { label: '🔎 Search "Minecraft"', action: () => { setSearchInput('Minecraft'); void runSearch('Minecraft', 'all'); } },
-                  { label: '📚 Wikipedia: WebRTC', action: () => { setSearchInput('WebRTC'); setSearchType('wiki'); void runSearch('WebRTC', 'wiki'); } },
+                  { label: '📚 Wiki: WebRTC', action: () => { setSearchInput('WebRTC'); setSearchType('wiki'); void runSearch('WebRTC', 'wiki'); } },
                   {
-                    label: '🎬 Watch Together: Big Buck Bunny',
+                    label: '🎬 Watch: Big Buck Bunny',
                     action: () =>
                       openUrlInCoBrowser(
                         'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
@@ -781,7 +792,7 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                       ),
                   },
                   {
-                    label: '🎵 Watch Together: Lofi Radio',
+                    label: '🎵 Watch: Lofi Radio',
                     action: () =>
                       openUrlInCoBrowser(
                         'https://www.youtube.com/watch?v=jfKfPfyJRdk',
@@ -794,7 +805,7 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                     key={preset.label}
                     type="button"
                     onClick={preset.action}
-                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/40 text-xs font-semibold text-gray-200 hover:text-white transition-colors cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-[var(--bg-popout)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] hover:border-[var(--discord-blurple)]/40 text-xs font-semibold text-[var(--text-normal)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
                   >
                     {preset.label}
                   </button>
@@ -802,13 +813,13 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
               </div>
             </div>
           ) : isSearching ? (
-            <div className="py-10 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
-              <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
-              <span>Searching web, Wikipedia &amp; videos for "{searchInput}"...</span>
+            <div className="py-10 flex flex-col items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
+              <RefreshCw className="w-6 h-6 text-[var(--text-link)] animate-spin" />
+              <span>Searching "{searchInput}"...</span>
             </div>
           ) : results.length === 0 ? (
-            <div className="py-8 text-center text-xs text-gray-400">
-              No results found. Try another search query or enter a direct URL above.
+            <div className="py-8 text-center text-xs text-[var(--text-muted)]">
+              No results found. Try another query or enter a URL above.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -818,46 +829,46 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                   <div
                     key={`${item.url}-${item.title}`}
                     data-testid="cobrowse-result-card"
-                    className="p-3.5 rounded-xl bg-[#10182b] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between gap-2.5"
+                    className="p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--discord-blurple)]/40 transition-all flex flex-col justify-between gap-2.5"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--discord-blurple)]/15 text-[var(--text-link)] border border-[var(--discord-blurple)]/30">
                           {item.source || item.type || 'Web'}
                         </span>
-                        <span className="text-[10px] text-gray-500 truncate max-w-[200px]">
+                        <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[200px]">
                           {item.url}
                         </span>
                       </div>
-                      <h4 className="text-sm font-bold text-white line-clamp-1">{item.title}</h4>
-                      <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                      <h4 className="text-sm font-bold text-[var(--text-header)] line-clamp-1">{item.title}</h4>
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed">
                         {item.snippet}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
                       <button
                         type="button"
                         onClick={() =>
                           openUrlInCoBrowser(item.url, item.videoEmbedUrl, item.title)
                         }
-                        className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <Globe className="w-3.5 h-3.5" />
-                        <span>Open in Co-Browser</span>
+                        <span>Open</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleShareItem(item.title, item.url)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-popout)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         {isShared ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <Check className="w-3.5 h-3.5 text-[var(--status-online)]" />
                         ) : (
-                          <Share2 className="w-3.5 h-3.5 text-indigo-300" />
+                          <Share2 className="w-3.5 h-3.5 text-[var(--text-link)]" />
                         )}
-                        <span>{isShared ? 'Shared' : 'Share to Call Chat'}</span>
+                        <span>{isShared ? 'Shared' : 'Share'}</span>
                       </button>
                     </div>
                   </div>

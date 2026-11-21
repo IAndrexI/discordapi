@@ -89,6 +89,15 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
     return unsub;
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const targetRoomId = activeRoomId || 'general';
@@ -259,45 +268,56 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
       ? `curl -X POST "${fullWebhookUrl}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"username":"Minecraft Bridge","content":"⛏️ [SMP] <Steve> Hello from Minecraft!"}'`
       : snippetLang === 'node'
       ? `await fetch("${fullWebhookUrl}", {\n  method: "POST",\n  headers: { "Content-Type": "application/json" },\n  body: JSON.stringify({\n    username: "Protutech Bridge",\n    content: "🚀 Live event from Node.js script!",\n    roomId: "${targetRoomId}"\n  })\n});`
-      : `# DiscordSRV config.yml — Drop-in Discord Webhook Compatible!\nDiscordChatChannelWebhookUrl: "${fullWebhookUrl}"\n# Or POST directly to /api/scripts/ingest:\n# { "roomId": "${targetRoomId}", "server": "Survival SMP", "player": "Steve", "message": "Joined!" }`;
+      : `# DiscordSRV config.yml — Compatible Webhook\nDiscordChatChannelWebhookUrl: "${fullWebhookUrl}"\n# Or POST directly to /api/scripts/ingest:\n# { "roomId": "${targetRoomId}", "server": "Survival SMP", "player": "Steve", "message": "Joined!" }`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-4xl bg-[var(--bg-chat)] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-white/10 max-h-[88vh]">
+    <div
+      className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="scripting-modal-title"
+        className="w-[min(56rem,100%)] max-w-full max-h-full bg-[var(--bg-chat)] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-[var(--border-subtle)]"
+      >
         {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[var(--bg-userpanel)] gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center text-white shadow-lg">
+        <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-userpanel)] gap-3 flex-wrap flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
               <Terminal className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2 flex-wrap">
-                <span>Scripts, Webhooks &amp; Minecraft Chat Bridge API</span>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <div className="min-w-0">
+              <h2 id="scripting-modal-title" className="text-base font-bold text-[var(--text-header)] flex items-center gap-2 flex-wrap">
+                <span>Scripts &amp; Webhooks</span>
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--status-online)] border border-[var(--border-subtle)]">
                   #{targetRoomLabel}
                 </span>
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Run custom JS hooks, slash commands (/ping, /roll, /mc, /poll), and Discord-compatible Minecraft webhooks.
+                Run JavaScript hooks, slash commands (/ping, /roll, /mc, /poll), and compatible webhooks.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={handleSimulateMinecraft}
               disabled={isSimulatingMc}
               data-testid="simulate-mc-event-btn"
-              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-60"
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-60"
             >
               <Pickaxe className="w-3.5 h-3.5" />
-              <span>{isSimulatingMc ? 'Sending...' : 'Test / Simulate Minecraft Chat Event'}</span>
+              <span>{isSimulatingMc ? 'Sending...' : 'Simulate Minecraft'}</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors cursor-pointer"
+              aria-label="Close Scripts and Webhooks"
+              className="w-8 h-8 rounded-full hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -305,65 +325,66 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-5 pt-3 bg-[var(--bg-channels)] border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
+        <div className="px-4 sm:px-5 pt-2.5 bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('scripts')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'scripts'
-                  ? 'border-cyan-400 text-white'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-white'
+                  ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Installed Scripts ({scripts.length})</span>
+              <Sparkles className="w-3.5 h-3.5 text-[var(--text-link)]" />
+              <span>Scripts ({scripts.length})</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('editor')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'editor'
-                  ? 'border-cyan-400 text-white'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-white'
+                  ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              <Code className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Custom Script Editor</span>
+              <Code className="w-3.5 h-3.5 text-[var(--status-online)]" />
+              <span>Script Editor</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('webhooks')}
-              className={`px-3.5 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'webhooks'
-                  ? 'border-cyan-400 text-white'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-white'
+                  ? 'border-[var(--discord-blurple)] text-[var(--text-header)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              <Webhook className="w-3.5 h-3.5 text-amber-400" />
-              <span>API &amp; Webhook Bridge Endpoints</span>
+              <Webhook className="w-3.5 h-3.5 text-[var(--status-idle)]" />
+              <span>Webhooks</span>
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleNewScript}
-            className="mb-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-white flex items-center gap-1 cursor-pointer"
+            className="mb-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-header)] flex items-center gap-1 cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 text-cyan-400" />
-            <span>New Custom Script</span>
+            <Plus className="w-3.5 h-3.5 text-[var(--text-link)]" />
+            <span>New Script</span>
           </button>
         </div>
 
         {/* Tab Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4">
           {mcStatus && (
-            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs flex items-center justify-between gap-2">
+            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[var(--status-online)] text-xs flex items-center justify-between gap-2">
               <span className="font-medium">{mcStatus}</span>
               <button
                 type="button"
+                aria-label="Dismiss status message"
                 onClick={() => setMcStatus(null)}
-                className="text-emerald-300 hover:text-white cursor-pointer"
+                className="text-[var(--status-online)] hover:opacity-80 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -373,15 +394,15 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
           {activeTab === 'scripts' && (
             <>
               {/* Quick Minecraft Event Simulator Box */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 to-slate-900/80 border border-emerald-500/30 space-y-3">
+              <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <Pickaxe className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Minecraft Chat &lt;-&gt; App Bridge Quick Simulator
+                    <Pickaxe className="w-4 h-4 text-[var(--status-online)]" />
+                    <span className="text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                      Minecraft Bridge Simulator
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">
+                  <span className="text-[10px] font-mono text-[var(--status-online)] bg-[var(--bg-channels)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
                     POST /api/scripts/ingest
                   </span>
                 </div>
@@ -389,22 +410,25 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <input
                     type="text"
+                    aria-label="Minecraft server name"
                     value={mcServer}
                     onChange={e => setMcServer(e.target.value)}
                     placeholder="Server Name"
-                    className="bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-emerald-400"
+                    className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                   />
                   <input
                     type="text"
+                    aria-label="Minecraft player name"
                     value={mcPlayer}
                     onChange={e => setMcPlayer(e.target.value)}
                     placeholder="Player Name"
-                    className="bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-emerald-400"
+                    className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                   />
                   <select
+                    aria-label="Minecraft event type"
                     value={mcEventType}
                     onChange={e => setMcEventType(e.target.value as typeof mcEventType)}
-                    className="bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-emerald-400"
+                    className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                   >
                     <option value="chat">Player Chat</option>
                     <option value="join">Player Join</option>
@@ -418,16 +442,17 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                     className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5" />
-                    <span>Simulate MC Chat</span>
+                    <span>Simulate Chat</span>
                   </button>
                 </div>
 
                 <input
                   type="text"
+                  aria-label="Minecraft chat message"
                   value={mcMessage}
                   onChange={e => setMcMessage(e.target.value)}
                   placeholder="Minecraft chat message text..."
-                  className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-xs text-white outline-none focus:border-emerald-400"
+                  className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 />
               </div>
 
@@ -436,42 +461,42 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                 {scripts.map(script => (
                   <div
                     key={script.id}
-                    className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-white">{script.name}</span>
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                        <span className="font-bold text-sm text-[var(--text-header)]">{script.name}</span>
+                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)]">
                           {script.trigger}
                         </span>
                         {script.builtin && (
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                            Pre-Installed
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                            Built-in
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-[var(--text-muted)]">{script.description}</p>
                       {script.lastOutput && (
-                        <div className="text-[11px] font-mono text-emerald-300/90 bg-black/30 px-2 py-1 rounded truncate">
+                        <div className="text-[11px] font-mono text-[var(--status-online)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] px-2 py-1 rounded truncate">
                           Last output: {script.lastOutput}
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                       <button
                         type="button"
                         onClick={() => handleRunBuiltInTest(script)}
-                        className="px-2.5 py-1.5 rounded-lg bg-cyan-600/25 hover:bg-cyan-600/40 text-cyan-200 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-link)] border border-[var(--border-subtle)] text-xs font-semibold flex items-center gap-1 cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5" />
-                        <span>Run Test</span>
+                        <span>Run</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleEditScript(script)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-normal)] text-xs font-semibold flex items-center gap-1 cursor-pointer"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         <span>Edit</span>
@@ -482,8 +507,8 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                         onClick={() => scriptEngine.toggleScript(script.id, !script.enabled)}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border ${
                           script.enabled
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                            : 'bg-white/5 text-gray-400 border-white/10'
+                            ? 'bg-emerald-500/20 text-[var(--status-online)] border-emerald-500/40'
+                            : 'bg-[var(--bg-channels)] text-[var(--text-muted)] border-[var(--border-subtle)]'
                         }`}
                       >
                         <Power className="w-3.5 h-3.5" />
@@ -494,8 +519,9 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                         <button
                           type="button"
                           onClick={() => scriptEngine.deleteScript(script.id)}
+                          aria-label={`Delete ${script.name}`}
                           title="Delete Custom Script"
-                          className="p-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/30 text-red-400 cursor-pointer"
+                          className="p-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/30 text-[var(--status-dnd)] cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -511,7 +537,7 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
             <form onSubmit={handleSaveScript} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-bold text-gray-300 uppercase block mb-1">
+                  <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase block mb-1">
                     Script Name
                   </label>
                   <input
@@ -519,18 +545,18 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                     value={draftName}
                     onChange={e => setDraftName(e.target.value)}
                     placeholder="My Custom Automation Hook"
-                    className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-400"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-gray-300 uppercase block mb-1">
+                  <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase block mb-1">
                     Trigger Hook
                   </label>
                   <select
                     value={draftTrigger}
                     onChange={e => setDraftTrigger(e.target.value as ScriptPlugin['trigger'])}
-                    className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-400"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                   >
                     <option value="onMessage">onMessage(msg, ctx)</option>
                     <option value="onCommand">onCommand(cmd, args, ctx)</option>
@@ -541,63 +567,64 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-gray-300 uppercase block mb-1">
+                <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase block mb-1">
                   Description
                 </label>
                 <input
                   type="text"
                   value={draftDesc}
                   onChange={e => setDraftDesc(e.target.value)}
-                  placeholder="Describe what your script hook automates..."
-                  className="w-full bg-[var(--bg-userpanel)] border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-400"
+                  placeholder="Describe what your script automates..."
+                  className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-gray-300 uppercase block mb-1">
-                  JavaScript Hook Code
+                <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase block mb-1">
+                  JavaScript Code
                 </label>
                 <textarea
-                  rows={10}
+                  rows={8}
                   value={draftCode}
                   onChange={e => setDraftCode(e.target.value)}
                   spellCheck={false}
-                  className="w-full bg-[#0d1117] border border-white/15 rounded-lg p-3 text-xs font-mono text-cyan-200 outline-none focus:border-cyan-400"
+                  className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg p-3 text-xs font-mono text-[var(--text-normal)] outline-none focus:border-[var(--discord-blurple)]"
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-[var(--bg-userpanel)] border border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="p-3 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="text"
+                  aria-label="Sample input"
                   value={testInput}
                   onChange={e => setTestInput(e.target.value)}
-                  placeholder="Sample message or /command (e.g. !hello or /echo hi)"
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                  placeholder="Sample message or /command (e.g. !hello)"
+                  className="flex-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 />
                 <button
                   type="button"
                   onClick={handleRunEditorTest}
-                  className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5" />
-                  <span>Test Script Live</span>
+                  <span>Test Live</span>
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>{editingId ? 'Save Changes' : 'Save & Enable Script'}</span>
+                  <span>{editingId ? 'Save Changes' : 'Save & Enable'}</span>
                 </button>
               </div>
 
               {testOutput && (
-                <pre className="p-3 rounded-lg bg-emerald-950/50 border border-emerald-500/30 text-emerald-200 text-xs font-mono whitespace-pre-wrap">
+                <pre className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[var(--status-online)] text-xs font-mono whitespace-pre-wrap">
                   {testOutput}
                 </pre>
               )}
               {testError && (
-                <pre className="p-3 rounded-lg bg-red-950/50 border border-red-500/30 text-red-300 text-xs font-mono whitespace-pre-wrap">
+                <pre className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-[var(--status-dnd)] text-xs font-mono whitespace-pre-wrap">
                   {testError}
                 </pre>
               )}
@@ -609,21 +636,23 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
               {/* Create New Webhook */}
               <form
                 onSubmit={handleCreateWebhook}
-                className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+                className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
               >
                 <input
                   type="text"
+                  aria-label="New webhook name"
                   value={newWhName}
                   onChange={e => setNewWhName(e.target.value)}
-                  placeholder="New Webhook Name (e.g. Creative Plot Server)"
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                  placeholder="Webhook name (e.g. Survival SMP)"
+                  className="flex-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 />
                 <select
+                  aria-label="Webhook format"
                   value={newWhType}
                   onChange={e => setNewWhType(e.target.value as typeof newWhType)}
-                  className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                  className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 >
-                  <option value="discord">Discord-Compatible Webhook</option>
+                  <option value="discord">Compatible Webhook (JSON)</option>
                   <option value="minecraft">Minecraft Bridge Webhook</option>
                   <option value="custom">Custom JSON Webhook</option>
                 </select>
@@ -647,18 +676,18 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                       onClick={() => setSelectedWhId(wh.id)}
                       className={`p-3 rounded-xl border transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
                         isSelected
-                          ? 'bg-cyan-950/35 border-cyan-500/40'
-                          : 'bg-[var(--bg-userpanel)] border-white/10 hover:border-white/25'
+                          ? 'bg-[var(--bg-item-active)] border-[var(--discord-blurple)]'
+                          : 'bg-[var(--bg-userpanel)] border-[var(--border-subtle)] hover:bg-[var(--bg-item-hover)]'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-white">{wh.name}</span>
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          <span className="font-bold text-xs text-[var(--text-header)]">{wh.name}</span>
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[var(--bg-channels)] text-[var(--status-idle)] border border-[var(--border-subtle)]">
                             {wh.bridgeType}
                           </span>
                         </div>
-                        <div className="text-[11px] font-mono text-cyan-300 truncate mt-1">
+                        <div className="text-[11px] font-mono text-[var(--text-link)] truncate mt-1">
                           {fullUrl}
                         </div>
                       </div>
@@ -669,10 +698,10 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                             e.stopPropagation();
                             void handleCopy(wh.id, fullUrl);
                           }}
-                          className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs text-white flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-header)] flex items-center gap-1 cursor-pointer"
                         >
                           {copiedId === wh.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <Check className="w-3.5 h-3.5 text-[var(--status-online)]" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
@@ -685,12 +714,12 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
               </div>
 
               {/* Integration Snippets */}
-              <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-white/10 space-y-2.5">
+              <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    Integration Code Snippets
+                  <span className="text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                    Integration Snippets
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     {(['curl', 'node', 'discordsrv'] as const).map(lang => (
                       <button
                         key={lang}
@@ -698,20 +727,20 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                         onClick={() => setSnippetLang(lang)}
                         className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase cursor-pointer ${
                           snippetLang === lang
-                            ? 'bg-cyan-600 text-white'
-                            : 'bg-white/5 text-gray-400 hover:text-white'
+                            ? 'bg-[var(--discord-blurple)] text-white'
+                            : 'bg-[var(--bg-channels)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
                         }`}
                       >
-                        {lang === 'discordsrv' ? 'Minecraft DiscordSRV' : lang}
+                        {lang === 'discordsrv' ? 'DiscordSRV' : lang}
                       </button>
                     ))}
                     <button
                       type="button"
                       onClick={() => void handleCopy('snippet', snippetText)}
-                      className="ml-2 px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs text-white flex items-center gap-1 cursor-pointer"
+                      className="ml-2 px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-header)] flex items-center gap-1 cursor-pointer"
                     >
                       {copiedId === 'snippet' ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <Check className="w-3.5 h-3.5 text-[var(--status-online)]" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -719,16 +748,16 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                     </button>
                   </div>
                 </div>
-                <pre className="p-3 rounded-lg bg-[#0d1117] border border-white/10 text-xs font-mono text-cyan-200 overflow-x-auto">
+                <pre className="p-3 rounded-lg bg-[var(--bg-popout)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-normal)] overflow-x-auto">
                   {snippetText}
                 </pre>
               </div>
 
               {/* Live Payload Tester */}
-              <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-white/10 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    Live Webhook Payload Tester → #{targetRoomLabel}
+              <div className="p-4 rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                    Payload Tester → #{targetRoomLabel}
                   </span>
                   <button
                     type="button"
@@ -736,17 +765,18 @@ export const ScriptingModal: React.FC<ScriptingModalProps> = ({
                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Send Test Payload</span>
+                    <span>Send Payload</span>
                   </button>
                 </div>
                 <textarea
                   rows={5}
+                  aria-label="Webhook JSON payload"
                   value={payloadText}
                   onChange={e => setPayloadText(e.target.value)}
-                  className="w-full bg-[#0d1117] border border-white/10 rounded-lg p-3 text-xs font-mono text-amber-200 outline-none focus:border-cyan-400"
+                  className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg p-3 text-xs font-mono text-[var(--text-normal)] outline-none focus:border-[var(--discord-blurple)]"
                 />
                 {webhookTestStatus && (
-                  <div className="text-xs text-emerald-300 font-medium">{webhookTestStatus}</div>
+                  <div className="text-xs text-[var(--status-online)] font-medium">{webhookTestStatus}</div>
                 )}
               </div>
             </div>

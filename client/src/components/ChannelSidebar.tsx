@@ -122,7 +122,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
   const handleCopyServerId = () => {
     if (!activeGuild) return;
-    void navigator.clipboard?.writeText(activeGuild.id);
+    void navigator.clipboard?.writeText(activeGuild.id)?.catch(() => {});
     setCopiedServerId(true);
     window.setTimeout(() => {
       setCopiedServerId(false);
@@ -165,6 +165,14 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     return activeVoiceRoomId === ch.id || activeVoiceRoomId === ch.name;
   };
 
+  const handleRowKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
+  };
+
   return (
     <div className="w-60 flex-1 min-h-0 bg-[var(--bg-channels)] flex flex-col select-none border-r border-[var(--border-subtle)]">
       {/* Header */}
@@ -173,6 +181,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           <button
             type="button"
             onClick={() => setServerMenuOpen(prev => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={serverMenuOpen}
+            aria-label={`${activeGuild.name} server menu`}
             className="w-full h-12 border-b border-[var(--border-subtle)] px-4 flex items-center justify-between font-semibold text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] transition-colors cursor-pointer text-left"
           >
             <span className="truncate text-[15px] font-semibold tracking-tight">
@@ -187,7 +198,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
           {serverMenuOpen && (
             <div
-              className="absolute top-[52px] left-2 right-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-40 text-xs text-[var(--text-normal)]"
+              className="absolute top-[52px] left-2 right-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-1.5 z-[80] max-h-[calc(100vh/var(--app-zoom,1)-100px)] overflow-y-auto text-xs text-[var(--text-normal)] animate-fadeIn"
               role="menu"
             >
               <button
@@ -199,7 +210,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 }}
                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
               >
-                <span>Add / Sync Channels</span>
+                <span>Add or Sync Channels</span>
                 <Plus className="w-3.5 h-3.5" />
               </button>
 
@@ -213,7 +224,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
-                  <span>Scripts &amp; MC Bridge</span>
+                  <span>Scripts &amp; Bots</span>
                   <Terminal className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -228,7 +239,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
-                  <span>Discord Call Proxy</span>
+                  <span>Call Bridge</span>
                   <PhoneCall className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -243,7 +254,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
-                  <span>Server Hub</span>
+                  <span>Discover Servers</span>
                   <Compass className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -258,7 +269,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               >
                 <span>{copiedServerId ? 'Copied Server ID' : 'Copy Server ID'}</span>
                 {copiedServerId ? (
-                  <Check className="w-3.5 h-3.5 text-[#23a55a]" />
+                  <Check className="w-3.5 h-3.5 text-[var(--status-online)]" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
@@ -268,11 +279,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         </div>
       ) : (
         <div className="h-12 border-b border-[var(--border-subtle)] px-2.5 flex items-center flex-shrink-0">
-          <div className="w-full bg-[var(--bg-servers)] rounded px-2 py-1.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <div className="w-full bg-[var(--bg-servers)] border border-[var(--border-subtle)] rounded-md px-2 py-1.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <Search className="w-3.5 h-3.5 flex-shrink-0" />
             <input
               type="text"
-              placeholder="Find or start a conversation"
+              placeholder="Search conversations..."
+              aria-label="Search conversations"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="bg-transparent border-none outline-none w-full text-[var(--text-normal)] placeholder:text-[var(--text-muted)] text-xs"
@@ -282,6 +294,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
+                aria-label="Clear search"
                 title="Clear search"
               >
                 <X className="w-3 h-3" />
@@ -296,12 +309,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         {activeGuild === null ? (
           // DIRECT MESSAGES / HOME VIEW
           <>
-            {/* Discord Home Navigation */}
-            <nav className="space-y-0.5">
+            {/* Home Navigation */}
+            <nav aria-label="Home navigation" className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => onOpenDiscordHub?.('friends')}
-                className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
               >
                 <Users className="w-5 h-5 flex-shrink-0" />
                 <span className="truncate">Friends</span>
@@ -311,10 +324,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenDiscordHub('quests')}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
                 >
                   <Trophy className="w-5 h-5 flex-shrink-0" />
-                  <span className="truncate">Discord Hub / Quests</span>
+                  <span className="truncate">Hub &amp; Quests</span>
                 </button>
               )}
 
@@ -322,10 +335,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenEquicord}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
                 >
                   <Puzzle className="w-5 h-5 flex-shrink-0" />
-                  <span className="truncate">Equicord Plugins</span>
+                  <span className="truncate">Plugins</span>
                 </button>
               )}
 
@@ -333,10 +346,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenVoiceProxy}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
                 >
                   <Globe className="w-5 h-5 flex-shrink-0" />
-                  <span className="truncate">Call Proxies</span>
+                  <span className="truncate">Call Bridge</span>
                 </button>
               )}
             </nav>
@@ -351,7 +364,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   type="button"
                   onClick={() => onOpenAddModal?.('dm')}
                   className="p-0.5 hover:text-[var(--text-header)] rounded transition-colors cursor-pointer"
-                  title="Create DM"
+                  aria-label="New Direct Message"
+                  title="New Direct Message"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                 </button>
@@ -368,8 +382,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   return (
                     <div
                       key={dm.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={isActive ? 'page' : undefined}
                       onClick={() => onSelectRoom(dm.id)}
-                      className={`w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                      onKeyDown={e => handleRowKeyDown(e, () => onSelectRoom(dm.id))}
+                      className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-sm transition-colors text-left group cursor-pointer ${
                         isActive
                           ? 'bg-[var(--bg-item-active)] text-[var(--text-header)]'
                           : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
@@ -414,9 +432,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         <button
                           type="button"
                           onClick={e => handleQuickDiscordCall(e, dm)}
+                          onKeyDown={e => e.stopPropagation()}
                           disabled={joiningDiscordId === dm.id}
-                          title="Join Discord Call"
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
+                          aria-label={`Join bridged call with ${dm.name}`}
+                          title="Join Bridged Call"
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
                         >
                           <PhoneCall className="w-3.5 h-3.5" />
                         </button>
@@ -435,7 +455,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   type="button"
                   onClick={() => onOpenAddModal?.('group')}
                   className="p-0.5 hover:text-[var(--text-header)] rounded transition-colors cursor-pointer"
-                  title="Create or Sync Group Chat"
+                  aria-label="New Group Chat"
+                  title="New Group Chat"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -448,8 +469,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     return (
                       <div
                         key={gc.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-current={isActive ? 'page' : undefined}
                         onClick={() => onSelectRoom(gc.id)}
-                        className={`w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                        onKeyDown={e => handleRowKeyDown(e, () => onSelectRoom(gc.id))}
+                        className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-sm transition-colors text-left group cursor-pointer ${
                           isActive
                             ? 'bg-[var(--bg-item-active)] text-[var(--text-header)]'
                             : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
@@ -468,9 +493,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                           <button
                             type="button"
                             onClick={e => handleQuickDiscordCall(e, gc)}
+                            onKeyDown={e => e.stopPropagation()}
                             disabled={joiningDiscordId === gc.id}
-                            title="Join Discord Call"
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
+                            aria-label={`Join bridged call in ${gc.name}`}
+                            title="Join Bridged Call"
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
                           >
                             <PhoneCall className="w-3.5 h-3.5" />
                           </button>
@@ -490,6 +517,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               <div className="flex items-center justify-between px-1 mb-1">
                 <button
                   type="button"
+                  aria-expanded={!textCollapsed}
                   onClick={() => setTextCollapsed(prev => !prev)}
                   className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-header)] uppercase tracking-wider cursor-pointer"
                 >
@@ -504,7 +532,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   type="button"
                   onClick={() => onOpenAddModal?.('server')}
                   className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
-                  title="Add or Sync Channels"
+                  aria-label="Add Channel"
+                  title="Add Channel"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -514,29 +543,36 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <div className="space-y-0.5">
                   {textChannels.map(ch => {
                     const isActive = activeRoomId === ch.id;
-                    const isDiscordCh =
+                    const isBridgedCh =
                       ch.isSynced || ch.syncSource === 'discord' || Boolean(ch.discordChannelId);
+                    const cleanName = ch.name.replace(/^#/, '');
                     return (
                       <div
                         key={ch.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-current={isActive ? 'page' : undefined}
                         onClick={() => onSelectRoom(ch.id)}
-                        className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                        onKeyDown={e => handleRowKeyDown(e, () => onSelectRoom(ch.id))}
+                        className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left group cursor-pointer ${
                           isActive
                             ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] font-medium'
                             : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <Hash className="w-4 h-4 text-[#80848e] flex-shrink-0" />
-                          <span className="truncate">{ch.name.replace(/^#/, '')}</span>
+                          <Hash className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+                          <span className="truncate">{cleanName}</span>
                         </div>
-                        {isDiscordCh && (
+                        {isBridgedCh && (
                           <button
                             type="button"
                             onClick={e => handleQuickDiscordCall(e, ch)}
+                            onKeyDown={e => e.stopPropagation()}
                             disabled={joiningDiscordId === ch.id}
-                            title="Join Discord Call"
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
+                            aria-label={`Join bridged call for ${cleanName}`}
+                            title="Join Bridged Call"
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
                           >
                             <PhoneCall className="w-3.5 h-3.5" />
                           </button>
@@ -553,6 +589,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               <div className="flex items-center justify-between px-1 mb-1">
                 <button
                   type="button"
+                  aria-expanded={!voiceCollapsed}
                   onClick={() => setVoiceCollapsed(prev => !prev)}
                   className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-header)] uppercase tracking-wider cursor-pointer"
                 >
@@ -574,22 +611,26 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     return (
                       <div key={ch.id}>
                         <div
+                          role="button"
+                          tabIndex={0}
+                          aria-current={isVoiceActive ? 'true' : undefined}
                           onClick={() => onJoinVoice(ch)}
-                          className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                          onKeyDown={e => handleRowKeyDown(e, () => onJoinVoice(ch))}
+                          className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-md text-sm transition-colors text-left group cursor-pointer ${
                             isVoiceActive
                               ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] font-medium'
                               : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
                           }`}
                           title={
                             isLounge
-                              ? 'Click to join Voice Lounge'
-                              : 'Click to join voice channel'
+                              ? 'Join Voice Lounge'
+                              : 'Join Voice Channel'
                           }
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
                             <Volume2
                               className={`w-4 h-4 flex-shrink-0 ${
-                                isVoiceActive ? 'text-[#23a55a]' : 'text-[#80848e]'
+                                isVoiceActive ? 'text-[var(--status-online)]' : 'text-[var(--text-muted)]'
                               }`}
                             />
                             <span className="truncate">{ch.name}</span>
@@ -599,16 +640,18 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             <button
                               type="button"
                               onClick={e => handleQuickDiscordCall(e, ch)}
+                              onKeyDown={e => e.stopPropagation()}
                               disabled={isJoining}
-                              title="Join Discord Call Proxy"
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
+                              aria-label={`Join bridged call in ${ch.name}`}
+                              title="Join Bridged Call"
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
                             >
                               <PhoneCall className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
 
-                        {/* Nested Voice Participants (1:1 Discord Style) */}
+                        {/* Nested Voice Participants */}
                         {isVoiceActive && voiceParticipants.length > 0 && (
                           <div className="mt-0.5 space-y-0.5 pb-1">
                             {voiceParticipants.map(participant => {
@@ -620,11 +663,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                               return (
                                 <div
                                   key={participant.identity}
-                                  className="pl-7 pr-2 py-1 flex items-center gap-2 rounded hover:bg-[var(--bg-item-hover)] text-[13px]"
+                                  className="pl-7 pr-2 py-1 flex items-center gap-2 rounded-md hover:bg-[var(--bg-item-hover)] text-[13px]"
                                 >
                                   <div
                                     className={`w-6 h-6 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 transition-shadow ${
-                                      isTalking ? 'ring-2 ring-[#23a55a]' : ''
+                                      isTalking ? 'ring-2 ring-[var(--status-online)]' : ''
                                     }`}
                                   >
                                     {initials}
@@ -640,15 +683,15 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                                   </span>
                                   <div className="flex items-center gap-1 flex-shrink-0">
                                     {participant.hasScreenShare && (
-                                      <span className="px-1 py-0.2 rounded bg-[#f23f43] text-white text-[9px] font-bold uppercase leading-tight">
+                                      <span className="px-1 py-0.2 rounded bg-[var(--status-dnd)] text-white text-[9px] font-bold uppercase leading-tight">
                                         LIVE
                                       </span>
                                     )}
                                     {participant.isMuted && (
-                                      <MicOff className="w-3.5 h-3.5 text-[#80848e]" />
+                                      <MicOff className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                                     )}
                                     {participant.isDeafened && (
-                                      <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />
+                                      <HeadphoneOff className="w-3.5 h-3.5 text-[var(--status-dnd)]" />
                                     )}
                                   </div>
                                 </div>

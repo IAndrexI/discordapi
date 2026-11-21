@@ -23,6 +23,7 @@ import { ScriptingModal } from './components/ScriptingModal';
 import { LargeFileShareModal } from './components/LargeFileShareModal';
 import { SoundboardPopover } from './components/SoundboardPopover';
 import { TeamSpeakLayout } from './components/TeamSpeakLayout';
+import { WebcamBackgroundModal } from './components/WebcamBackgroundModal';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
 import { Plus, Hash, Volume2, X, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -70,29 +71,29 @@ const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
   {
     id: 'guest_welcome',
     name: 'welcome-sandbox',
-    topic: 'Sample real-time texting in Protutech. Send any message or /ping below!',
+    topic: 'Sandbox chat — type a message or /ping.',
     isDirect: false,
     isGroupChat: false,
     serverKind: 'proprietary',
     members: [
       {
         userId: '@protutech_bot:local.protutech',
-        displayName: 'Protutech Assistant',
+        displayName: 'Protutech Bot',
         presence: 'online',
-        statusMsg: 'Echo Test Bot (8ms)',
+        statusMsg: 'Echo Test (8ms)',
       },
       {
         userId: '@guest:local.protutech',
-        displayName: 'Guest Sampler (You)',
+        displayName: 'Guest (You)',
         presence: 'online',
-        statusMsg: 'Sampling Protutech Sandbox',
+        statusMsg: 'Sandbox Mode',
       },
     ],
   },
   {
     id: 'guest_voice_loopback',
     name: '🎙️-voice-loopback-test',
-    topic: 'Test microphone loopback, camera video, 1080p60 screen share, and Co-Browse.',
+    topic: 'Test mic loopback, camera, and screen share.',
     isDirect: false,
     isGroupChat: false,
     isVoice: true,
@@ -100,7 +101,7 @@ const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
     members: [
       {
         userId: '@guest:local.protutech',
-        displayName: 'Guest Sampler (You)',
+        displayName: 'Guest (You)',
         presence: 'online',
       },
     ],
@@ -108,7 +109,7 @@ const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
   {
     id: 'guest_video_test',
     name: '📹-video-test',
-    topic: 'Test live camera video feed, mirror orientation, and virtual background presets.',
+    topic: 'Test live camera preview and virtual backgrounds.',
     isDirect: false,
     isGroupChat: false,
     isVoice: true,
@@ -116,7 +117,7 @@ const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
     members: [
       {
         userId: '@guest:local.protutech',
-        displayName: 'Guest Sampler (You)',
+        displayName: 'Guest (You)',
         presence: 'online',
       },
     ],
@@ -125,7 +126,7 @@ const DEFAULT_GUEST_ROOMS: MatrixRoom[] = [
 
 const DEFAULT_GUEST_GUILD: DiscordGuild = {
   id: 'guest_demo_server',
-  name: 'Protutech Guest Sandbox',
+  name: 'Guest Sandbox',
   channels: DEFAULT_GUEST_ROOMS,
   hasVoice: true,
   serverKind: 'proprietary',
@@ -137,8 +138,8 @@ const DEFAULT_GUEST_MESSAGES: MatrixMessage[] = [
     id: 'gmsg_1',
     roomId: 'guest_welcome',
     sender: '@protutech_bot:local.protutech',
-    senderName: 'Protutech Assistant',
-    body: '👋 Welcome to Protutech! You are viewing the client in Guest Mode with full local voice, camera, screen share, scripts, and large file transfer enabled.',
+    senderName: 'Protutech Bot',
+    body: 'Welcome to Protutech Sandbox. Local chat, voice, camera preview, screen share, and file tools are active.',
     timestamp: Date.now() - 30000,
     source: 'app',
   },
@@ -146,8 +147,8 @@ const DEFAULT_GUEST_MESSAGES: MatrixMessage[] = [
     id: 'gmsg_2',
     roomId: 'guest_welcome',
     sender: '@protutech_bot:local.protutech',
-    senderName: 'Protutech Assistant',
-    body: '💬 Try `/ping`, `/roll 20`, `/mc list`, or click **Scripts/MC API**, **Co-Browse Search**, **Quests & Hub**, or **📦 Large File**!',
+    senderName: 'Protutech Bot',
+    body: 'Try `/ping`, `/roll 20`, or open Tools in the top bar.',
     timestamp: Date.now() - 15000,
     source: 'app',
   },
@@ -300,6 +301,7 @@ export const App: React.FC = () => {
   const [showZoomHud, setShowZoomHud] = useState(false);
   const zoomHudTimerRef = useRef<number | null>(null);
   const [isSoundboardOpen, setIsSoundboardOpen] = useState(false);
+  const [isCameraPreviewOpen, setIsCameraPreviewOpen] = useState(false);
   const [soundboardToasts, setSoundboardToasts] = useState<SoundboardPlayEvent[]>([]);
   const [isVoiceStageExpanded, setIsVoiceStageExpanded] = useState(false);
   const [isVoiceStageCollapsed, setIsVoiceStageCollapsed] = useState(false);
@@ -307,6 +309,27 @@ export const App: React.FC = () => {
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const roomsRef = useRef<MatrixRoom[]>(rooms);
   const locallyDeletedIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handleOpenCameraPreview = () => {
+      setIsCameraPreviewOpen(true);
+    };
+    window.addEventListener('protutech:open-camera-preview', handleOpenCameraPreview);
+    return () => {
+      window.removeEventListener('protutech:open-camera-preview', handleOpenCameraPreview);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isCreateTempChannelOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCreateTempChannelOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isCreateTempChannelOpen]);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -908,10 +931,10 @@ export const App: React.FC = () => {
           setTimeout(() => {
             const pingTime = Math.floor(Math.random() * 8) + 8;
             const botReplies = [
-              `⚡ **Latency Benchmark:** Delivered in **${pingTime}ms** RTC!`,
-              `🚀 **Protutech Assistant:** Received "${text.slice(0, 32)}${
+              `Delivered in **${pingTime}ms**.`,
+              `Echo (${pingTime}ms): "${text.slice(0, 32)}${
                 text.length > 32 ? '...' : ''
-              }" in **${pingTime}ms**.`,
+              }"`,
             ];
             const randomReply = botReplies[Math.floor(Math.random() * botReplies.length)];
 
@@ -919,7 +942,7 @@ export const App: React.FC = () => {
               id: `bot_msg_${Date.now()}`,
               roomId: targetRoomId,
               sender: '@protutech_bot:local.protutech',
-              senderName: 'Protutech Assistant',
+              senderName: 'Protutech Bot',
               body: randomReply,
               timestamp: Date.now(),
               source: 'app',
@@ -1168,12 +1191,13 @@ export const App: React.FC = () => {
   const zoomHudPill = showZoomHud ? (
     <div
       data-testid="zoom-hud-pill"
-      className="fixed top-9 right-4 z-[60] bg-[#111214]/95 border border-[#4e5058]/50 shadow-xl rounded-full px-2.5 py-1 flex items-center gap-1.5 text-xs text-[#f2f3f5]"
+      className="fixed top-9 right-4 z-[60] bg-[var(--bg-popout)]/95 border border-[var(--border-subtle)] shadow-xl rounded-full px-2.5 py-1 flex items-center gap-1.5 text-xs text-[var(--text-header)]"
     >
       <button
         type="button"
         onClick={() => zoomService.zoomOut()}
-        className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center font-bold cursor-pointer"
+        aria-label="Zoom Out"
+        className="w-5 h-5 rounded-full hover:bg-[var(--bg-item-hover)] flex items-center justify-center font-bold cursor-pointer"
         title="Zoom Out"
       >
         -
@@ -1182,7 +1206,8 @@ export const App: React.FC = () => {
       <button
         type="button"
         onClick={() => zoomService.zoomIn()}
-        className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center font-bold cursor-pointer"
+        aria-label="Zoom In"
+        className="w-5 h-5 rounded-full hover:bg-[var(--bg-item-hover)] flex items-center justify-center font-bold cursor-pointer"
         title="Zoom In"
       >
         +
@@ -1190,21 +1215,36 @@ export const App: React.FC = () => {
       <button
         type="button"
         onClick={() => zoomService.resetZoom()}
-        className="ml-0.5 px-2 py-0.5 rounded-full bg-[#5865f2] hover:bg-[#4752c4] text-white text-[11px] font-semibold cursor-pointer"
+        className="ml-0.5 px-2 py-0.5 rounded-full bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-[11px] font-semibold cursor-pointer"
       >
         Reset
       </button>
     </div>
   ) : null;
 
+  const cameraPreviewModal = (
+    <WebcamBackgroundModal
+      isOpen={isCameraPreviewOpen}
+      onClose={() => setIsCameraPreviewOpen(false)}
+      onTurnOnCamera={
+        activeVoiceRoom
+          ? async () => {
+              await livekit.setCamera(true);
+            }
+          : undefined
+      }
+    />
+  );
+
   if (!isAuthenticated && !isGuestMode) {
     return (
-      <div className="flex flex-col h-full w-full overflow-hidden bg-[#090d16] relative">
+      <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--bg-frame)] relative">
         <TitleBar
           engineMode={engineMode}
           onToggleEngineMode={handleToggleEngineMode}
           onToggleOverlay={() => overlayService.toggleEnabled()}
           onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+          onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
           layoutFormat={layoutFormat}
           onToggleLayoutFormat={handleToggleLayoutFormat}
           zoomLevel={zoomLevel}
@@ -1224,6 +1264,7 @@ export const App: React.FC = () => {
           isOpen={isStoreModalOpen}
           onClose={() => setIsStoreModalOpen(false)}
         />
+        {cameraPreviewModal}
       </div>
     );
   }
@@ -1242,7 +1283,7 @@ export const App: React.FC = () => {
   const isCurrentRoomVoice = activeVoiceRoom !== null;
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--bg-chat)] relative">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--bg-servers)] relative">
       <TitleBar
         engineMode={engineMode}
         onToggleEngineMode={handleToggleEngineMode}
@@ -1253,6 +1294,7 @@ export const App: React.FC = () => {
         isCoBrowsing={isCoBrowseOpen}
         onToggleOverlay={() => overlayService.toggleEnabled()}
         onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+        onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
         layoutFormat={layoutFormat}
         onToggleLayoutFormat={handleToggleLayoutFormat}
         zoomLevel={zoomLevel}
@@ -1264,15 +1306,12 @@ export const App: React.FC = () => {
         onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
       />
 
-      {/* Guest Mode Notice Banner */}
+      {/* Sandbox Mode Banner */}
       {isGuestMode && (
-        <div className="bg-[var(--bg-channels)] border-b border-black/25 px-4 py-1.5 flex items-center justify-between text-xs text-[var(--text-normal)] z-20 flex-shrink-0 flex-wrap gap-2">
+        <div className="bg-[var(--bg-channels)] border-b border-[var(--border-subtle)] px-4 py-1.5 flex items-center justify-between text-xs text-[var(--text-normal)] z-20 flex-shrink-0 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#23a55a] animate-pulse" />
-            <span className="font-bold text-[var(--text-header)]">🧪 Guest Sampling Sandbox:</span>
-            <span className="text-[var(--text-muted)] hidden sm:inline">
-              Full local voice, webcam, 1080p60 screenshare, Co-Browse, scripts, and large file transfer enabled.
-            </span>
+            <span className="w-2 h-2 rounded-full bg-[var(--status-online)] animate-pulse" />
+            <span className="font-semibold text-[var(--text-header)]">Sandbox Mode</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1282,25 +1321,25 @@ export const App: React.FC = () => {
                 setTempChannelError(null);
                 setIsCreateTempChannelOpen(true);
               }}
-              className="bg-[#5865f2] hover:bg-[#4752c4] text-white font-semibold px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer"
+              className="bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold px-2.5 py-1 rounded-md text-xs transition-colors flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Temp Channel</span>
+              <span>New Channel</span>
             </button>
             <button
               type="button"
               onClick={handleExitGuestMode}
-              className="bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] px-2.5 py-1 rounded text-xs transition-colors cursor-pointer border border-[#4e5058]/40"
+              className="bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer border border-[var(--border-subtle)]"
             >
-              <span>Exit Guest / Sign In</span>
+              <span>Sign In</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Workspace Body: TeamSpeak Classic Tree Format OR 1:1 Discord 4-Column Layout */}
+      {/* Workspace Body: TeamSpeak Classic Tree Format OR Standard 4-Column Layout */}
       {layoutFormat === 'teamspeak' ? (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--bg-chat)]">
           <TeamSpeakLayout
             guilds={guilds}
             activeGuildId={activeGuildId}
@@ -1332,6 +1371,7 @@ export const App: React.FC = () => {
             onSelectUser={user => setSelectedProfileUser(user)}
             onOpenSettings={tab => openSettingsTab(tab || 'themes')}
             onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+            onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
             onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
             onCloseCoBrowse={() => {
               setIsCoBrowseOpen(false);
@@ -1349,8 +1389,8 @@ export const App: React.FC = () => {
           />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 w-full flex overflow-hidden">
-          {/* 1. Left Guild Rail */}
+        <div className="flex-1 min-h-0 w-full flex overflow-hidden bg-[var(--bg-channels)]">
+          {/* 1. Left Server Rail */}
           <ServerRail
             guilds={guilds}
             activeGuildId={activeGuildId}
@@ -1362,7 +1402,7 @@ export const App: React.FC = () => {
           />
 
           {/* 2. Channel & DM Sidebar */}
-          <div className="flex flex-col h-full min-h-0 flex-shrink-0 z-10">
+          <div className="flex flex-col h-full min-h-0 flex-shrink-0">
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <ChannelSidebar
                 activeGuild={activeGuild}
@@ -1391,6 +1431,7 @@ export const App: React.FC = () => {
                 isCoBrowsing={isCoBrowseOpen}
                 onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
                 isSoundboardOpen={isSoundboardOpen}
+                onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
               />
             )}
 
@@ -1405,13 +1446,22 @@ export const App: React.FC = () => {
               onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
               onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
               isSoundboardOpen={isSoundboardOpen}
+              onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
             />
           </div>
 
           {/* 3. Main Chat, Voice, & Co-Browse Stage Area */}
-          <div className="flex-1 flex flex-col h-full min-w-0 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col h-full min-w-0 min-h-0 overflow-hidden rounded-tl-xl border-t border-l border-[var(--border-subtle)] bg-[var(--bg-chat)]">
             {(isCoBrowseOpen || isCurrentRoomVoice || activeActivity) && (
-              <div className="max-h-[65%] overflow-y-auto flex-shrink-0 flex flex-col">
+              <div
+                className={`flex-shrink-0 flex flex-col ${
+                  isVoiceStageExpanded
+                    ? 'max-h-[82%] overflow-y-auto'
+                    : isCoBrowseOpen || activeActivity
+                    ? 'max-h-[70%] overflow-y-auto'
+                    : 'overflow-visible'
+                }`}
+              >
                 {/* Synchronized Co-Browser & Built-In Search Engine */}
                 {isCoBrowseOpen && (
                   <SharedBrowserStage
@@ -1435,6 +1485,7 @@ export const App: React.FC = () => {
                     onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
                     isCoBrowsing={isCoBrowseOpen}
                     onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+                    onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
                     onDisconnect={handleDisconnectVoice}
                     isExpanded={isVoiceStageExpanded}
                     onToggleExpand={() => setIsVoiceStageExpanded(prev => !prev)}
@@ -1496,7 +1547,10 @@ export const App: React.FC = () => {
         senderName={effectiveDisplayName}
       />
 
-      {/* Transient 2-Second Discord-Style Zoom HUD Pill */}
+      {/* Camera Preview & Virtual Backgrounds Modal */}
+      {cameraPreviewModal}
+
+      {/* Transient 2-Second Zoom HUD Pill */}
       {zoomHudPill}
 
       {/* Non-intrusive Bottom-Right Soundboard Play Toasts */}
@@ -1513,14 +1567,14 @@ export const App: React.FC = () => {
             return (
               <div
                 key={toast.id}
-                className="px-3.5 py-2 rounded-lg bg-[#111214]/95 border border-[#5865f2]/45 shadow-xl text-xs text-[#f2f3f5] flex items-center gap-2 animate-fadeIn"
+                className="px-3.5 py-2 rounded-lg bg-[var(--bg-popout)]/95 border border-[var(--border-accent)] shadow-xl text-xs text-[var(--text-header)] flex items-center gap-2 animate-fadeIn"
               >
                 <span className="text-base leading-none">{toast.emoji}</span>
                 <span>
-                  <strong className="font-semibold text-white">
+                  <strong className="font-semibold text-[var(--text-header)]">
                     {isSelf ? 'You' : toast.senderName}
                   </strong>{' '}
-                  played <span className="font-semibold text-[#949cf7]">{toast.name}</span>
+                  played <span className="font-semibold text-[var(--text-link)]">{toast.name}</span>
                 </span>
               </div>
             );
@@ -1710,17 +1764,33 @@ export const App: React.FC = () => {
 
       {/* Create Temporary Channel Modal */}
       {isCreateTempChannelOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md bg-[#313338] rounded-xl shadow-2xl p-6 border border-white/10 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="temp-channel-modal-title"
+          onClick={e => {
+            if (e.target === e.currentTarget) {
+              setIsCreateTempChannelOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn"
+        >
+          <div className="w-full max-w-md max-h-full overflow-y-auto bg-[var(--bg-card)] rounded-xl shadow-2xl p-6 border border-[var(--border-subtle)] relative">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#5865f2]" />
-                <h3 className="font-bold text-white text-base">Create Temporary Channel</h3>
+                <Sparkles className="w-5 h-5 text-[var(--accent-cyan)]" />
+                <h3
+                  id="temp-channel-modal-title"
+                  className="font-bold text-[var(--text-header)] text-base"
+                >
+                  New Channel
+                </h3>
               </div>
               <button
                 type="button"
+                aria-label="Close"
                 onClick={() => setIsCreateTempChannelOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/10"
+                className="text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer p-1 rounded-lg hover:bg-[var(--bg-item-hover)]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1728,86 +1798,90 @@ export const App: React.FC = () => {
 
             <form onSubmit={handleCreateTempChannel} className="space-y-4 mt-4">
               <div>
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
                   Channel Type
-                </label>
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    aria-pressed={tempChannelType === 'text'}
                     onClick={() => setTempChannelType('text')}
                     className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
                       tempChannelType === 'text'
-                        ? 'bg-[#5865f2]/20 border-[#5865f2] text-white shadow-md'
-                        : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-[var(--bg-item-active)] border-[var(--border-accent)] text-[var(--text-header)] shadow-md'
+                        : 'bg-[var(--bg-channels)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                     }`}
                   >
-                    <Hash className="w-4 h-4 text-[#5865f2]" />
+                    <Hash className="w-4 h-4 text-[var(--accent-cyan)]" />
                     <div className="text-left">
-                      <div className="text-white font-bold">Text Channel</div>
-                      <div className="text-[10px] text-gray-400">Instant test chat</div>
+                      <div className="text-[var(--text-header)] font-bold">Text</div>
+                      <div className="text-[10px] text-[var(--text-muted)]">Sandbox chat</div>
                     </div>
                   </button>
 
                   <button
                     type="button"
+                    aria-pressed={tempChannelType === 'voice'}
                     onClick={() => setTempChannelType('voice')}
                     className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
                       tempChannelType === 'voice'
-                        ? 'bg-[#5865f2]/20 border-[#5865f2] text-white shadow-md'
-                        : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-[var(--bg-item-active)] border-[var(--border-accent)] text-[var(--text-header)] shadow-md'
+                        : 'bg-[var(--bg-channels)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
                     }`}
                   >
-                    <Volume2 className="w-4 h-4 text-[#23a55a]" />
+                    <Volume2 className="w-4 h-4 text-[var(--status-online)]" />
                     <div className="text-left">
-                      <div className="text-white font-bold">Voice Channel</div>
-                      <div className="text-[10px] text-gray-400">Mic, camera &amp; share</div>
+                      <div className="text-[var(--text-header)] font-bold">Voice</div>
+                      <div className="text-[10px] text-[var(--text-muted)]">Mic, video &amp; share</div>
                     </div>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                <label
+                  htmlFor="temp-channel-name-input"
+                  className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5"
+                >
                   Channel Name
                 </label>
                 <div className="relative">
                   <input
+                    id="temp-channel-name-input"
                     type="text"
                     value={tempChannelName}
                     onChange={e => setTempChannelName(e.target.value)}
                     placeholder={tempChannelType === 'text' ? 'e.g. testing-lounge' : 'e.g. squad-voice'}
-                    className="w-full bg-[#1e1f22] border border-black/40 rounded px-3 py-2 text-sm text-white outline-none focus:border-[#5865f2] transition-colors"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-3 py-2 text-sm text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)] transition-colors"
                     autoFocus
                   />
                 </div>
                 {tempChannelError && (
-                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-[var(--status-dnd)] mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5" />
                     <span>{tempChannelError}</span>
                   </p>
                 )}
               </div>
 
-              <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span>
-                  <b>Ephemeral:</b> Exists strictly in this browser tab&apos;s memory and automatically vanishes when closed.
-                </span>
+              <div className="p-2.5 rounded-md bg-[var(--status-idle)]/10 border border-[var(--status-idle)]/25 text-[var(--text-normal)] text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--status-idle)] flex-shrink-0" />
+                <span>Stored in memory for this tab session only.</span>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateTempChannelOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold rounded text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 text-xs font-semibold rounded-md text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold rounded bg-[#5865f2] hover:bg-[#4752c4] text-white transition-colors cursor-pointer shadow-md"
+                  className="px-4 py-2 text-xs font-bold rounded-md bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white transition-colors cursor-pointer shadow-md"
                 >
-                  Create Temp Channel
+                  Create Channel
                 </button>
               </div>
             </form>
@@ -1817,18 +1891,18 @@ export const App: React.FC = () => {
 
       {/* Real-time live auto-update toast banner */}
       {updateAvailable && (
-        <div className="fixed bottom-5 right-5 z-[999999] bg-[#111214] border border-[#5865f2]/70 shadow-2xl rounded-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#23a55a] animate-ping" />
-          <div className="text-xs text-white">
-            <span className="font-bold text-[#949cf7] block">
+        <div className="fixed bottom-5 right-5 z-[999999] bg-[var(--bg-popout)] border border-[var(--border-accent)] shadow-2xl rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+          <span className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] animate-ping" />
+          <div className="text-xs text-[var(--text-normal)]">
+            <span className="font-bold text-[var(--text-link)] block">
               Update Ready ({newVersion || 'latest'})
             </span>
-            <span>Update downloaded in background. Restart application to apply.</span>
+            <span>Restart application to apply update.</span>
           </div>
           <button
             type="button"
             onClick={restartAndApplyUpdate}
-            className="ml-2 bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            className="ml-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
           >
             <span>Restart to Update</span>
           </button>

@@ -1679,6 +1679,8 @@ export class VencordService {
 
   public applyTheme(config: ThemeConfig) {
     const knownThemes = [
+      'theme-revolt',
+      'theme-classic-dark',
       'theme-light',
       'theme-midnight',
       'theme-translucent',

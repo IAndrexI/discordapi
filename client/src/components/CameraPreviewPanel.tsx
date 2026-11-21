@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera,
   Check,
@@ -19,6 +19,7 @@ import type { WebcamBackgroundConfig } from '../types';
 
 export interface CameraPreviewPanelProps {
   compact?: boolean;
+  autoStart?: boolean;
   showCameraActions?: boolean;
   onTurnOnCamera?: () => void;
 }
@@ -45,6 +46,7 @@ const BLUR_SUBJECT_MASK: React.CSSProperties = {
 
 export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
   compact = false,
+  autoStart = false,
   showCameraActions = false,
   onTurnOnCamera,
 }) => {
@@ -76,8 +78,13 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
   const blurVideoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
+  const selectedDeviceIdRef = useRef<string>(selectedDeviceId);
   const mountedRef = useRef<boolean>(true);
   const requestSeqRef = useRef<number>(0);
+
+  useEffect(() => {
+    selectedDeviceIdRef.current = selectedDeviceId;
+  }, [selectedDeviceId]);
 
   const stopStreamTracks = (stream: MediaStream | null) => {
     if (!stream) return;
@@ -90,7 +97,7 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
     });
   };
 
-  const stopPreview = () => {
+  const stopPreview = useCallback(() => {
     requestSeqRef.current += 1;
     if (activeStreamRef.current) {
       stopStreamTracks(activeStreamRef.current);
@@ -106,9 +113,9 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
       setPreviewStream(null);
       setIsStarting(false);
     }
-  };
+  }, []);
 
-  const refreshDevices = async () => {
+  const refreshDevices = useCallback(async () => {
     const list = await webcamBackground.listVideoDevices();
     if (!mountedRef.current) return;
     const seen = new Set<string>();
@@ -120,20 +127,24 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
       return true;
     });
     setDevices(deduped);
-  };
+  }, []);
 
-  const startPreview = async (deviceOverride?: string) => {
+  const startPreview = useCallback(async (deviceOverride?: string) => {
     const targetDevice =
-      deviceOverride !== undefined ? deviceOverride : selectedDeviceId;
+      deviceOverride !== undefined ? deviceOverride : selectedDeviceIdRef.current;
     const seq = ++requestSeqRef.current;
 
     if (activeStreamRef.current) {
       stopStreamTracks(activeStreamRef.current);
       activeStreamRef.current = null;
-      setPreviewStream(null);
+      if (mountedRef.current) {
+        setPreviewStream(null);
+      }
     }
 
-    setIsStarting(true);
+    if (mountedRef.current) {
+      setIsStarting(true);
+    }
     try {
       const stream = await webcamBackground.acquireCameraPreviewStream(targetDevice);
       if (!mountedRef.current || seq !== requestSeqRef.current) {
@@ -160,7 +171,7 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
         setIsStarting(false);
       }
     }
-  };
+  }, [refreshDevices]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -191,7 +202,13 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
         activeStreamRef.current = null;
       }
     };
-  }, []);
+  }, [refreshDevices]);
+
+  useEffect(() => {
+    if (autoStart) {
+      void startPreview();
+    }
+  }, [autoStart, startPreview]);
 
   useEffect(() => {
     const attach = (el: HTMLVideoElement | null) => {
@@ -286,16 +303,16 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
   return (
     <div
       data-testid="camera-preview-panel"
-      className={`rounded-lg bg-[#2b2d31] border border-[#1e1f22] text-[#dbdee1] ${
-        compact ? 'p-3 space-y-3' : 'p-4 space-y-4'
+      className={`rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-normal)] ${
+        compact ? 'p-2.5 space-y-1.5' : 'p-3 space-y-2'
       }`}
     >
       {/* Top Controls Row */}
-      <div className="flex flex-wrap items-end justify-between gap-2.5">
-        <div className="flex-1 min-w-[180px]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
           <label
             htmlFor="camera-preview-device-select"
-            className="block text-[11px] font-bold uppercase tracking-wider text-[#b5bac1] mb-1.5"
+            className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] shrink-0"
           >
             Camera
           </label>
@@ -304,7 +321,7 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
             data-testid="camera-device-select"
             value={selectedDeviceId}
             onChange={(e) => handleDeviceChange(e.target.value)}
-            className="w-full bg-[#1e1f22] border border-[#111214] hover:border-[#3f4147] focus:border-[#5865f2] rounded px-3 py-2 text-xs text-[#dbdee1] outline-none transition-colors cursor-pointer"
+            className="flex-1 min-w-0 bg-[var(--bg-popout)] border border-[var(--border-subtle)] hover:border-[var(--text-muted)]/40 focus:border-[var(--discord-blurple)] rounded px-2.5 py-1.5 text-xs text-[var(--text-normal)] outline-none transition-colors cursor-pointer"
           >
             <option value="">Default Camera (Auto)</option>
             {devices.map((device, idx) => (
@@ -315,17 +332,18 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
           </select>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             data-testid="camera-mirror-toggle-btn"
+            aria-label={mirrorPreview ? 'Mirror Preview: On' : 'Mirror Preview: Off'}
             aria-pressed={mirrorPreview}
             title={mirrorPreview ? 'Mirror Preview: On' : 'Mirror Preview: Off'}
             onClick={handleToggleMirror}
-            className={`px-3 py-2 rounded text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
               mirrorPreview
-                ? 'bg-[#5865f2]/20 border-[#5865f2] text-white'
-                : 'bg-[#1e1f22] border-[#3f4147] text-[#b5bac1] hover:text-white hover:border-[#4e5058]'
+                ? 'bg-[var(--discord-blurple)]/20 border-[var(--discord-blurple)] text-[var(--text-header)]'
+                : 'bg-[var(--bg-popout)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
             }`}
           >
             <FlipHorizontal className="w-3.5 h-3.5" />
@@ -335,11 +353,13 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
           <button
             type="button"
             data-testid="camera-preview-toggle-btn"
+            aria-label={isPreviewRunning || isStarting ? 'Stop Preview' : 'Test Video'}
+            aria-pressed={isPreviewRunning}
             onClick={handleTogglePreview}
-            className={`px-4 py-2 rounded text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm ${
+            className={`px-3 py-1.5 rounded text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm ${
               isPreviewRunning || isStarting
-                ? 'bg-[#da373c] hover:bg-[#b62b30]'
-                : 'bg-[#5865f2] hover:bg-[#4752c4]'
+                ? 'bg-[var(--status-dnd)] hover:opacity-90'
+                : 'bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)]'
             }`}
           >
             {isPreviewRunning || isStarting ? (
@@ -360,7 +380,9 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
       {/* Live 16:9 Camera Preview Stage */}
       <div
         data-testid="camera-preview-stage"
-        className="relative aspect-video w-full rounded-lg bg-[#111214] border border-[#1e1f22] overflow-hidden flex items-center justify-center shadow-inner"
+        className={`relative aspect-video mx-auto rounded-lg bg-[var(--bg-popout)] border border-[var(--border-subtle)] overflow-hidden flex items-center justify-center shadow-inner ${
+          compact ? 'w-full max-w-[300px] max-h-[168px]' : 'w-full max-w-[360px] max-h-[195px]'
+        }`}
       >
         {isPreviewRunning ? (
           <>
@@ -425,46 +447,46 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
 
             {/* Top-left Live Badges */}
             <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap items-center gap-1.5 pointer-events-none">
-              <span className="px-2 py-0.5 rounded bg-[#111214]/85 border border-white/10 text-[10px] font-mono font-semibold text-[#dbdee1] flex items-center gap-1.5 backdrop-blur-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a] animate-pulse" />
+              <span className="px-2 py-0.5 rounded bg-[var(--bg-popout)]/85 border border-[var(--border-subtle)] text-[10px] font-mono font-semibold text-[var(--text-normal)] flex items-center gap-1.5 backdrop-blur-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-online)] animate-pulse" />
                 <span>
                   {streamMeta.width}×{streamMeta.height} • {streamMeta.fps} FPS
                 </span>
               </span>
 
               {isStudioFxActive && (
-                <span className="px-2 py-0.5 rounded bg-[#5865f2] text-white text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow">
+                <span className="px-2 py-0.5 rounded bg-[var(--discord-blurple)] text-white text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow">
                   <Sparkles className="w-2.5 h-2.5" />
-                  <span>STUDIO FX</span>
+                  <span>FX</span>
                 </span>
               )}
 
-              <span className="px-2 py-0.5 rounded bg-[#1e1f22]/90 border border-white/10 text-[10px] font-semibold text-[#b5bac1]">
+              <span className="px-2 py-0.5 rounded bg-[var(--bg-channels)]/90 border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-muted)]">
                 {activeBgName}
               </span>
             </div>
 
             {/* Bottom-right Mirror indicator */}
             {mirrorPreview && (
-              <div className="absolute bottom-2.5 right-2.5 z-20 px-2 py-0.5 rounded bg-[#111214]/80 border border-white/10 text-[10px] font-medium text-[#b5bac1] pointer-events-none">
+              <div className="absolute bottom-2.5 right-2.5 z-20 px-2 py-0.5 rounded bg-[var(--bg-popout)]/80 border border-[var(--border-subtle)] text-[10px] font-medium text-[var(--text-muted)] pointer-events-none">
                 Mirrored
               </div>
             )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center text-center px-6 py-4 gap-2.5">
-            <div className="w-12 h-12 rounded-full bg-[#1e1f22] border border-[#3f4147]/60 flex items-center justify-center text-[#949ba4]">
+            <div className="w-12 h-12 rounded-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)]">
               <Camera className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-[#dbdee1]">
+              <p className="text-xs font-semibold text-[var(--text-header)]">
                 {isStarting
                   ? 'Starting camera preview...'
-                  : 'Camera preview stopped — click Test Video'}
+                  : 'Preview paused — click Test Video'}
               </p>
-              <p className="text-[11px] text-[#949ba4]">
-                Active background:{' '}
-                <span className="text-[#dbdee1] font-medium">{activeBgName}</span>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                Background:{' '}
+                <span className="text-[var(--text-normal)] font-medium">{activeBgName}</span>
               </p>
             </div>
           </div>
@@ -475,14 +497,14 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
       {config.type === 'blur' && (
         <div
           data-testid="camera-blur-slider-box"
-          className="p-3 rounded-lg bg-[#1e1f22] border border-[#3f4147]/40 space-y-1.5"
+          className="p-3 rounded-lg bg-[var(--bg-popout)] border border-[var(--border-subtle)] space-y-1.5"
         >
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#dbdee1] flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-[#5865f2]" />
+            <span className="font-semibold text-[var(--text-header)] flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
               <span>Blur Intensity</span>
             </span>
-            <span className="font-mono font-bold text-[#949cf7] text-[11px]">
+            <span className="font-mono font-bold text-[var(--text-link)] text-[11px]">
               {blurAmount}px
             </span>
           </div>
@@ -495,18 +517,18 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
             aria-label="Blur Intensity"
             data-testid="camera-blur-slider"
             onChange={(e) => handleSelectBlur(Number(e.target.value))}
-            className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#111214] rounded-lg"
+            className="w-full accent-[var(--discord-blurple)] cursor-pointer h-1.5 bg-[var(--bg-channels)] rounded-lg"
           />
         </div>
       )}
 
-      {/* Discord-style Video Backgrounds Tile Grid */}
-      <div className="space-y-2.5">
+      {/* Video Backgrounds Tile Grid */}
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#b5bac1]">
-            Video Backgrounds
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            Backgrounds
           </span>
-          <span className="text-[11px] text-[#949ba4] font-medium">
+          <span className="text-[11px] text-[var(--text-muted)] font-medium">
             {activeBgName}
           </span>
         </div>
@@ -520,29 +542,25 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
           className="hidden"
         />
 
-        <div
-          className={`grid gap-2.5 ${
-            compact
-              ? 'grid-cols-3 sm:grid-cols-4'
-              : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5'
-          }`}
-        >
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
           {/* None Tile */}
           <button
             type="button"
             data-testid="bg-tile-none"
+            aria-label="No background"
+            aria-pressed={config.type === 'none'}
             onClick={handleSelectNone}
-            className={`relative aspect-video rounded-md border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer overflow-hidden ${
+            className={`relative ${compact ? 'h-9' : 'h-10'} rounded-md border flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden ${
               config.type === 'none'
-                ? 'border-[#5865f2] ring-2 ring-[#5865f2]/60 bg-[#5865f2]/15 text-white'
-                : 'border-[#3f4147]/70 bg-[#1e1f22] text-[#b5bac1] hover:border-[#6d6f78] hover:text-white'
+                ? 'border-[var(--discord-blurple)] ring-2 ring-[var(--discord-blurple)]/60 bg-[var(--discord-blurple)]/15 text-[var(--text-header)]'
+                : 'border-[var(--border-subtle)] bg-[var(--bg-channels)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
-            <span className="text-base font-bold leading-none">∅</span>
-            <span className="text-[10px] font-semibold">None</span>
+            <span className="text-xs font-bold leading-none">∅</span>
+            <span className="text-[9px] font-semibold">None</span>
             {config.type === 'none' && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#5865f2] text-white flex items-center justify-center">
-                <Check className="w-2.5 h-2.5" />
+              <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--discord-blurple)] text-white flex items-center justify-center">
+                <Check className="w-2 h-2" />
               </span>
             )}
           </button>
@@ -551,20 +569,22 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
           <button
             type="button"
             data-testid="bg-tile-blur"
+            aria-label="Blur background"
+            aria-pressed={config.type === 'blur'}
             onClick={() => handleSelectBlur(blurAmount)}
-            className={`relative aspect-video rounded-md border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer overflow-hidden ${
+            className={`relative ${compact ? 'h-9' : 'h-10'} rounded-md border flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden ${
               config.type === 'blur'
-                ? 'border-[#5865f2] ring-2 ring-[#5865f2]/60 bg-[#5865f2]/20 text-white'
-                : 'border-[#3f4147]/70 bg-[#1e1f22] text-[#b5bac1] hover:border-[#6d6f78] hover:text-white'
+                ? 'border-[var(--discord-blurple)] ring-2 ring-[var(--discord-blurple)]/60 bg-[var(--discord-blurple)]/20 text-[var(--text-header)]'
+                : 'border-[var(--border-subtle)] bg-[var(--bg-channels)] text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)]'
             }`}
           >
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#5865f2] to-[#38bdf8] flex items-center justify-center">
-              <Sliders className="w-3 h-3 text-white" />
+            <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-[var(--discord-blurple)] to-cyan-400 flex items-center justify-center">
+              <Sliders className="w-2 h-2 text-white" />
             </div>
-            <span className="text-[10px] font-semibold">Blur</span>
+            <span className="text-[9px] font-semibold">Blur</span>
             {config.type === 'blur' && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#5865f2] text-white flex items-center justify-center">
-                <Check className="w-2.5 h-2.5" />
+              <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--discord-blurple)] text-white flex items-center justify-center">
+                <Check className="w-2 h-2" />
               </span>
             )}
           </button>
@@ -573,11 +593,12 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
           <button
             type="button"
             data-testid="bg-tile-add-image"
+            aria-label="Add custom background image"
             onClick={() => fileInputRef.current?.click()}
-            className="aspect-video rounded-md border border-dashed border-[#4e5058] hover:border-[#5865f2] bg-[#1e1f22] hover:bg-[#5865f2]/10 text-[#b5bac1] hover:text-white flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer"
+            className={`${compact ? 'h-9' : 'h-10'} rounded-md border border-dashed border-[var(--border-subtle)] hover:border-[var(--discord-blurple)] bg-[var(--bg-channels)] hover:bg-[var(--discord-blurple)]/10 text-[var(--text-muted)] hover:text-[var(--text-header)] flex flex-col items-center justify-center transition-colors cursor-pointer`}
           >
-            <Plus className="w-4 h-4 text-[#949cf7]" />
-            <span className="text-[10px] font-semibold">Add Image</span>
+            <Plus className="w-3.5 h-3.5 text-[var(--text-link)]" />
+            <span className="text-[9px] font-semibold">Add Image</span>
           </button>
 
           {/* Custom Uploaded Background Tiles */}
@@ -589,6 +610,8 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                 key={`${idx}-${imgUrl.slice(0, 24)}`}
                 role="button"
                 tabIndex={0}
+                aria-label={`Custom background ${idx + 1}`}
+                aria-pressed={isActive}
                 onClick={() => handleSelectCustom(imgUrl)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -596,10 +619,10 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                     handleSelectCustom(imgUrl);
                   }
                 }}
-                className={`relative aspect-video rounded-md border overflow-hidden cursor-pointer group transition-all ${
+                className={`relative ${compact ? 'h-9' : 'h-10'} rounded-md border overflow-hidden cursor-pointer group transition-all ${
                   isActive
-                    ? 'border-[#5865f2] ring-2 ring-[#5865f2]/60'
-                    : 'border-[#3f4147]/70 hover:border-[#6d6f78]'
+                    ? 'border-[var(--discord-blurple)] ring-2 ring-[var(--discord-blurple)]/60'
+                    : 'border-[var(--border-subtle)] hover:border-[var(--text-muted)]/50'
                 }`}
               >
                 <img
@@ -607,14 +630,14 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                   alt={`Custom background ${idx + 1}`}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-1.5 py-0.5">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-1 py-0.2">
                   <span className="block text-[9px] font-semibold text-white truncate">
                     Custom {idx + 1}
                   </span>
                 </div>
                 {isActive && (
-                  <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#5865f2] text-white flex items-center justify-center shadow">
-                    <Check className="w-2.5 h-2.5" />
+                  <span className="absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-[var(--discord-blurple)] text-white flex items-center justify-center shadow">
+                    <Check className="w-2 h-2" />
                   </span>
                 )}
                 <button
@@ -622,15 +645,15 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                   aria-label="Delete custom background"
                   title="Remove custom background"
                   onClick={(e) => handleDeleteCustom(e, imgUrl)}
-                  className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#111214]/85 hover:bg-[#da373c] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity cursor-pointer"
+                  className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--bg-popout)]/90 hover:bg-[var(--status-dnd)] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity cursor-pointer"
                 >
-                  <X className="w-2.5 h-2.5" />
+                  <X className="w-2 h-2" />
                 </button>
               </div>
             );
           })}
 
-          {/* 8 Built-In Virtual Background Preset Tiles */}
+          {/* Built-In Virtual Background Preset Tiles */}
           {WEBCAM_PRESETS.map((preset) => {
             const isActive =
               config.type === 'preset' && config.presetId === preset.id;
@@ -639,11 +662,13 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                 key={preset.id}
                 type="button"
                 data-testid={`bg-tile-${preset.id}`}
+                aria-label={preset.name}
+                aria-pressed={isActive}
                 onClick={() => handleSelectPreset(preset)}
-                className={`relative aspect-video rounded-md border overflow-hidden cursor-pointer group transition-all text-left ${
+                className={`relative ${compact ? 'h-9' : 'h-10'} rounded-md border overflow-hidden cursor-pointer group transition-all text-left ${
                   isActive
-                    ? 'border-[#5865f2] ring-2 ring-[#5865f2]/60'
-                    : 'border-[#3f4147]/70 hover:border-[#6d6f78]'
+                    ? 'border-[var(--discord-blurple)] ring-2 ring-[var(--discord-blurple)]/60'
+                    : 'border-[var(--border-subtle)] hover:border-[var(--text-muted)]/50'
                 }`}
               >
                 <img
@@ -651,14 +676,14 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
                   alt={preset.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-1.5 py-0.5">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-1 py-0.2">
                   <span className="block text-[9px] font-semibold text-white truncate">
                     {preset.name}
                   </span>
                 </div>
                 {isActive && (
-                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#5865f2] text-white flex items-center justify-center shadow">
-                    <Check className="w-2.5 h-2.5" />
+                  <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--discord-blurple)] text-white flex items-center justify-center shadow">
+                    <Check className="w-2 h-2" />
                   </span>
                 )}
               </button>
@@ -669,12 +694,13 @@ export const CameraPreviewPanel: React.FC<CameraPreviewPanelProps> = ({
 
       {/* Optional In-Call Camera Action */}
       {showCameraActions && onTurnOnCamera && (
-        <div className="pt-2 border-t border-[#1e1f22] flex items-center justify-end">
+        <div className="pt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-end">
           <button
             type="button"
             data-testid="turn-on-camera-in-call-btn"
+            aria-label="Turn On Camera in Call"
             onClick={handleTurnOnCameraClick}
-            className="px-4 py-2 rounded bg-[#248046] hover:bg-[#1a6334] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+            className="px-3.5 py-1.5 rounded bg-[var(--status-online)] hover:opacity-90 text-white text-xs font-semibold flex items-center gap-1.5 transition-opacity cursor-pointer shadow-sm"
           >
             <Video className="w-3.5 h-3.5" />
             <span>Turn On Camera in Call</span>

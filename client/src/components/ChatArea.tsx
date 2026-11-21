@@ -43,6 +43,26 @@ import {
 const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '🚀'];
 const BAR_QUICK_EMOJIS = ['👍', '❤️', '😂'];
 const INPUT_EMOJIS = ['🚀', '🔥', '❤️', '👍', '😂', '🎮', '⚡', '👀'];
+const PINNED_STORAGE_KEY = 'protutech_pinned_messages_v1';
+
+function loadPinnedMessages(): Record<string, string[]> {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const cleaned: Record<string, string[]> = {};
+    for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+      if (Array.isArray(val)) {
+        cleaned[key] = val.filter((id): id is string => typeof id === 'string');
+      }
+    }
+    return cleaned;
+  } catch {
+    return {};
+  }
+}
 
 interface ReplyTarget {
   id: string;
@@ -82,12 +102,16 @@ const formatTimestamp = (ts: number) => {
 interface MessageRowProps {
   msg: MatrixMessage;
   roomId: string;
+  messageIndex: number;
   isSameSender: boolean;
   isOwnMessage: boolean;
+  isPinned: boolean;
   isLoggerEnabled: boolean;
   isCompactMode: boolean;
   currentUserId?: string;
   onReply: (target: ReplyTarget) => void;
+  onTogglePin: (messageId: string) => void;
+  registerMessageRef: (id: string, el: HTMLDivElement | null) => void;
   onDeleteMessage?: (roomId: string, messageId: string) => void;
   onEditMessage?: (roomId: string, messageId: string, newText: string) => void;
   onAddReaction?: (roomId: string, messageId: string, emoji: string) => void;
@@ -97,12 +121,16 @@ const MessageRow = React.memo<MessageRowProps>(
   ({
     msg,
     roomId,
+    messageIndex,
     isSameSender,
     isOwnMessage,
+    isPinned,
     isLoggerEnabled,
     isCompactMode,
     currentUserId,
     onReply,
+    onTogglePin,
+    registerMessageRef,
     onDeleteMessage,
     onEditMessage,
     onAddReaction,
@@ -111,8 +139,36 @@ const MessageRow = React.memo<MessageRowProps>(
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(msg.body);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const reactionPickerRef = useRef<HTMLDivElement>(null);
+    const rowRef = useRef<HTMLDivElement>(null);
 
+    const isTopMessage = messageIndex < 2;
     const avatarError = Boolean(msg.avatarUrl && failedAvatarUrl === msg.avatarUrl);
+
+    useEffect(() => {
+      registerMessageRef(msg.id, rowRef.current);
+      return () => registerMessageRef(msg.id, null);
+    }, [msg.id, registerMessageRef]);
+
+    useEffect(() => {
+      if (!showReactionPicker) return;
+      const onPointerDown = (e: MouseEvent) => {
+        if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target as Node)) {
+          setShowReactionPicker(false);
+        }
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setShowReactionPicker(false);
+        }
+      };
+      window.addEventListener('mousedown', onPointerDown);
+      window.addEventListener('keydown', onKey);
+      return () => {
+        window.removeEventListener('mousedown', onPointerDown);
+        window.removeEventListener('keydown', onKey);
+      };
+    }, [showReactionPicker]);
 
     const handleSaveEdit = () => {
       const trimmed = editText.trim();
@@ -145,20 +201,20 @@ const MessageRow = React.memo<MessageRowProps>(
       <>
         {msg.source === 'discord' && (
           <span
-            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[#5865f2] text-white leading-tight ${
+            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[var(--discord-blurple)] text-white leading-tight ${
               compact ? 'mr-1' : ''
             }`}
-            title="Bridged from Discord"
+            title="External Bridge"
           >
-            Discord
+            Bridge
           </span>
         )}
         {isMinecraftBridge && (
           <span
-            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[#23a55a]/20 text-[#23a55a] leading-tight inline-flex items-center gap-0.5 ${
+            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[var(--status-online)]/20 text-[var(--status-online)] leading-tight inline-flex items-center gap-0.5 ${
               compact ? 'mr-1' : ''
             }`}
-            title="Bridged from Minecraft Server"
+            title="Minecraft Bridge"
           >
             <Pickaxe className="w-2.5 h-2.5" />
             <span>MC</span>
@@ -166,13 +222,24 @@ const MessageRow = React.memo<MessageRowProps>(
         )}
         {isWebhookBridge && (
           <span
-            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[#f0b232]/20 text-[#f0b232] leading-tight inline-flex items-center gap-0.5 ${
+            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[var(--status-idle)]/20 text-[var(--status-idle)] leading-tight inline-flex items-center gap-0.5 ${
               compact ? 'mr-1' : ''
             }`}
-            title="Script / Webhook Integration"
+            title="Script / Webhook"
           >
             <Terminal className="w-2.5 h-2.5" />
             <span>Script</span>
+          </span>
+        )}
+        {isPinned && (
+          <span
+            className={`px-1 py-0.2 rounded-[3px] text-[10px] font-semibold uppercase tracking-wide bg-[var(--bg-item-active)] text-[var(--text-header)] leading-tight inline-flex items-center gap-0.5 ${
+              compact ? 'mr-1' : ''
+            }`}
+            title="Pinned Message"
+          >
+            <Pin className="w-2.5 h-2.5" />
+            <span>Pinned</span>
           </span>
         )}
       </>
@@ -188,14 +255,16 @@ const MessageRow = React.memo<MessageRowProps>(
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 onKeyDown={handleEditKeyDown}
+                aria-label="Edit message text"
                 autoFocus
                 className="flex-1 bg-[var(--bg-message-input)] border border-[var(--discord-blurple)] rounded px-3 py-1.5 text-sm text-[var(--text-header)] outline-none"
               />
               <button
                 type="button"
                 onClick={handleSaveEdit}
-                className="p-1.5 rounded bg-[#23a55a] hover:bg-[#1e8e4c] text-white cursor-pointer"
-                title="Save edit (Enter)"
+                aria-label="Save edit"
+                className="p-1.5 rounded bg-[var(--status-online)] hover:opacity-90 text-white cursor-pointer"
+                title="Save (Enter)"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -205,6 +274,7 @@ const MessageRow = React.memo<MessageRowProps>(
                   setEditText(msg.body);
                   setIsEditing(false);
                 }}
+                aria-label="Cancel edit"
                 className="p-1.5 rounded bg-[var(--bg-item-hover)] hover:bg-[var(--bg-item-active)] text-[var(--text-normal)] cursor-pointer"
                 title="Cancel (Esc)"
               >
@@ -212,7 +282,7 @@ const MessageRow = React.memo<MessageRowProps>(
               </button>
             </div>
             <div className="text-[11px] text-[var(--text-muted)]">
-              escape to cancel • enter to save
+              Esc to cancel • Enter to save
             </div>
           </div>
         );
@@ -222,12 +292,12 @@ const MessageRow = React.memo<MessageRowProps>(
         const match = msg.body.match(/steam:\/\/[\w\d/._-]+/);
         const url = match ? match[0] : null;
         return (
-          <div className="p-3 my-1 rounded-r-md bg-[var(--bg-channels)] border border-[var(--border-subtle)] border-l-4 border-l-[var(--discord-blurple)] max-w-md flex flex-col gap-2">
+          <div className="p-3 my-1 rounded-r-md bg-[var(--bg-card)] border border-[var(--border-subtle)] border-l-4 border-l-[var(--discord-blurple)] max-w-md flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <Gamepad2 className="w-5 h-5 text-[var(--discord-blurple)] flex-shrink-0" />
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-[var(--text-header)]">
-                  Steam Game Invitation
+                  Steam Game Invite
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)]">
                   {msg.senderName} wants to play
@@ -256,10 +326,10 @@ const MessageRow = React.memo<MessageRowProps>(
         return (
           <div
             data-testid="large-file-attachment-card"
-            className="my-1.5 p-3 rounded-md bg-[var(--bg-channels)] border border-[var(--border-subtle)] border-l-4 border-l-[var(--discord-blurple)] max-w-md flex items-center justify-between gap-3"
+            className="my-1.5 p-3 rounded-md bg-[var(--bg-card)] border border-[var(--border-subtle)] border-l-4 border-l-[var(--discord-blurple)] max-w-md flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded bg-[var(--bg-servers)] flex items-center justify-center text-[var(--discord-blurple)] flex-shrink-0">
+              <div className="w-9 h-9 rounded bg-[var(--bg-channels)] flex items-center justify-center text-[var(--discord-blurple)] flex-shrink-0">
                 <FileArchive className="w-5 h-5" />
               </div>
               <div className="min-w-0">
@@ -355,14 +425,14 @@ const MessageRow = React.memo<MessageRowProps>(
         )}
 
         {msg.mediaType === 'audio' && msg.mediaUrl && (
-          <div className="mt-1.5 max-w-md rounded-md bg-[var(--bg-channels)] border border-[var(--border-subtle)] p-2.5 flex items-center gap-2.5">
+          <div className="mt-1.5 max-w-md rounded-md bg-[var(--bg-card)] border border-[var(--border-subtle)] p-2.5 flex items-center gap-2.5">
             <Music className="w-4 h-4 text-[var(--discord-blurple)] flex-shrink-0" />
             <audio src={msg.mediaUrl} controls className="w-full h-8" />
           </div>
         )}
 
         {msg.mediaType === 'file' && msg.mediaUrl && (
-          <div className="mt-1.5 inline-flex items-center gap-2.5 bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded-md p-3 text-sm">
+          <div className="mt-1.5 inline-flex items-center gap-2.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-md p-3 text-sm">
             <FileText className="w-6 h-6 text-[var(--discord-blurple)]" />
             <a
               href={msg.mediaUrl}
@@ -384,10 +454,12 @@ const MessageRow = React.memo<MessageRowProps>(
                   key={emoji}
                   type="button"
                   onClick={() => onAddReaction?.(roomId, msg.id, emoji)}
+                  aria-label={`Reaction ${emoji}, ${users.length}`}
+                  aria-pressed={hasReacted}
                   className={`px-1.5 py-0.5 rounded-[6px] text-xs font-medium flex items-center gap-1 border transition-colors cursor-pointer ${
                     hasReacted
-                      ? 'bg-[#5865f2]/20 border-[#5865f2] text-[var(--text-header)]'
-                      : 'bg-[var(--bg-channels)] border-[var(--border-subtle)] text-[var(--text-normal)] hover:border-white/20'
+                      ? 'bg-[var(--discord-blurple)]/20 border-[var(--discord-blurple)] text-[var(--text-header)]'
+                      : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-normal)] hover:border-[var(--discord-blurple)]/50'
                   }`}
                   title={`${users.length} reaction${users.length > 1 ? 's' : ''}`}
                 >
@@ -403,7 +475,9 @@ const MessageRow = React.memo<MessageRowProps>(
 
     const renderHoverActions = () => (
       <div
-        className={`absolute right-3 -top-3.5 transition-opacity flex items-center bg-[var(--bg-chat)] border border-[#1e1f22] rounded-[4px] shadow-md p-0.5 z-20 ${
+        className={`absolute right-3 ${
+          isTopMessage ? 'top-1' : '-top-3.5'
+        } transition-opacity flex items-center bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-md shadow-md p-0.5 z-20 ${
           showReactionPicker
             ? 'opacity-100'
             : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
@@ -416,24 +490,34 @@ const MessageRow = React.memo<MessageRowProps>(
                 key={emoji}
                 type="button"
                 onClick={() => onAddReaction(roomId, msg.id, emoji)}
-                title={`React with ${emoji}`}
+                aria-label={`React with ${emoji}`}
+                title={`React ${emoji}`}
                 className="w-7 h-7 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-sm cursor-pointer transition-colors"
               >
                 {emoji}
               </button>
             ))}
 
-            <div className="relative">
+            <div className="relative" ref={reactionPickerRef}>
               <button
                 type="button"
                 onClick={() => setShowReactionPicker(p => !p)}
+                aria-label="Add Reaction"
+                aria-expanded={showReactionPicker}
+                aria-haspopup="dialog"
                 title="Add Reaction"
                 className="w-7 h-7 hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] rounded flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Smile className="w-4 h-4" />
               </button>
               {showReactionPicker && (
-                <div className="absolute right-0 bottom-full mb-1 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1 shadow-xl flex items-center gap-0.5 z-30">
+                <div
+                  role="dialog"
+                  aria-label="Reaction Picker"
+                  className={`absolute right-0 ${
+                    isTopMessage ? 'top-full mt-1' : 'bottom-full mb-1'
+                  } bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1 shadow-xl flex items-center gap-0.5 z-[70]`}
+                >
                   {QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
@@ -442,6 +526,7 @@ const MessageRow = React.memo<MessageRowProps>(
                         onAddReaction(roomId, msg.id, emoji);
                         setShowReactionPicker(false);
                       }}
+                      aria-label={`React with ${emoji}`}
                       className="w-7 h-7 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-sm cursor-pointer"
                     >
                       {emoji}
@@ -455,6 +540,21 @@ const MessageRow = React.memo<MessageRowProps>(
 
         <button
           type="button"
+          onClick={() => onTogglePin(msg.id)}
+          aria-label={isPinned ? 'Unpin message' : 'Pin message'}
+          aria-pressed={isPinned}
+          title={isPinned ? 'Unpin' : 'Pin'}
+          className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
+            isPinned
+              ? 'text-[var(--discord-blurple)] bg-[var(--bg-item-active)]'
+              : 'hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)]'
+          }`}
+        >
+          <Pin className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          type="button"
           onClick={() =>
             onReply({
               id: msg.id,
@@ -462,6 +562,7 @@ const MessageRow = React.memo<MessageRowProps>(
               body: msg.body,
             })
           }
+          aria-label="Reply"
           title="Reply"
           className="w-7 h-7 hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] rounded flex items-center justify-center transition-colors cursor-pointer"
         >
@@ -475,6 +576,7 @@ const MessageRow = React.memo<MessageRowProps>(
               setEditText(msg.body);
               setIsEditing(true);
             }}
+            aria-label="Edit message"
             title="Edit"
             className="w-7 h-7 hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] rounded flex items-center justify-center transition-colors cursor-pointer"
           >
@@ -486,8 +588,9 @@ const MessageRow = React.memo<MessageRowProps>(
           <button
             type="button"
             onClick={() => onDeleteMessage(roomId, msg.id)}
+            aria-label="Delete message"
             title="Delete"
-            className="w-7 h-7 hover:bg-[#f23f43]/20 text-[var(--text-muted)] hover:text-[#f23f43] rounded flex items-center justify-center transition-colors cursor-pointer"
+            className="w-7 h-7 hover:bg-[var(--status-dnd)]/20 text-[var(--text-muted)] hover:text-[var(--status-dnd)] rounded flex items-center justify-center transition-colors cursor-pointer"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -497,7 +600,10 @@ const MessageRow = React.memo<MessageRowProps>(
 
     if (isCompactMode) {
       return (
-        <div className="group relative px-4 -mx-4 py-0.5 mt-0.5 hover:bg-[var(--bg-message-hover)] transition-colors">
+        <div
+          ref={rowRef}
+          className="group relative px-4 -mx-4 py-0.5 mt-0.5 hover:bg-[var(--bg-message-hover)] transition-colors"
+        >
           {msg.replyTo && (
             <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mb-0.5 pl-12">
               <CornerUpRight className="w-3 h-3 text-[var(--discord-blurple)] flex-shrink-0" />
@@ -529,6 +635,7 @@ const MessageRow = React.memo<MessageRowProps>(
 
     return (
       <div
+        ref={rowRef}
         className={`group relative flex gap-4 px-4 -mx-4 py-0.5 hover:bg-[var(--bg-message-hover)] transition-colors ${
           isSameSender && !msg.replyTo ? 'mt-0.5' : 'mt-[17px]'
         }`}
@@ -540,7 +647,7 @@ const MessageRow = React.memo<MessageRowProps>(
               src={msg.avatarUrl}
               alt={msg.senderName}
               onError={() => setFailedAvatarUrl(msg.avatarUrl || null)}
-              className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5 bg-[var(--bg-servers)]"
+              className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5 bg-[var(--bg-channels)]"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 mt-0.5">
@@ -631,6 +738,7 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const plusMenuRef = useRef<HTMLDivElement>(null);
+    const emojiTrayRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
       if (replyingTo) {
@@ -655,6 +763,24 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
         window.removeEventListener('keydown', onKey);
       };
     }, [showPlusMenu]);
+
+    useEffect(() => {
+      if (!showEmojiTray) return;
+      const onPointerDown = (e: MouseEvent) => {
+        if (emojiTrayRef.current && !emojiTrayRef.current.contains(e.target as Node)) {
+          setShowEmojiTray(false);
+        }
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setShowEmojiTray(false);
+      };
+      window.addEventListener('mousedown', onPointerDown);
+      window.addEventListener('keydown', onKey);
+      return () => {
+        window.removeEventListener('mousedown', onPointerDown);
+        window.removeEventListener('keydown', onKey);
+      };
+    }, [showEmojiTray]);
 
     const submitCurrentMessage = async () => {
       const trimmed = inputText.trim();
@@ -756,6 +882,7 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
             <button
               type="button"
               onClick={onCancelReply}
+              aria-label="Cancel Reply"
               className="text-[var(--text-muted)] hover:text-[var(--text-header)] p-0.5 rounded hover:bg-[var(--bg-item-hover)] cursor-pointer"
               title="Cancel Reply"
             >
@@ -765,8 +892,8 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
         )}
 
         <div
-          className={`bg-[var(--bg-message-input)] px-3.5 py-2 flex items-center gap-2.5 relative ${
-            replyingTo ? 'rounded-b-lg border border-[var(--border-subtle)] border-t-0' : 'rounded-lg'
+          className={`bg-[var(--bg-message-input)] border border-[var(--border-subtle)] px-3.5 py-2 flex items-center gap-2.5 relative ${
+            replyingTo ? 'rounded-b-lg border-t-0' : 'rounded-lg'
           }`}
         >
           <input
@@ -782,15 +909,18 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
               type="button"
               onClick={() => setShowPlusMenu(prev => !prev)}
               disabled={isUploading}
+              aria-label="Message Actions"
+              aria-expanded={showPlusMenu}
+              aria-haspopup="menu"
               className="text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center"
-              title={isUploading ? 'Uploading attachment...' : 'Upload File, Share Large File or Inject Command'}
+              title={isUploading ? 'Uploading...' : 'Actions'}
             >
               <PlusCircle className={`w-5 h-5 ${isUploading ? 'animate-spin text-[var(--discord-blurple)]' : ''}`} />
             </button>
 
             {showPlusMenu && (
               <div
-                className="absolute left-0 bottom-full mb-2.5 w-52 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-30 text-xs text-[var(--text-normal)]"
+                className="absolute left-0 bottom-full mb-2.5 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
                 role="menu"
               >
                 <button
@@ -817,7 +947,7 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <Package className="w-3.5 h-3.5" />
-                    <span>Share Large File</span>
+                    <span>Large Files</span>
                   </button>
                 )}
 
@@ -828,7 +958,7 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                 >
                   <Terminal className="w-3.5 h-3.5" />
-                  <span>Inject Command</span>
+                  <span>Run Command</span>
                 </button>
               </div>
             )}
@@ -841,26 +971,35 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
+            aria-label={`Message #${room.name}`}
             placeholder={`Message #${room.name}`}
             className="bg-transparent border-none outline-none flex-1 min-w-0 text-[var(--text-normal)] placeholder:text-[var(--text-muted)] resize-none max-h-36 py-1 text-sm"
           />
 
           {/* Emoji Picker Button */}
-          <div className="relative flex-shrink-0">
+          <div className="relative flex-shrink-0" ref={emojiTrayRef}>
             <button
               type="button"
               onClick={() => setShowEmojiTray(v => !v)}
+              aria-label="Add Emoji"
+              aria-expanded={showEmojiTray}
+              aria-haspopup="dialog"
               className="text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer flex items-center justify-center"
-              title="Add Emoji"
+              title="Emoji"
             >
               <Smile className="w-5 h-5" />
             </button>
             {showEmojiTray && (
-              <div className="absolute right-0 bottom-full mb-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1.5 shadow-2xl flex items-center gap-1 z-30">
+              <div
+                role="dialog"
+                aria-label="Emoji Picker"
+                className="absolute right-0 bottom-full mb-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md p-1.5 shadow-2xl flex items-center gap-1 z-[80] max-w-[calc(100vw/var(--app-zoom,1)-24px)]"
+              >
                 {INPUT_EMOJIS.map(emoji => (
                   <button
                     key={emoji}
                     type="button"
+                    aria-label={`Insert ${emoji}`}
                     onClick={() => {
                       setInputText(prev => prev + emoji);
                       setShowEmojiTray(false);
@@ -880,8 +1019,9 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
             <button
               type="button"
               onClick={onOpenLargeFileShare}
+              aria-label="Large Files"
               className="text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer flex-shrink-0"
-              title="Large File Share"
+              title="Large Files"
             >
               <Package className="w-5 h-5" />
             </button>
@@ -892,12 +1032,13 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
             type="button"
             onClick={() => void submitCurrentMessage()}
             disabled={!inputText.trim()}
+            aria-label="Send Message"
             className={`p-1.5 rounded transition-colors cursor-pointer flex-shrink-0 ${
               inputText.trim()
                 ? 'bg-[var(--discord-blurple)] text-white hover:bg-[var(--discord-blurple-hover)]'
                 : 'text-[var(--text-muted)] opacity-50 cursor-not-allowed'
             }`}
-            title="Send Message (Enter)"
+            title="Send"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -942,8 +1083,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   );
   const [isChannelMuted, setIsChannelMuted] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [pinnedByRoom, setPinnedByRoom] = useState<Record<string, string[]>>(loadPinnedMessages);
+  const [pinsPopoverRoomId, setPinsPopoverRoomId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
+  const pinsPopoverRef = useRef<HTMLDivElement>(null);
+  const pinsButtonRef = useRef<HTMLButtonElement>(null);
+  const messageElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const showPinsPopover = pinsPopoverRoomId === room.id;
 
   useEffect(() => {
     return discordSettingsSync.subscribe(settings => {
@@ -968,6 +1116,27 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       window.removeEventListener('keydown', onKey);
     };
   }, [showToolsMenu]);
+
+  useEffect(() => {
+    if (!showPinsPopover) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const inPopover = pinsPopoverRef.current?.contains(target);
+      const inTrigger = pinsButtonRef.current?.contains(target);
+      if (!inPopover && !inTrigger) {
+        setPinsPopoverRoomId(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPinsPopoverRoomId(null);
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [showPinsPopover]);
 
   const searchQuery = searchState.roomId === room.id ? searchState.query : '';
   const replyingTo = replyState?.roomId === room.id ? replyState.target : null;
@@ -998,8 +1167,60 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     setReplyState(null);
   }, []);
 
+  const registerMessageRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      messageElementsRef.current.set(id, el);
+    } else {
+      messageElementsRef.current.delete(id);
+    }
+  }, []);
+
+  const handleTogglePin = useCallback(
+    (messageId: string) => {
+      setPinnedByRoom(prev => {
+        const current = prev[room.id] || [];
+        const exists = current.includes(messageId);
+        const updated = exists
+          ? current.filter(id => id !== messageId)
+          : [...current, messageId];
+        const next = { ...prev, [room.id]: updated };
+        try {
+          localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // Ignore storage quota errors
+        }
+        return next;
+      });
+    },
+    [room.id]
+  );
+
+  const handleJumpToMessage = useCallback(
+    (messageId: string) => {
+      setPinsPopoverRoomId(null);
+      if (searchQuery) {
+        setSearchState({ roomId: room.id, query: '' });
+      }
+      requestAnimationFrame(() => {
+        const el = messageElementsRef.current.get(messageId);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    },
+    [room.id, searchQuery]
+  );
+
   const isLoggerEnabled = vencord.isPluginEnabled('messageLogger');
   const effectiveUserId = currentUserId || matrix.getUserId() || '@guest:chat.protutech.vip';
+
+  const pinnedIdsForRoom = useMemo(
+    () => pinnedByRoom[room.id] || [],
+    [pinnedByRoom, room.id]
+  );
+  const pinnedIdSet = useMemo(() => new Set(pinnedIdsForRoom), [pinnedIdsForRoom]);
+  const pinnedMessages = useMemo(
+    () => messages.filter(m => pinnedIdSet.has(m.id)),
+    [messages, pinnedIdSet]
+  );
 
   const displayedMessages = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -1013,11 +1234,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   return (
     <div className="flex-1 h-full bg-[var(--bg-chat)] flex flex-col min-w-0 select-text overflow-hidden">
-      {/* 1:1 Discord 48px Channel Header */}
-      <div className="h-12 border-b border-[var(--border-subtle)] px-3 sm:px-4 flex items-center justify-between gap-2 select-none flex-shrink-0 z-10 bg-[var(--bg-chat)]">
+      {/* Channel Header */}
+      <div className="h-12 relative border-b border-[var(--border-subtle)] px-3 sm:px-4 flex items-center justify-between gap-2 select-none flex-shrink-0 z-10 bg-[var(--bg-chat)]">
         {/* Left: # + Channel Name + Topic */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Hash className="w-5 h-5 text-[#80848e] flex-shrink-0" />
+          <Hash className="w-5 h-5 text-[var(--text-muted)] flex-shrink-0" />
           <span className="font-semibold text-[var(--text-header)] text-[15px] truncate">
             {room.name}
           </span>
@@ -1031,18 +1252,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           )}
         </div>
 
-        {/* Right: Uniform Discord Icon Buttons & Sleek Search */}
+        {/* Right: Channel Actions & Search */}
         <div className="flex items-center gap-0.5 text-[var(--text-muted)] flex-shrink-0">
           {/* Voice Call */}
           <button
             type="button"
             onClick={() => onJoinVoice(room)}
+            aria-label="Join Voice Call"
+            aria-pressed={isVoiceActive}
             className={`w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center transition-colors cursor-pointer ${
               isVoiceActive
-                ? 'text-[#23a55a]'
+                ? 'text-[var(--status-online)]'
                 : 'hover:text-[var(--text-header)]'
             }`}
-            title="Start or Join Voice Call"
+            title="Voice Call"
           >
             <PhoneCall className="w-[18px] h-[18px]" />
           </button>
@@ -1051,8 +1274,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <button
             type="button"
             onClick={() => setIsChannelMuted(m => !m)}
+            aria-label={isChannelMuted ? 'Unmute Channel' : 'Mute Channel'}
+            aria-pressed={isChannelMuted}
             className="w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer"
-            title={isChannelMuted ? 'Unmute Channel Notifications' : 'Mute Channel Notifications'}
+            title={isChannelMuted ? 'Unmute Channel' : 'Mute Channel'}
           >
             {isChannelMuted ? (
               <BellOff className="w-[18px] h-[18px]" />
@@ -1063,67 +1288,89 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
           {/* Pinned Messages */}
           <button
+            ref={pinsButtonRef}
             type="button"
-            className="hidden sm:flex w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] items-center justify-center transition-colors cursor-pointer"
+            data-testid="chat-pins-btn"
+            aria-label="Pinned Messages"
+            aria-expanded={showPinsPopover}
+            aria-haspopup="dialog"
+            onClick={() => setPinsPopoverRoomId(prev => (prev === room.id ? null : room.id))}
+            className={`relative flex w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] items-center justify-center transition-colors cursor-pointer ${
+              showPinsPopover || pinnedMessages.length > 0
+                ? 'text-[var(--text-header)]'
+                : 'hover:text-[var(--text-header)]'
+            } ${showPinsPopover ? 'bg-[var(--bg-item-hover)]' : ''}`}
             title="Pinned Messages"
           >
             <Pin className="w-[18px] h-[18px]" />
+            {pinnedMessages.length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[var(--discord-blurple)] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                {pinnedMessages.length}
+              </span>
+            )}
           </button>
 
           {/* Member List Toggle */}
           <button
             type="button"
             onClick={onToggleMemberList}
+            aria-label="Toggle Member List"
+            aria-pressed={showMemberList}
             className={`w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center transition-colors cursor-pointer ${
               showMemberList ? 'text-[var(--text-header)]' : 'hover:text-[var(--text-header)]'
             }`}
-            title="Toggle Member List"
+            title="Members"
           >
             <Users className="w-[18px] h-[18px]" />
           </button>
 
-          {/* Large File Share (Clean Icon Button, Always Accessible) */}
+          {/* Large File Share */}
           {onOpenLargeFileShare && (
             <button
               type="button"
               onClick={onOpenLargeFileShare}
               data-testid="chat-large-file-btn"
+              aria-label="Large Files"
               className="w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer"
-              title="Share Large File (Chunked Stream / P2P)"
+              title="Large Files"
             >
               <Package className="w-[18px] h-[18px]" />
             </button>
           )}
 
-          {/* Co-Browse & Search (Clean Icon Button, Always Accessible) */}
+          {/* Co-Browse */}
           {onOpenCoBrowse && (
             <button
               type="button"
               onClick={onOpenCoBrowse}
               data-testid="chat-cobrowse-btn"
+              aria-label="Co-Browse"
               className="w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] flex items-center justify-center transition-colors cursor-pointer"
-              title="Co-Browse & Built-In Search"
+              title="Co-Browse"
             >
               <Globe className="w-[18px] h-[18px]" />
             </button>
           )}
 
-          {/* Channel Tools Popover (Activities, Scripts, Sync Channel) */}
+          {/* Channel Tools Popover */}
           <div className="relative" ref={toolsMenuRef}>
             <button
               type="button"
               onClick={() => setShowToolsMenu(prev => !prev)}
+              aria-label="Channel Tools"
+              aria-expanded={showToolsMenu}
+              aria-haspopup="menu"
               className={`w-8 h-8 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center transition-colors cursor-pointer ${
                 showToolsMenu ? 'text-[var(--text-header)] bg-[var(--bg-item-hover)]' : 'hover:text-[var(--text-header)]'
               }`}
-              title="Channel Tools (Activities, Scripts, Sync)"
+              title="Tools"
             >
               <MoreVertical className="w-[18px] h-[18px]" />
             </button>
 
             {showToolsMenu && (
               <div
-                className="absolute right-0 top-9 w-52 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-40 text-xs text-[var(--text-normal)]"
+                className="absolute right-0 top-9 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
                 role="menu"
               >
                 {onOpenLargeFileShare && (
@@ -1137,7 +1384,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <Package className="w-3.5 h-3.5" />
-                    <span>Large File Share</span>
+                    <span>Large Files</span>
                   </button>
                 )}
 
@@ -1152,7 +1399,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <Globe className="w-3.5 h-3.5" />
-                    <span>Co-Browse &amp; Search</span>
+                    <span>Co-Browse</span>
                   </button>
                 )}
 
@@ -1182,16 +1429,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
                   >
                     <Terminal className="w-3.5 h-3.5" />
-                    <span>Scripts &amp; MC Bridge</span>
+                    <span>Scripts</span>
                   </button>
                 )}
 
                 <div className="h-px bg-[var(--border-subtle)] my-1" />
 
                 {room.isSynced ? (
-                  <div className="px-2.5 py-1.5 text-[11px] text-[#23a55a] flex items-center gap-1.5 font-medium">
+                  <div className="px-2.5 py-1.5 text-[11px] text-[var(--status-online)] flex items-center gap-1.5 font-medium">
                     <Check className="w-3.5 h-3.5" />
-                    <span>Channel Synced</span>
+                    <span>Synced</span>
                   </div>
                 ) : (
                   <button
@@ -1211,12 +1458,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             )}
           </div>
 
-          {/* Sleek 144px Search Input */}
-          <div className="ml-1 bg-[var(--bg-servers)] rounded px-2 py-1 flex items-center gap-1.5 text-xs text-[var(--text-normal)] w-28 sm:w-36 focus-within:w-44 transition-all duration-200">
+          {/* Search Input */}
+          <div className="ml-1 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded px-2 py-1 flex items-center gap-1.5 text-xs text-[var(--text-normal)] w-28 sm:w-36 focus-within:w-44 focus-within:border-[var(--discord-blurple)] transition-all duration-200">
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              aria-label="Search messages"
               placeholder="Search"
               className="bg-transparent border-none outline-none w-full min-w-0 text-[var(--text-normal)] placeholder:text-[var(--text-muted)] text-xs"
             />
@@ -1224,6 +1472,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
                 className="text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer flex-shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1233,22 +1482,96 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             )}
           </div>
         </div>
+
+        {/* Pinned Messages Popover */}
+        {showPinsPopover && (
+          <div
+            ref={pinsPopoverRef}
+            data-testid="chat-pins-popover"
+            role="dialog"
+            aria-label="Pinned Messages"
+            className="absolute right-3 top-11 w-80 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-2.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-[var(--text-normal)]"
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-header)]">
+                <Pin className="w-3.5 h-3.5 text-[var(--discord-blurple)]" />
+                <span>Pinned Messages</span>
+                <span className="text-[11px] font-normal text-[var(--text-muted)]">
+                  ({pinnedMessages.length})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPinsPopoverRoomId(null)}
+                aria-label="Close pinned messages"
+                className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {pinnedMessages.length === 0 ? (
+              <div className="py-6 text-center text-xs text-[var(--text-muted)]">
+                No pinned messages yet
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pinnedMessages.map(pinnedMsg => (
+                  <div
+                    key={pinnedMsg.id}
+                    className="p-2.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-semibold text-[var(--text-header)] truncate">
+                        {pinnedMsg.senderName}
+                      </span>
+                      <span className="text-[var(--text-muted)] tabular-nums flex-shrink-0">
+                        {formatTimestamp(pinnedMsg.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-normal)] line-clamp-3 break-words">
+                      {pinnedMsg.body || (pinnedMsg.mediaType ? `[${pinnedMsg.mediaType}]` : '')}
+                    </p>
+                    <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleJumpToMessage(pinnedMsg.id)}
+                        aria-label={`Jump to message from ${pinnedMsg.senderName}`}
+                        className="px-2 py-0.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-[11px] font-medium cursor-pointer transition-colors"
+                      >
+                        Jump
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePin(pinnedMsg.id)}
+                        aria-label={`Unpin message from ${pinnedMsg.senderName}`}
+                        className="px-2 py-0.5 rounded bg-[var(--bg-item-hover)] hover:bg-[var(--bg-item-active)] text-[var(--text-normal)] text-[11px] font-medium cursor-pointer transition-colors"
+                      >
+                        Unpin
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Messages Scroll Viewport */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {displayedMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 text-[var(--text-muted)]">
-            <div className="w-16 h-16 rounded-full bg-[var(--bg-channels)] flex items-center justify-center mb-4 text-[var(--text-header)]">
+            <div className="w-16 h-16 rounded-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] flex items-center justify-center mb-4 text-[var(--text-header)]">
               <Hash className="w-8 h-8" />
             </div>
             <h3 className="text-xl font-bold text-[var(--text-header)] mb-1">
-              {searchQuery ? 'No matching messages' : `Welcome to #${room.name}!`}
+              {searchQuery ? 'No matching messages' : `Welcome to #${room.name}`}
             </h3>
             <p className="text-sm max-w-sm">
               {searchQuery
-                ? `No messages matched "${searchQuery}".`
-                : `This is the start of the #${room.name} channel.`}
+                ? `No messages match "${searchQuery}".`
+                : `Start of #${room.name}.`}
             </p>
           </div>
         ) : (
@@ -1268,12 +1591,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 key={msg.id || `${msg.timestamp}_${index}`}
                 msg={msg}
                 roomId={room.id}
+                messageIndex={index}
                 isSameSender={isSameSender}
                 isOwnMessage={isOwnMessage}
+                isPinned={pinnedIdSet.has(msg.id)}
                 isLoggerEnabled={isLoggerEnabled}
                 isCompactMode={isCompactMode}
                 currentUserId={effectiveUserId}
                 onReply={handleReply}
+                onTogglePin={handleTogglePin}
+                registerMessageRef={registerMessageRef}
                 onDeleteMessage={onDeleteMessage}
                 onEditMessage={onEditMessage}
                 onAddReaction={onAddReaction}

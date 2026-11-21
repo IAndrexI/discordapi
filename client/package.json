@@ -1,7 +1,7 @@
 {
   "name": "protutech",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Protutech",
   "description": "Ultra-low latency voice, video, and community chat platform",
   "main": "electron/main.cjs",

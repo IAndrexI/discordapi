@@ -113,7 +113,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
 
   // Hook tester state
   const [hookTestInput, setHookTestInput] = useState(
-    'Hey team /shrug check https://example.com/?utm_source=discord&ref=1'
+    'Hey team /shrug check https://example.com/?utm_source=ref&ref=1'
   );
   const [hookTestOutput, setHookTestOutput] = useState<string | null>(null);
 
@@ -309,54 +309,64 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-5xl h-[680px] max-h-[92vh] bg-[#0a0f1d] border border-cyan-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+    <div
+      className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="equicord-modal-title"
+        className="w-[min(64rem,100%)] max-w-full h-[min(680px,100%)] max-h-full bg-[var(--bg-chat)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative"
+      >
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-cyan-950/80 via-[#0d1629] to-indigo-950/80 border-b border-white/10 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+        <div className="px-4 sm:px-6 py-4 bg-[var(--bg-userpanel)] border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[var(--discord-blurple)] flex items-center justify-center text-white shadow-lg flex-shrink-0">
               <Zap className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-extrabold text-white tracking-tight">
-                  Equicord Plugin Engine
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 id="equicord-modal-title" className="text-base sm:text-lg font-extrabold text-[var(--text-header)] tracking-tight">
+                  Equicord Plugins
                 </h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold uppercase">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-channels)] text-[var(--text-link)] border border-[var(--border-subtle)] font-bold uppercase">
                   {counts.enabled} Active / {counts.all} Total
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
-                Hot-reload Equicord &amp; Vencord extensions, runtime message hooks, and custom JS/JSON user plugins.
+              <p className="text-xs text-[var(--text-muted)]">
+                Manage Equicord, Vencord, and custom JavaScript plugins.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-[var(--bg-channels)] p-1 rounded-xl border border-[var(--border-subtle)]">
               <button
                 type="button"
                 onClick={() => setActiveTab('library')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'library'
-                    ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Plugin Library</span>
+                <span>Library</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('editor')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'editor'
-                    ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                 }`}
               >
                 <FileCode2 className="w-3.5 h-3.5" />
-                <span>Plugin Editor / Importer</span>
+                <span>Editor &amp; Import</span>
               </button>
             </div>
 
@@ -366,10 +376,11 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                 const active = vencord.hotReloadAll();
                 showToast(`Hot-reloaded ${active} active plugins ✓`, 'ok');
               }}
+              aria-label="Reload active plugins"
               title="Hot-reload all enabled plugins"
-              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-200 border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-header)] border border-[var(--border-subtle)] text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+              <RefreshCw className="w-3.5 h-3.5 text-[var(--text-link)]" />
               <span>Reload</span>
             </button>
 
@@ -377,7 +388,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
               type="button"
               onClick={onClose}
               aria-label="Close Equicord Manager"
-              className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white flex items-center justify-center cursor-pointer"
+              className="w-9 h-9 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -387,10 +398,10 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
         {/* Instant Hot-Reload Toast */}
         {toast && (
           <div
-            className={`mx-6 mt-3 px-4 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 animate-fadeIn ${
+            className={`mx-4 sm:mx-6 mt-3 px-4 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 animate-fadeIn flex-shrink-0 ${
               toast.kind === 'err'
-                ? 'bg-red-500/15 border-red-500/40 text-red-300'
-                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                ? 'bg-red-500/15 border-red-500/40 text-[var(--status-dnd)]'
+                : 'bg-emerald-500/15 border-emerald-500/40 text-[var(--status-online)]'
             }`}
           >
             {toast.kind === 'err' ? (
@@ -404,24 +415,26 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
 
         {/* LIBRARY VIEW */}
         {activeTab === 'library' && (
-          <div className="flex-1 flex flex-col min-h-0 p-6 space-y-4">
+          <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6 space-y-4">
             {/* Search & Filters */}
-            <div className="space-y-3">
+            <div className="space-y-3 flex-shrink-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <div className="relative flex-1 min-w-[240px]">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
+                    aria-label="Search plugins"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search plugins (questCompleter, callTimer, viewIcons, translate, custom...)"
-                    className="w-full bg-[#11182c] border border-white/10 focus:border-cyan-400 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-gray-400 outline-none"
+                    placeholder="Search plugins..."
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-xl pl-9 pr-8 py-2 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none"
                   />
                   {search && (
                     <button
                       type="button"
+                      aria-label="Clear plugin search"
                       onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -434,22 +447,22 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                     setEditingId(null);
                     setActiveTab('editor');
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Create / Import Plugin</span>
+                  <span>Create / Import</span>
                 </button>
               </div>
 
               <div className="flex items-center justify-between flex-wrap gap-2">
                 {/* Source Filter */}
-                <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/10 flex-wrap">
+                <div className="flex items-center gap-1 bg-[var(--bg-channels)] p-1 rounded-xl border border-[var(--border-subtle)] flex-wrap">
                   {(
                     [
                       { id: 'all', label: `All (${counts.all})` },
                       { id: 'equicord', label: `Equicord (${counts.equicord})` },
                       { id: 'vencord', label: `Vencord (${counts.vencord})` },
-                      { id: 'user', label: `Custom User Plugins (${counts.user})` },
+                      { id: 'user', label: `Custom (${counts.user})` },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -458,8 +471,8 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                       onClick={() => setSourceFilter(tab.id)}
                       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                         sourceFilter === tab.id
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'text-gray-400 hover:text-white'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--discord-blurple)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
                       }`}
                     >
                       {tab.label}
@@ -485,8 +498,8 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                       onClick={() => setCategoryFilter(cat.id)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
                         categoryFilter === cat.id
-                          ? 'bg-white/15 text-white border border-white/20'
-                          : 'text-gray-400 hover:text-white bg-white/5'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border border-[var(--border-subtle)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)] bg-[var(--bg-userpanel)]'
                       }`}
                     >
                       {cat.label}
@@ -497,11 +510,11 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
             </div>
 
             {/* Grid of Plugins */}
-            <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-2 gap-3 content-start">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-2 gap-3 content-start">
               {filteredPlugins.length === 0 ? (
-                <div className="col-span-full p-10 text-center rounded-xl bg-white/[0.02] border border-white/10 space-y-2">
-                  <Code className="w-8 h-8 text-gray-500 mx-auto" />
-                  <p className="text-sm font-bold text-white">No plugins match your filter</p>
+                <div className="col-span-full p-10 text-center rounded-xl bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-2">
+                  <Code className="w-8 h-8 text-[var(--text-muted)] mx-auto" />
+                  <p className="text-sm font-bold text-[var(--text-header)]">No plugins match your filter</p>
                   <button
                     type="button"
                     onClick={() => {
@@ -509,7 +522,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                       setSourceFilter('all');
                       setCategoryFilter('all');
                     }}
-                    className="text-xs text-cyan-400 hover:underline cursor-pointer"
+                    className="text-xs text-[var(--text-link)] hover:underline cursor-pointer"
                   >
                     Reset filters
                   </button>
@@ -525,43 +538,39 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                       key={plugin.id}
                       className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
                         plugin.enabled
-                          ? isUser
-                            ? 'bg-emerald-950/20 border-emerald-500/35'
-                            : isEquicord
-                            ? 'bg-cyan-950/20 border-cyan-500/35'
-                            : 'bg-indigo-950/20 border-indigo-500/35'
-                          : 'bg-[#101627] border-white/10 opacity-80 hover:opacity-100'
+                          ? 'bg-[var(--bg-userpanel)] border-[var(--discord-blurple)]'
+                          : 'bg-[var(--bg-channels)] border-[var(--border-subtle)] opacity-85 hover:opacity-100'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center flex-wrap gap-1.5 mb-1">
-                            <span className="font-bold text-sm text-white">{plugin.name}</span>
+                            <span className="font-bold text-sm text-[var(--text-header)]">{plugin.name}</span>
                             <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase border border-[var(--border-subtle)] ${
                                 isUser
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  ? 'bg-emerald-500/15 text-[var(--status-online)]'
                                   : isEquicord
-                                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                                  : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                  ? 'bg-cyan-500/15 text-[var(--text-link)]'
+                                  : 'bg-[var(--bg-popout)] text-[var(--text-normal)]'
                               }`}
                             >
                               {isUser ? 'Custom' : isEquicord ? 'Equicord' : 'Vencord'}
                             </span>
                             {plugin.category && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400 capitalize">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-popout)] text-[var(--text-muted)] capitalize">
                                 {plugin.category}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-400 leading-relaxed">
+                          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                             {plugin.description}
                           </p>
-                          <div className="text-[10px] text-gray-500 mt-1.5 font-mono">
+                          <div className="text-[10px] text-[var(--text-muted)] mt-1.5 font-mono">
                             id: {plugin.id} • by {plugin.author}
                           </div>
                           {runtimeErr && (
-                            <div className="mt-2 px-2.5 py-1 rounded bg-red-500/15 border border-red-500/30 text-[11px] text-red-300">
+                            <div className="mt-2 px-2.5 py-1 rounded bg-red-500/15 border border-red-500/30 text-[11px] text-[var(--status-dnd)]">
                               Runtime Error: {runtimeErr}
                             </div>
                           )}
@@ -575,10 +584,8 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                           onClick={() => handleToggle(plugin)}
                           className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer flex-shrink-0 ${
                             plugin.enabled
-                              ? isUser
-                                ? 'bg-emerald-500'
-                                : 'bg-cyan-500'
-                              : 'bg-neutral-700'
+                              ? 'bg-[var(--status-online)]'
+                              : 'bg-[var(--bg-message-input)] border border-[var(--border-subtle)]'
                           }`}
                         >
                           <div
@@ -590,11 +597,11 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                       </div>
 
                       {isUser && (
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                           <button
                             type="button"
                             onClick={() => handleStartEdit(plugin)}
-                            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-xs text-cyan-300 flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-xs text-[var(--text-link)] flex items-center gap-1 cursor-pointer"
                           >
                             <Edit3 className="w-3 h-3" />
                             <span>Edit</span>
@@ -602,7 +609,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                           <button
                             type="button"
                             onClick={() => handleExportCustom(plugin)}
-                            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-xs text-gray-300 flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-xs text-[var(--text-normal)] flex items-center gap-1 cursor-pointer"
                           >
                             <Download className="w-3 h-3" />
                             <span>Export JSON</span>
@@ -610,7 +617,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                           <button
                             type="button"
                             onClick={() => handleDeleteCustom(plugin)}
-                            className="px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-xs text-red-300 flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-xs text-[var(--status-dnd)] flex items-center gap-1 cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" />
                             <span>Delete</span>
@@ -627,22 +634,22 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
 
         {/* PLUGIN EDITOR & IMPORTER VIEW */}
         {activeTab === 'editor' && (
-          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-5 gap-5">
             {/* Left: JS Plugin Builder */}
             <form
               onSubmit={handleSaveEditorPlugin}
-              className="lg:col-span-3 space-y-3 bg-[#101729] border border-white/10 rounded-xl p-4"
+              className="lg:col-span-3 space-y-3 bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-4"
             >
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h3 className="text-sm font-bold text-white">
-                    {editingId ? 'Edit Custom Equicord Plugin' : 'Write Custom Equicord Plugin'}
+                  <h3 className="text-sm font-bold text-[var(--text-header)]">
+                    {editingId ? 'Edit Custom Plugin' : 'Write Custom Plugin'}
                   </h3>
-                  <p className="text-[11px] text-gray-400">
-                    Supports <code className="text-cyan-300">definePlugin()</code>,{' '}
-                    <code className="text-cyan-300">onMessageSend</code>,{' '}
-                    <code className="text-cyan-300">onMessageReceive</code>, and{' '}
-                    <code className="text-cyan-300">Equicord.Api</code>.
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Supports <code className="text-[var(--text-link)]">definePlugin()</code>,{' '}
+                    <code className="text-[var(--text-link)]">onMessageSend</code>,{' '}
+                    <code className="text-[var(--text-link)]">onMessageReceive</code>, and{' '}
+                    <code className="text-[var(--text-link)]">Equicord.Api</code>.
                   </p>
                 </div>
 
@@ -658,7 +665,7 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                         setDraftCategory(tpl.category);
                         setDraftCode(tpl.code);
                       }}
-                      className="text-[10px] px-2 py-1 rounded bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 cursor-pointer"
+                      className="text-[10px] px-2 py-1 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-link)] border border-[var(--border-subtle)] cursor-pointer"
                     >
                       {tpl.label}
                     </button>
@@ -669,25 +676,28 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <input
                   type="text"
+                  aria-label="Plugin Name"
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
                   placeholder="Plugin Name"
-                  className="bg-black/35 border border-white/10 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                  className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none"
                   required
                 />
                 <input
                   type="text"
+                  aria-label="Plugin Author"
                   value={draftAuthor}
                   onChange={(e) => setDraftAuthor(e.target.value)}
                   placeholder="Author"
-                  className="bg-black/35 border border-white/10 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                  className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none"
                 />
                 <select
+                  aria-label="Plugin Category"
                   value={draftCategory}
                   onChange={(e) =>
                     setDraftCategory(e.target.value as NonNullable<VencordPlugin['category']>)
                   }
-                  className="bg-black/35 border border-white/10 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                  className="bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none"
                 >
                   <option value="chat">Chat</option>
                   <option value="media">Media</option>
@@ -699,17 +709,19 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
 
               <input
                 type="text"
+                aria-label="Plugin Description"
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
                 placeholder="Plugin description..."
-                className="w-full bg-black/35 border border-white/10 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none"
               />
 
               <textarea
-                rows={11}
+                rows={10}
+                aria-label="Plugin JavaScript code"
                 value={draftCode}
                 onChange={(e) => setDraftCode(e.target.value)}
-                className="w-full bg-[#070b14] border border-white/10 focus:border-cyan-400 rounded-lg p-3 text-xs font-mono text-cyan-100 outline-none resize-y"
+                className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg p-3 text-xs font-mono text-[var(--text-normal)] outline-none resize-y"
                 spellCheck={false}
               />
 
@@ -718,61 +730,63 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
                   <button
                     type="button"
                     onClick={() => setEditingId(null)}
-                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-xs text-[var(--text-normal)] cursor-pointer"
                   >
                     Cancel Edit
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+                  className="px-4 py-2 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   <Play className="w-3.5 h-3.5" />
-                  <span>{editingId ? 'Save & Hot-Reload' : 'Save & Enable Immediately'}</span>
+                  <span>{editingId ? 'Save & Reload' : 'Save & Enable'}</span>
                 </button>
               </div>
             </form>
 
             {/* Right: JSON / JS / URL Importer + Live Hook Tester */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-[#101729] border border-white/10 rounded-xl p-4 space-y-3">
+              <div className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-sm font-bold text-white">Import JSON / JS Plugin</h3>
+                  <Upload className="w-4 h-4 text-[var(--text-link)]" />
+                  <h3 className="text-sm font-bold text-[var(--text-header)]">Import JSON / JS Plugin</h3>
                 </div>
                 <textarea
                   rows={5}
+                  aria-label="Plugin JSON or JS source"
                   value={importPayload}
                   onChange={(e) => setImportPayload(e.target.value)}
-                  placeholder='Paste JSON { "name": "...", "code": "..." } or raw JS plugin source...'
-                  className="w-full bg-[#070b14] border border-white/10 focus:border-cyan-400 rounded-lg p-2.5 text-xs font-mono text-gray-200 outline-none"
+                  placeholder='Paste JSON { "name": "...", "code": "..." } or raw JS...'
+                  className="w-full bg-[var(--bg-popout)] border border-[var(--border-subtle)] focus:border-[var(--discord-blurple)] rounded-lg p-2.5 text-xs font-mono text-[var(--text-normal)] outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleImportJsonOrJs}
-                  className="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold cursor-pointer"
+                  className="w-full py-2 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                 >
-                  Import &amp; Enable Plugin
+                  Import &amp; Enable
                 </button>
 
-                <div className="pt-2 border-t border-white/10 space-y-2">
-                  <label className="text-[11px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                    <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                  <label className="text-[11px] font-bold text-[var(--text-muted)] uppercase flex items-center gap-1">
+                    <Globe className="w-3.5 h-3.5 text-[var(--text-link)]" />
                     <span>Load from Raw JS URL</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="url"
+                      aria-label="Raw JS plugin URL"
                       value={importUrl}
                       onChange={(e) => setImportUrl(e.target.value)}
                       placeholder="https://raw.githubusercontent.com/.../plugin.js"
-                      className="flex-1 min-w-0 bg-black/35 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white outline-none focus:border-cyan-400"
+                      className="flex-1 min-w-0 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                     />
                     <button
                       type="button"
                       disabled={importBusy}
                       onClick={() => void handleImportFromUrl()}
-                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] text-xs font-semibold cursor-pointer disabled:opacity-50"
                     >
                       {importBusy ? '...' : 'Fetch'}
                     </button>
@@ -781,28 +795,29 @@ export const EquicordModal: React.FC<EquicordModalProps> = ({ isOpen, onClose })
               </div>
 
               {/* Live Send Hook Tester */}
-              <div className="bg-[#101729] border border-white/10 rounded-xl p-4 space-y-2.5">
+              <div className="bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                    Live Equicord Hook Tester
+                  <h3 className="text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                    Hook Tester
                   </h3>
-                  <span className="text-[10px] text-cyan-300 font-mono">executeMessageSendHooks</span>
+                  <span className="text-[10px] text-[var(--text-link)] font-mono">onMessageSend</span>
                 </div>
                 <input
                   type="text"
+                  aria-label="Hook test input"
                   value={hookTestInput}
                   onChange={(e) => setHookTestInput(e.target.value)}
-                  className="w-full bg-black/35 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-400"
+                  className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--discord-blurple)]"
                 />
                 <button
                   type="button"
                   onClick={handleRunHookTest}
-                  className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"
+                  className="w-full py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer"
                 >
                   Test Send Hooks
                 </button>
                 {hookTestOutput !== null && (
-                  <div className="p-2.5 rounded-lg bg-black/40 border border-emerald-500/30 text-xs text-emerald-300 font-mono break-all">
+                  <div className="p-2.5 rounded-lg bg-[var(--bg-popout)] border border-emerald-500/30 text-xs text-[var(--status-online)] font-mono break-all">
                     {hookTestOutput}
                   </div>
                 )}
