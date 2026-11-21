@@ -12,10 +12,18 @@ import {
   Globe,
   Zap,
   Activity,
+  Music,
+  PhoneOff,
+  ChevronUp,
+  ChevronDown,
+  Expand,
+  Shrink,
 } from 'lucide-react';
-import type { VoiceParticipant, VoiceGatewayProvider } from '../types';
+import type { SoundboardPlayEvent, VoiceParticipant, VoiceGatewayProvider } from '../types';
 import { livekit } from '../services/livekit';
 import { voiceProxy } from '../services/voiceProxy';
+import { soundboardService } from '../services/soundboard';
+import { WEBCAM_PRESETS } from '../services/webcamBackground';
 
 export interface VoiceStageProps {
   participants: VoiceParticipant[];
@@ -23,6 +31,12 @@ export interface VoiceStageProps {
   provider?: VoiceGatewayProvider;
   onToggleCoBrowse?: () => void;
   isCoBrowsing?: boolean;
+  onOpenSoundboard?: () => void;
+  onDisconnect?: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function readTrackTelemetry(track: MediaStreamTrack | undefined, isScreen: boolean) {
@@ -54,6 +68,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   provider,
   onToggleCoBrowse,
   isCoBrowsing = false,
+  onOpenSoundboard,
+  onDisconnect,
+  isExpanded,
+  onToggleExpand,
+  isCollapsed,
+  onToggleCollapse,
 }) => {
   const [currentProvider, setCurrentProvider] = useState<VoiceGatewayProvider>(() => {
     const s = voiceProxy.getSession();
@@ -61,6 +81,29 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
   });
   const [manualSpotlightId, setManualSpotlightId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const [soundToast, setSoundToast] = useState<SoundboardPlayEvent | null>(null);
+  const soundToastTimerRef = useRef<number | null>(null);
+
+  const effectiveExpanded = isExpanded ?? internalExpanded;
+  const effectiveCollapsed = isCollapsed ?? internalCollapsed;
+
+  const handleToggleExpand = () => {
+    if (onToggleExpand) {
+      onToggleExpand();
+    } else {
+      setInternalExpanded((v) => !v);
+    }
+  };
+
+  const handleToggleCollapse = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      setInternalCollapsed((v) => !v);
+    }
+  };
 
   useEffect(() => {
     const unsub = voiceProxy.subscribe((session) => {
@@ -72,6 +115,24 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     });
     return unsub;
   }, [provider]);
+
+  useEffect(() => {
+    const unsubSound = soundboardService.subscribePlayEvents((evt) => {
+      setSoundToast(evt);
+      if (soundToastTimerRef.current) {
+        window.clearTimeout(soundToastTimerRef.current);
+      }
+      soundToastTimerRef.current = window.setTimeout(() => {
+        setSoundToast((prev) => (prev?.id === evt.id ? null : prev));
+      }, 3200);
+    });
+    return () => {
+      unsubSound();
+      if (soundToastTimerRef.current) {
+        window.clearTimeout(soundToastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -147,78 +208,230 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     }
   };
 
+  const handleSoundboardClick = () => {
+    if (onOpenSoundboard) {
+      onOpenSoundboard();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('protutech:open-soundboard'));
+    }
+  };
+
+  const handleDisconnectClick = () => {
+    if (onDisconnect) {
+      onDisconnect();
+    } else {
+      void livekit.leaveVoice();
+    }
+  };
+
   const isSfu = livekit.getEngineKind() === 'sfu';
+
+  if (effectiveCollapsed) {
+    return (
+      <div
+        data-testid="voice-stage"
+        className="h-[44px] min-h-[44px] bg-[#111214] border-b border-[#1e1f22] px-3 flex items-center justify-between gap-2 flex-shrink-0"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-[#23a55a] flex-shrink-0" />
+          <span className="text-xs font-semibold text-[#f2f3f5] truncate">{roomName}</span>
+          <span className="text-[11px] text-[#949ba4] flex-shrink-0">
+            • {participants.length} connected
+          </span>
+          {soundToast && (
+            <span
+              data-testid="voice-stage-soundboard-toast"
+              className="px-2 py-0.5 rounded-full bg-[#5865f2]/20 border border-[#5865f2]/50 text-[#f2f3f5] text-[11px] font-semibold flex items-center gap-1 animate-pill truncate max-w-[220px]"
+            >
+              <span>{soundToast.emoji}</span>
+              <span className="truncate">
+                {soundToast.senderName} played {soundToast.name}
+              </span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleSoundboardClick}
+            data-testid="voicestage-soundboard-btn"
+            title="Open Soundboard"
+            className="px-2 py-1 rounded bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <Music className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Soundboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            data-testid="voicestage-expand-stage-btn"
+            title="Expand Voice Stage"
+            className="px-2.5 py-1 rounded bg-[#2b2d31] hover:bg-[#35373c] text-[#f2f3f5] text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+            <span>Expand Stage</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDisconnectClick}
+            title="Disconnect from Voice"
+            aria-label="Disconnect from Voice"
+            className="p-1.5 rounded bg-[#f23f43]/15 hover:bg-[#f23f43] text-[#f23f43] hover:text-white cursor-pointer transition-colors"
+          >
+            <PhoneOff className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       data-testid="voice-stage"
-      className="bg-[var(--bg-servers)] border-b border-black/30 p-4 flex flex-col gap-4 animate-fadeIn"
+      className="bg-[#000000] border-b border-[#1e1f22] p-3 flex flex-col gap-3 animate-fadeIn overflow-hidden"
     >
-      {/* Stage Header */}
+      {/* Discord-style Stage Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="w-2.5 h-2.5 rounded-full bg-[var(--status-online)] animate-pulse" />
-          <span className="font-semibold text-white text-sm">{roomName}</span>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#23a55a] flex-shrink-0" />
+          <span className="font-semibold text-[#f2f3f5] text-sm truncate">{roomName}</span>
 
           {currentProvider === 'discord_proxy' ? (
-            <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-extrabold px-1.5 py-0.5 rounded tracking-wider flex items-center gap-1 shadow-sm">
-              <Globe className="w-3 h-3 text-amber-400" />
+            <span className="bg-[#f0b232]/15 text-[#f0b232] border border-[#f0b232]/30 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+              <Globe className="w-3 h-3" />
               <span>DISCORD PROXY</span>
             </span>
           ) : currentProvider === 'stoat_hosted' ? (
-            <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] font-extrabold px-1.5 py-0.5 rounded tracking-wider flex items-center gap-1 shadow-sm">
-              <Globe className="w-3 h-3 text-cyan-400" />
+            <span className="bg-[#5865f2]/20 text-[#dbdee1] border border-[#5865f2]/40 text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+              <Globe className="w-3 h-3" />
               <span>STOAT HOSTED</span>
             </span>
           ) : (
-            <span className="bg-[var(--discord-blurple)] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded tracking-wider flex items-center gap-1 shadow-sm">
-              <Radio className="w-3 h-3 text-cyan-300" />
+            <span className="bg-[#5865f2] text-white text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide flex items-center gap-1">
+              <Radio className="w-3 h-3" />
               <span>{isSfu ? 'SFU LIVE' : 'WEBRTC LIVE'}</span>
             </span>
           )}
 
           {livekit.isStudioAudio && currentProvider === 'native_livekit' && (
-            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+            <span className="bg-[#23a55a]/15 text-[#23a55a] border border-[#23a55a]/30 text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
               <Sparkles className="w-2.5 h-2.5" />
-              <span>48kHz Studio</span>
+              <span>48kHz</span>
             </span>
           )}
 
-          {/* Zero-Buffer Low Latency Indicator */}
           <span
-            className="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1"
+            className="bg-[#1e1f22] text-[#949ba4] border border-white/[0.08] text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
             title="Zero-jitter WebRTC playout buffer enabled"
           >
-            <Zap className="w-2.5 h-2.5 text-cyan-400" />
+            <Zap className="w-2.5 h-2.5 text-[#23a55a]" />
             <span>0ms buffer</span>
           </span>
+
+          <span className="text-xs text-[#949ba4] font-medium">
+            {participants.length} connected
+          </span>
+
+          {/* Animated Floating Soundboard Pill Toast */}
+          {soundToast && (
+            <div
+              data-testid="voice-stage-soundboard-toast"
+              className="px-2.5 py-1 rounded-full bg-[#5865f2]/20 border border-[#5865f2]/60 text-[#f2f3f5] text-xs font-semibold flex items-center gap-1.5 shadow-md animate-pill"
+            >
+              <span>{soundToast.emoji}</span>
+              <span>
+                {soundToast.senderName} played {soundToast.name}
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+        {/* Stage Action Controls */}
+        <div className="flex items-center gap-1.5 text-xs flex-wrap flex-shrink-0">
+          <button
+            type="button"
+            data-testid="voicestage-soundboard-btn"
+            onClick={handleSoundboardClick}
+            title="Open Soundboard"
+            className="px-2.5 py-1.5 rounded-md bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white border border-white/[0.08] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <Music className="w-3.5 h-3.5 text-[#5865f2]" />
+            <span>Soundboard</span>
+          </button>
+
           <button
             type="button"
             data-testid="voicestage-cobrowse-btn"
             onClick={handleCoBrowseClick}
-            className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-md font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${
               isCoBrowsing
-                ? 'bg-cyan-500/25 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
-                : 'bg-gradient-to-r from-indigo-600/80 to-cyan-600/80 hover:from-indigo-500 hover:to-cyan-500 text-white border-cyan-400/30 shadow-sm'
+                ? 'bg-[#5865f2] text-white border-[#5865f2]'
+                : 'bg-[#1e1f22] hover:bg-[#35373c] text-[#dbdee1] hover:text-white border-white/[0.08]'
             }`}
           >
-            <span>🌐 Co-Browse &amp; Search Together</span>
+            <Globe className="w-3.5 h-3.5" />
+            <span>Co-Browse</span>
           </button>
-          <span className="font-medium">{participants.length} connected</span>
+
+          <button
+            type="button"
+            data-testid="voicestage-theater-btn"
+            onClick={handleToggleExpand}
+            title={effectiveExpanded ? 'Default Stage Size' : 'Theater Expand Stage'}
+            className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+              effectiveExpanded
+                ? 'bg-[#5865f2]/25 border-[#5865f2]/60 text-white'
+                : 'bg-[#1e1f22] hover:bg-[#35373c] border-white/[0.08] text-[#dbdee1] hover:text-white'
+            }`}
+          >
+            {effectiveExpanded ? (
+              <Shrink className="w-3.5 h-3.5" />
+            ) : (
+              <Expand className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden md:inline">{effectiveExpanded ? 'Compact' : 'Theater'}</span>
+          </button>
+
+          <button
+            type="button"
+            data-testid="voicestage-collapse-btn"
+            onClick={handleToggleCollapse}
+            title="Collapse Voice Stage"
+            className="px-2 py-1.5 rounded-md bg-[#1e1f22] hover:bg-[#35373c] border border-white/[0.08] text-[#dbdee1] hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Hide</span>
+          </button>
+
+          {onDisconnect && (
+            <button
+              type="button"
+              onClick={handleDisconnectClick}
+              title="Disconnect"
+              aria-label="Disconnect"
+              className="p-1.5 rounded-md bg-[#f23f43]/15 hover:bg-[#f23f43] text-[#f23f43] hover:text-white border border-[#f23f43]/30 cursor-pointer transition-colors"
+            >
+              <PhoneOff className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Full-Screen Spotlight (Screen Share or Pinned Participant Video) */}
+      {/* Viewport-Bounded Spotlight (Screen Share or Pinned Participant Video) */}
       {spotlightParticipant && spotlightTrack && (
         <div
           ref={spotlightContainerRef}
           data-testid="voice-spotlight-container"
-          className={`relative rounded-xl overflow-hidden bg-black aspect-video ${
-            isFullscreen ? 'w-screen h-screen max-h-none' : 'max-h-[460px]'
-          } flex items-center justify-center border border-cyan-500/30 shadow-2xl group`}
+          className={`relative rounded-lg overflow-hidden bg-black w-full flex items-center justify-center border border-white/10 shadow-2xl group ${
+            isFullscreen
+              ? 'w-screen h-screen max-h-none'
+              : effectiveExpanded
+                ? 'h-[62vh] max-h-[75vh]'
+                : 'h-[38vh] min-h-[180px] max-h-[46vh]'
+          }`}
         >
           <video
             ref={screenVideoRef}
@@ -226,22 +439,22 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-contain"
+            className="w-full h-full max-h-full object-contain"
           />
 
           {/* Spotlight Badges & Real Telemetry */}
-          <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-white text-xs font-semibold border border-white/10 shadow-lg flex-wrap">
-            <Tv className="w-4 h-4 text-cyan-400" />
-            <span>
+          <div className="absolute top-2.5 left-2.5 bg-[#111214]/85 backdrop-blur-md px-2.5 py-1 rounded-md flex items-center gap-2 text-[#f2f3f5] text-xs font-semibold border border-white/10 shadow-lg flex-wrap max-w-[calc(100%-20px)]">
+            <Tv className="w-3.5 h-3.5 text-[#dbdee1] flex-shrink-0" />
+            <span className="truncate max-w-[160px]">
               {spotlightParticipant.name}
               {isSpotlightScreen ? "'s Stream" : ' (Spotlight)'}
             </span>
-            <span className="bg-gradient-to-r from-red-600 to-rose-600 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
-              {isSpotlightScreen ? 'LIVE HD' : 'CAM'}
+            <span className="bg-[#f23f43] text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+              {isSpotlightScreen ? 'LIVE' : 'CAM'}
             </span>
             <span
               data-testid="spotlight-telemetry"
-              className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1"
+              className="bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1"
             >
               <Activity className="w-2.5 h-2.5" />
               <span>
@@ -249,40 +462,60 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 {spotlightTelemetry.fps}fps • {spotlightTelemetry.bitrate}
               </span>
             </span>
-            <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
-              0ms buffer
-            </span>
           </div>
 
           {/* Spotlight Controls */}
-          <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             {manualSpotlightId && (
               <button
                 type="button"
                 onClick={() => setManualSpotlightId(null)}
-                className="bg-black/80 hover:bg-black text-gray-200 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-white/10 shadow-md cursor-pointer"
+                className="bg-[#111214]/90 hover:bg-[#1e1f22] text-[#dbdee1] hover:text-white px-2.5 py-1.5 rounded-md text-xs font-semibold border border-white/10 shadow-md cursor-pointer"
               >
                 Unpin
               </button>
             )}
             <button
               type="button"
+              onClick={handleToggleExpand}
+              className="bg-[#111214]/90 hover:bg-[#1e1f22] p-1.5 rounded-md text-[#dbdee1] hover:text-white border border-white/10 shadow-md cursor-pointer"
+              title={effectiveExpanded ? 'Exit Theater Mode' : 'Theater Mode'}
+            >
+              {effectiveExpanded ? (
+                <Shrink className="w-4 h-4" />
+              ) : (
+                <Expand className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              type="button"
               onClick={handleToggleFullscreen}
-              className="bg-black/75 hover:bg-black/95 p-2 rounded-lg text-white border border-white/10 shadow-md cursor-pointer"
+              className="bg-[#111214]/90 hover:bg-[#1e1f22] p-1.5 rounded-md text-[#dbdee1] hover:text-white border border-white/10 shadow-md cursor-pointer"
               title={isFullscreen ? 'Exit Full Screen' : 'Full Screen Spotlight'}
             >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
       )}
 
       {/* Participants Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div
+        className={`grid gap-2.5 ${
+          spotlightParticipant && spotlightTrack
+            ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6'
+            : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+        }`}
+      >
         {participants.map((p) => (
           <ParticipantTile
             key={p.identity}
             participant={p}
+            compact={Boolean(spotlightParticipant && spotlightTrack)}
             isSpotlighted={spotlightParticipant?.identity === p.identity}
             onToggleSpotlight={() =>
               setManualSpotlightId((prev) => (prev === p.identity ? null : p.identity))
@@ -296,12 +529,14 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
 interface ParticipantTileProps {
   participant: VoiceParticipant;
+  compact?: boolean;
   isSpotlighted: boolean;
   onToggleSpotlight: () => void;
 }
 
 const ParticipantTile: React.FC<ParticipantTileProps> = ({
   participant: p,
+  compact = false,
   isSpotlighted,
   onToggleSpotlight,
 }) => {
@@ -349,33 +584,44 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
   );
   const camTelemetry =
     p.hasVideo && p.videoTrack ? readTrackTelemetry(p.videoTrack, false) : null;
+  const bgType = p.customBackground?.type ?? 'none';
+  const blurPx = p.customBackground?.blurAmount ?? 14;
+  const resolvedPresetUrl =
+    p.customBackground?.customUrl ||
+    (p.customBackground?.presetId
+      ? WEBCAM_PRESETS.find((pr) => pr.id === p.customBackground?.presetId)?.previewUrl
+      : undefined);
+  const hasVirtualBg = bgType !== 'none' && (bgType === 'blur' || Boolean(resolvedPresetUrl));
 
   return (
     <div
       data-testid={`participant-tile-${p.identity}`}
-      className={`relative aspect-video rounded-xl bg-[var(--bg-channels)] flex flex-col items-center justify-center overflow-visible border transition-all duration-150 group ${
+      className={`relative rounded-lg bg-[#1e1f22] flex flex-col items-center justify-center overflow-visible border transition-all duration-150 group ${
+        compact ? 'aspect-video max-h-24' : 'aspect-video'
+      } ${
         p.isSpeaking
-          ? 'border-[var(--status-online)] shadow-[0_0_14px_rgba(35,165,90,0.45)] ring-1 ring-[var(--status-online)]'
+          ? 'border-[#23a55a] ring-2 ring-[#23a55a]/70'
           : isSpotlighted
-            ? 'border-cyan-400/70'
-            : 'border-white/[0.08]'
+            ? 'border-[#5865f2]'
+            : 'border-white/[0.06]'
       }`}
     >
-      <div className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center relative">
+      <div className="w-full h-full rounded-lg overflow-hidden flex items-center justify-center relative bg-[#111214]">
         {/* Custom Webcam Background Layer */}
-        {p.hasVideo && p.videoTrack && p.customBackground && p.customBackground.type !== 'none' && (
+        {p.hasVideo && p.videoTrack && hasVirtualBg && (
           <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            {p.customBackground.type === 'blur' ? (
+            {bgType === 'blur' ? (
               <video
                 ref={blurVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover scale-125 blur-xl opacity-80"
+                style={{ filter: `blur(${blurPx}px)` }}
+                className="w-full h-full object-cover scale-125 opacity-90"
               />
-            ) : p.customBackground.customUrl ? (
+            ) : resolvedPresetUrl ? (
               <img
-                src={p.customBackground.customUrl}
+                src={resolvedPresetUrl}
                 alt="Webcam Background"
                 className="w-full h-full object-cover scale-105"
               />
@@ -390,20 +636,32 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             autoPlay
             playsInline
             muted
+            style={
+              hasVirtualBg
+                ? {
+                    WebkitMaskImage:
+                      'radial-gradient(ellipse 68% 76% at 50% 48%, #000 50%, transparent 94%)',
+                    maskImage:
+                      'radial-gradient(ellipse 68% 76% at 50% 48%, #000 50%, transparent 94%)',
+                  }
+                : undefined
+            }
             className={`w-full h-full object-cover z-10 transition-all ${
-              p.customBackground?.type === 'blur'
+              bgType === 'blur'
                 ? 'drop-shadow-[0_8px_24px_rgba(0,0,0,0.8)]'
-                : p.customBackground && p.customBackground.type !== 'none'
-                  ? 'contrast-[1.05] brightness-[1.02] mix-blend-normal'
+                : hasVirtualBg
+                  ? 'contrast-[1.05] brightness-[1.02]'
                   : ''
             }`}
           />
         ) : (
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-sm transition-all duration-150 ${
+            className={`${
+              compact ? 'w-9 h-9 text-xs' : 'w-12 h-12 text-sm'
+            } rounded-full flex items-center justify-center font-bold text-white transition-all duration-150 ${
               p.isSpeaking
-                ? 'bg-[var(--discord-blurple)] ring-4 ring-[var(--status-online)] scale-105'
-                : 'bg-neutral-700'
+                ? 'bg-[#5865f2] ring-2 ring-[#23a55a] scale-105'
+                : 'bg-[#313338]'
             }`}
           >
             {p.name.slice(0, 2).toUpperCase()}
@@ -412,19 +670,19 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
 
         {/* Top-left Ping / Stream / Camera Live Badges */}
         {(p.hasScreenShare || camTelemetry || typeof p.ping === 'number') && (
-          <div className="absolute top-2 left-2 z-20 flex items-center gap-1 flex-wrap">
+          <div className="absolute top-1.5 left-1.5 z-20 flex items-center gap-1 flex-wrap">
             {p.hasScreenShare && (
-              <span className="px-1.5 py-0.5 rounded bg-red-600/90 text-white text-[9px] font-extrabold uppercase tracking-wider">
+              <span className="px-1.5 py-0.5 rounded bg-[#f23f43] text-white text-[9px] font-bold uppercase tracking-wider">
                 LIVE
               </span>
             )}
             {camTelemetry && (
-              <span className="px-1.5 py-0.5 rounded bg-emerald-600/90 text-white text-[9px] font-mono font-bold">
+              <span className="px-1 py-0.5 rounded bg-[#23a55a]/90 text-white text-[9px] font-mono font-bold">
                 {camTelemetry.isLive ? `CAM ${camTelemetry.fps}fps` : camTelemetry.readyState}
               </span>
             )}
-            {typeof p.ping === 'number' && (
-              <span className="px-1 py-0.5 rounded bg-black/70 text-cyan-300 text-[9px] font-mono border border-white/10">
+            {typeof p.ping === 'number' && !compact && (
+              <span className="px-1 py-0.5 rounded bg-black/75 text-[#949ba4] text-[9px] font-mono">
                 {p.ping}ms
               </span>
             )}
@@ -432,15 +690,15 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
         )}
 
         {/* Name Tag & Mute Status */}
-        <div className="absolute bottom-2 left-2 right-2 z-20 bg-black/70 backdrop-blur-md rounded-md px-2 py-1 flex items-center justify-between text-white text-[11px] font-medium truncate border border-white/5">
+        <div className="absolute bottom-1.5 left-1.5 right-1.5 z-20 bg-[#111214]/80 backdrop-blur-sm rounded px-2 py-0.5 flex items-center justify-between text-[#f2f3f5] text-[11px] font-medium truncate">
           <span className="truncate">{p.name}</span>
           <div className="flex items-center gap-1">
-            {p.isMuted && <MicOff className="w-3 h-3 text-[var(--status-dnd)] flex-shrink-0" />}
+            {p.isMuted && <MicOff className="w-3 h-3 text-[#f23f43] flex-shrink-0" />}
           </div>
         </div>
 
         {/* Top-right Controls: Spotlight + Volume Slider */}
-        <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {canSpotlight && (
             <button
               type="button"
@@ -449,13 +707,13 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
                 onToggleSpotlight();
               }}
               title={isSpotlighted ? 'Exit Spotlight' : 'Spotlight Video'}
-              className={`p-1.5 rounded-lg border border-white/10 cursor-pointer shadow-md ${
+              className={`p-1 rounded border border-white/10 cursor-pointer shadow-md ${
                 isSpotlighted
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-black/60 hover:bg-black/90 text-gray-300 hover:text-white'
+                  ? 'bg-[#5865f2] text-white'
+                  : 'bg-[#111214]/80 hover:bg-[#111214] text-[#dbdee1] hover:text-white'
               }`}
             >
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Maximize2 className="w-3 h-3" />
             </button>
           )}
 
@@ -466,12 +724,12 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
               setShowVolumePopup(!showVolumePopup);
             }}
             title="Adjust Participant Volume (0% - 200%)"
-            className="p-1.5 rounded-lg bg-black/60 hover:bg-black/90 text-gray-300 hover:text-white border border-white/10 cursor-pointer shadow-md"
+            className="p-1 rounded bg-[#111214]/80 hover:bg-[#111214] text-[#dbdee1] hover:text-white border border-white/10 cursor-pointer shadow-md"
           >
             {volume === 0 ? (
-              <VolumeX className="w-3.5 h-3.5 text-red-400" />
+              <VolumeX className="w-3 h-3 text-[#f23f43]" />
             ) : (
-              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+              <Sliders className="w-3 h-3 text-[#dbdee1]" />
             )}
           </button>
         </div>
@@ -481,14 +739,14 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       {showVolumePopup && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-full mt-1 z-30 left-1/2 -translate-x-1/2 w-48 bg-neutral-900/95 border border-cyan-500/30 rounded-xl p-3 shadow-2xl backdrop-blur-md flex flex-col gap-2 animate-fadeIn"
+          className="absolute top-full mt-1 z-30 left-1/2 -translate-x-1/2 w-48 bg-[#111214] border border-white/10 rounded-lg p-3 shadow-2xl flex flex-col gap-2 animate-fadeIn"
         >
-          <div className="flex items-center justify-between text-xs text-white font-semibold">
+          <div className="flex items-center justify-between text-xs text-[#f2f3f5] font-semibold">
             <span className="flex items-center gap-1.5">
-              <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+              <Volume2 className="w-3.5 h-3.5 text-[#5865f2]" />
               <span>User Volume</span>
             </span>
-            <span className="text-[11px] font-mono text-cyan-300">{volume}%</span>
+            <span className="text-[11px] font-mono text-[#dbdee1]">{volume}%</span>
           </div>
 
           <input
@@ -498,14 +756,14 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             step="1"
             value={volume}
             onChange={(e) => handleVolumeChange(Number(e.target.value))}
-            className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-neutral-700 rounded-lg"
+            className="w-full accent-[#5865f2] cursor-pointer h-1.5 bg-[#2b2d31] rounded-lg"
           />
 
-          <div className="flex items-center justify-between text-[10px] text-gray-400">
+          <div className="flex items-center justify-between text-[10px] text-[#949ba4]">
             <button
               type="button"
               onClick={() => handleVolumeChange(0)}
-              className="hover:text-red-400 transition-colors cursor-pointer"
+              className="hover:text-[#f23f43] transition-colors cursor-pointer"
             >
               Mute (0%)
             </button>
@@ -519,7 +777,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             <button
               type="button"
               onClick={() => handleVolumeChange(200)}
-              className="hover:text-cyan-300 transition-colors cursor-pointer font-bold"
+              className="hover:text-[#5865f2] transition-colors cursor-pointer font-bold"
             >
               Boost (200%)
             </button>

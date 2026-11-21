@@ -1,6 +1,6 @@
 {
-  "version": "1.8.7",
-  "updatedAt": "2026-10-07T05:59:00Z",
-  "buildTime": 1791352740000,
-  "changelog": "Discord-style custom webcam backgrounds (Blur intensity slider, Cyberpunk/Battlestation/Synthwave presets, and user image upload) with real-time video compositing, plus Electron and browser screen capture permission optimizations."
+  "version": "1.0.3",
+  "updatedAt": "2026-11-21T02:56:42.280Z",
+  "buildTime": 1795229802281,
+  "changelog": "Auto-bumped on commit"
 }

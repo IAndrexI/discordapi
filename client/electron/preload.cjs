@@ -41,6 +41,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setAppIcon: (dataUrl) => ipcRenderer.send('set-app-icon', dataUrl),
   relaunchApp: () => ipcRenderer.send('relaunch-app'),
   clearCacheAndReload: () => ipcRenderer.send('clear-cache-and-reload'),
+  setZoomFactor: (factor) => ipcRenderer.send('set-zoom-factor', factor),
+  getZoomFactor: () => ipcRenderer.invoke('get-zoom-factor'),
+  onZoomChanged: (callback) => {
+    const handler = (_, factor) => callback(factor);
+    ipcRenderer.on('zoom-changed', handler);
+    return () => ipcRenderer.removeListener('zoom-changed', handler);
+  },
+  resetWindowBounds: () => ipcRenderer.send('reset-window-bounds'),
   selfHostedServerUrl: 'http://127.0.0.1:4175',
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
 });

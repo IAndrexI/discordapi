@@ -34,6 +34,10 @@ interface ElectronBridgeApi {
   setAppIcon?: (dataUrl: string) => void;
   relaunchApp?: () => void;
   clearCacheAndReload?: () => void;
+  setZoomFactor?: (factor: number) => void;
+  getZoomFactor?: () => Promise<number>;
+  onZoomChanged?: (callback: (factor: number) => void) => () => void;
+  resetWindowBounds?: () => void;
 }
 
 interface TauriEventPayload<T> {
@@ -451,6 +455,62 @@ export class DesktopBridgeService {
       }
     }
   }
+
+  public setZoomFactor(factor: number): void {
+    const raw = Number(factor);
+    const clamped = Math.max(0.5, Math.min(2.0, Number.isFinite(raw) ? raw : 1.0));
+    const kind = this.getRuntimeKind();
+    if (kind === 'electron') {
+      getElectronApi()?.setZoomFactor?.(clamped);
+    } else if (kind === 'tauri') {
+      getTauriInternals()?.invoke('set_zoom_factor', { factor: clamped }).catch(() => {});
+    }
+  }
+
+  public async getZoomFactor(): Promise<number> {
+    const kind = this.getRuntimeKind();
+    if (kind === 'electron') {
+      try {
+        const val = await getElectronApi()?.getZoomFactor?.();
+        return typeof val === 'number' && Number.isFinite(val) ? val : 1.0;
+      } catch {
+        return 1.0;
+      }
+    }
+    if (kind === 'tauri') {
+      try {
+        const val = await getTauriInternals()?.invoke<number>('get_zoom_factor');
+        return typeof val === 'number' && Number.isFinite(val) ? val : 1.0;
+      } catch {
+        return 1.0;
+      }
+    }
+    return 1.0;
+  }
+
+  public onZoomChanged(cb: (factor: number) => void): () => void {
+    const kind = this.getRuntimeKind();
+    if (kind === 'electron') {
+      return getElectronApi()?.onZoomChanged?.(cb) ?? (() => {});
+    }
+    if (kind === 'tauri') {
+      return listenTauriEvent<number>('zoom-changed', (factor) => {
+        if (typeof factor === 'number' && Number.isFinite(factor)) {
+          cb(factor);
+        }
+      });
+    }
+    return () => {};
+  }
+
+  public resetWindowBounds(): void {
+    const kind = this.getRuntimeKind();
+    if (kind === 'electron') {
+      getElectronApi()?.resetWindowBounds?.();
+    } else if (kind === 'tauri') {
+      getTauriInternals()?.invoke('reset_window_bounds').catch(() => {});
+    }
+  }
 }
 
 export const desktopBridge = new DesktopBridgeService();
@@ -478,3 +538,8 @@ export const setTrayBadge = (count: number): void => desktopBridge.setTrayBadge(
 export const setAppIcon = (dataUrl: string): void => desktopBridge.setAppIcon(dataUrl);
 export const relaunchApp = (): void => desktopBridge.relaunchApp();
 export const clearCacheAndReload = (): void => desktopBridge.clearCacheAndReload();
+export const setZoomFactor = (factor: number): void => desktopBridge.setZoomFactor(factor);
+export const getZoomFactor = (): Promise<number> => desktopBridge.getZoomFactor();
+export const onZoomChanged = (cb: (factor: number) => void): (() => void) =>
+  desktopBridge.onZoomChanged(cb);
+export const resetWindowBounds = (): void => desktopBridge.resetWindowBounds();

@@ -21,6 +21,8 @@ import { DiscordHubModal, type DiscordHubTab } from './components/DiscordHubModa
 import { EquicordModal } from './components/EquicordModal';
 import { ScriptingModal } from './components/ScriptingModal';
 import { LargeFileShareModal } from './components/LargeFileShareModal';
+import { SoundboardPopover } from './components/SoundboardPopover';
+import { TeamSpeakLayout } from './components/TeamSpeakLayout';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
 import { Plus, Hash, Volume2, X, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -32,6 +34,8 @@ import { overlayService } from './services/overlay';
 import { userProfileService, type UserProfileCustomizations } from './services/userProfile';
 import { vencord } from './services/vencord';
 import { scriptEngine } from './services/scriptEngine';
+import { zoomService } from './services/zoom';
+import { soundboardService } from './services/soundboard';
 import type {
   MatrixRoom,
   DiscordGuild,
@@ -39,6 +43,7 @@ import type {
   VoiceParticipant,
   MatrixUser,
   EngineMode,
+  SoundboardPlayEvent,
 } from './types';
 
 interface MatrixModeBridge {
@@ -287,6 +292,18 @@ export const App: React.FC = () => {
   const [isCoBrowseOpen, setIsCoBrowseOpen] = useState(false);
   const [coBrowseInitialQuery, setCoBrowseInitialQuery] = useState<string | undefined>(undefined);
 
+  // Layout Format, Zoom, Soundboard, & Voice Stage Display States
+  const [layoutFormat, setLayoutFormat] = useState<'discord' | 'teamspeak'>(() =>
+    vencord.getTheme().layoutFormat === 'teamspeak' ? 'teamspeak' : 'discord'
+  );
+  const [zoomLevel, setZoomLevel] = useState<number>(() => zoomService.getZoom());
+  const [showZoomHud, setShowZoomHud] = useState(false);
+  const zoomHudTimerRef = useRef<number | null>(null);
+  const [isSoundboardOpen, setIsSoundboardOpen] = useState(false);
+  const [soundboardToasts, setSoundboardToasts] = useState<SoundboardPlayEvent[]>([]);
+  const [isVoiceStageExpanded, setIsVoiceStageExpanded] = useState(false);
+  const [isVoiceStageCollapsed, setIsVoiceStageCollapsed] = useState(false);
+
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const roomsRef = useRef<MatrixRoom[]>(rooms);
   const locallyDeletedIdsRef = useRef<Set<string>>(new Set());
@@ -306,6 +323,72 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsub = userProfileService.subscribe(setUserProfile);
     return unsub;
+  }, []);
+
+  // Subscribe to Vencord/Equicord theme & layout format switches
+  useEffect(() => {
+    const unsub = vencord.subscribe(() => {
+      const theme = vencord.getTheme();
+      setLayoutFormat(theme.layoutFormat === 'teamspeak' ? 'teamspeak' : 'discord');
+    });
+    return unsub;
+  }, []);
+
+  // Initialize Soundboard & subscribe to play toast events
+  useEffect(() => {
+    void soundboardService.init();
+    const unsub = soundboardService.subscribePlayEvents(evt => {
+      setSoundboardToasts(prev => [...prev.slice(-2), evt]);
+      window.setTimeout(() => {
+        setSoundboardToasts(prev => prev.filter(item => item.id !== evt.id));
+      }, 3200);
+    });
+    return unsub;
+  }, []);
+
+  // Subscribe to Zoom Service & global Ctrl/Cmd zoom keyboard shortcuts
+  useEffect(() => {
+    let mounted = true;
+    const unsub = zoomService.subscribe(nextZoom => {
+      if (!mounted) return;
+      setZoomLevel(nextZoom);
+      setShowZoomHud(true);
+      if (zoomHudTimerRef.current !== null) {
+        window.clearTimeout(zoomHudTimerRef.current);
+      }
+      zoomHudTimerRef.current = window.setTimeout(() => {
+        setShowZoomHud(false);
+      }, 2000);
+    });
+
+    const onZoomKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd') {
+        e.preventDefault();
+        zoomService.zoomIn();
+      } else if (
+        e.key === '-' ||
+        e.key === '_' ||
+        e.code === 'Minus' ||
+        e.code === 'NumpadSubtract'
+      ) {
+        e.preventDefault();
+        zoomService.zoomOut();
+      } else if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') {
+        e.preventDefault();
+        zoomService.resetZoom();
+      }
+    };
+
+    window.addEventListener('keydown', onZoomKeyDown);
+    return () => {
+      mounted = false;
+      unsub();
+      window.removeEventListener('keydown', onZoomKeyDown);
+      if (zoomHudTimerRef.current !== null) {
+        window.clearTimeout(zoomHudTimerRef.current);
+      }
+    };
   }, []);
 
   // Sync Overlay config changes to native DesktopBridge (Electron / Tauri)
@@ -1005,6 +1088,8 @@ export const App: React.FC = () => {
     await livekit.leaveVoice();
     setActiveVoiceRoom(null);
     setVoiceParticipants([]);
+    setIsVoiceStageExpanded(false);
+    setIsVoiceStageCollapsed(false);
     if (isGuestMode && (activeRoomId === 'guest_voice_loopback' || activeRoomId === 'guest_video_test')) {
       setActiveRoomId('guest_welcome');
     }
@@ -1041,6 +1126,35 @@ export const App: React.FC = () => {
     [isGuestMode, isAuthenticated]
   );
 
+  const handleSelectGuild = useCallback(
+    (id: string | null) => {
+      setActiveGuildId(id);
+      if (id === null) {
+        const firstDM = rooms.find(r => r.isDirect);
+        if (firstDM) selectRoom(firstDM.id);
+      } else {
+        const guild = guilds.find(g => g.id === id);
+        if (guild && guild.channels.length > 0) {
+          const firstText =
+            guild.channels.find(c => !c.isVoice && c.id !== 'livekit_lounge') ||
+            guild.channels[0];
+          selectRoom(firstText.id);
+        }
+      }
+    },
+    [rooms, guilds, selectRoom]
+  );
+
+  const handleToggleLayoutFormat = useCallback((nextFormat?: 'discord' | 'teamspeak') => {
+    const current = vencord.getTheme();
+    const target: 'discord' | 'teamspeak' =
+      nextFormat || (current.layoutFormat === 'teamspeak' ? 'discord' : 'teamspeak');
+    vencord.setTheme({
+      ...current,
+      layoutFormat: target,
+    });
+  }, []);
+
   const openSettingsTab = (tab: SettingsTab = 'themes') => {
     setSettingsInitialTab(tab);
     setIsSettingsOpen(true);
@@ -1051,16 +1165,55 @@ export const App: React.FC = () => {
     setIsDiscordHubOpen(true);
   };
 
+  const zoomHudPill = showZoomHud ? (
+    <div
+      data-testid="zoom-hud-pill"
+      className="fixed top-9 right-4 z-[60] bg-[#111214]/95 border border-[#4e5058]/50 shadow-xl rounded-full px-2.5 py-1 flex items-center gap-1.5 text-xs text-[#f2f3f5]"
+    >
+      <button
+        type="button"
+        onClick={() => zoomService.zoomOut()}
+        className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center font-bold cursor-pointer"
+        title="Zoom Out"
+      >
+        -
+      </button>
+      <span className="font-mono font-bold px-1 min-w-[42px] text-center">{zoomLevel}%</span>
+      <button
+        type="button"
+        onClick={() => zoomService.zoomIn()}
+        className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center font-bold cursor-pointer"
+        title="Zoom In"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        onClick={() => zoomService.resetZoom()}
+        className="ml-0.5 px-2 py-0.5 rounded-full bg-[#5865f2] hover:bg-[#4752c4] text-white text-[11px] font-semibold cursor-pointer"
+      >
+        Reset
+      </button>
+    </div>
+  ) : null;
+
   if (!isAuthenticated && !isGuestMode) {
     return (
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090d16]">
+      <div className="flex flex-col h-full w-full overflow-hidden bg-[#090d16] relative">
         <TitleBar
           engineMode={engineMode}
           onToggleEngineMode={handleToggleEngineMode}
           onToggleOverlay={() => overlayService.toggleEnabled()}
           onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+          layoutFormat={layoutFormat}
+          onToggleLayoutFormat={handleToggleLayoutFormat}
+          zoomLevel={zoomLevel}
+          onZoomIn={() => zoomService.zoomIn()}
+          onZoomOut={() => zoomService.zoomOut()}
+          onZoomReset={() => zoomService.resetZoom()}
         />
-        <div className="flex-1 overflow-auto">
+        {zoomHudPill}
+        <div className="flex-1 min-h-0 overflow-auto">
           <LoginModal
             onLogin={handleLogin}
             onSampleGuest={handleEnterGuestMode}
@@ -1089,7 +1242,7 @@ export const App: React.FC = () => {
   const isCurrentRoomVoice = activeVoiceRoom !== null;
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-chat)] relative">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--bg-chat)] relative">
       <TitleBar
         engineMode={engineMode}
         onToggleEngineMode={handleToggleEngineMode}
@@ -1100,33 +1253,44 @@ export const App: React.FC = () => {
         isCoBrowsing={isCoBrowseOpen}
         onToggleOverlay={() => overlayService.toggleEnabled()}
         onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+        layoutFormat={layoutFormat}
+        onToggleLayoutFormat={handleToggleLayoutFormat}
+        zoomLevel={zoomLevel}
+        onZoomIn={() => zoomService.zoomIn()}
+        onZoomOut={() => zoomService.zoomOut()}
+        onZoomReset={() => zoomService.resetZoom()}
+        onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+        onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
+        onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
       />
 
       {/* Guest Mode Notice Banner */}
       {isGuestMode && (
-        <div className="bg-gradient-to-r from-emerald-950/95 via-cyan-950/95 to-slate-950/95 border-b border-cyan-500/30 px-4 py-1.5 flex items-center justify-between text-xs text-white z-20 shadow-md flex-wrap gap-2">
+        <div className="bg-[var(--bg-channels)] border-b border-black/25 px-4 py-1.5 flex items-center justify-between text-xs text-[var(--text-normal)] z-20 flex-shrink-0 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-cyan-300">🧪 Guest Sampling Sandbox:</span>
-            <span className="text-gray-300 hidden sm:inline">
+            <span className="w-2 h-2 rounded-full bg-[#23a55a] animate-pulse" />
+            <span className="font-bold text-[var(--text-header)]">🧪 Guest Sampling Sandbox:</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">
               Full local voice, webcam, 1080p60 screenshare, Co-Browse, scripts, and large file transfer enabled.
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => {
                 setTempChannelName('');
                 setTempChannelError(null);
                 setIsCreateTempChannelOpen(true);
               }}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shadow-sm"
+              className="bg-[#5865f2] hover:bg-[#4752c4] text-white font-semibold px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Temp Channel</span>
             </button>
             <button
+              type="button"
               onClick={handleExitGuestMode}
-              className="bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white px-2.5 py-1 rounded text-xs transition-colors cursor-pointer border border-white/10"
+              className="bg-[var(--bg-userpanel)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] px-2.5 py-1 rounded text-xs transition-colors cursor-pointer border border-[#4e5058]/40"
             >
               <span>Exit Guest / Sign In</span>
             </button>
@@ -1134,432 +1298,529 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-1 w-full h-[calc(100%-32px)] overflow-hidden">
-        {/* 1. Left Guild Rail */}
-        <ServerRail
-          guilds={guilds}
-          activeGuildId={activeGuildId}
-          engineMode={engineMode}
-          onSelectGuild={id => {
-            setActiveGuildId(id);
-            if (id === null) {
-              const firstDM = rooms.find(r => r.isDirect);
-              if (firstDM) selectRoom(firstDM.id);
-            } else {
-              const guild = guilds.find(g => g.id === id);
-              if (guild && guild.channels.length > 0) {
-                const firstText =
-                  guild.channels.find(c => !c.isVoice && c.id !== 'livekit_lounge') ||
-                  guild.channels[0];
-                selectRoom(firstText.id);
-              }
-            }
-          }}
-          onOpenAddModal={() => handleOpenAddModal('server')}
-          onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
-          onOpenEquicord={() => setIsEquicordOpen(true)}
-        />
-
-        {/* 2. Channel & DM Sidebar */}
-        <div className="flex flex-col h-full flex-shrink-0 z-10">
-          <ChannelSidebar
-            activeGuild={activeGuild}
+      {/* Workspace Body: TeamSpeak Classic Tree Format OR 1:1 Discord 4-Column Layout */}
+      {layoutFormat === 'teamspeak' ? (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <TeamSpeakLayout
+            guilds={guilds}
+            activeGuildId={activeGuildId}
             rooms={rooms}
             activeRoomId={activeRoomId}
+            currentRoom={currentRoom}
+            messages={messages}
+            voiceParticipants={voiceParticipants}
+            activeVoiceRoom={activeVoiceRoom}
+            rtcPing={rtcPing}
+            effectiveUserId={effectiveUserId}
+            effectiveDisplayName={effectiveDisplayName}
+            isGuestMode={isGuestMode}
+            isCoBrowseOpen={isCoBrowseOpen}
+            coBrowseInitialQuery={coBrowseInitialQuery}
+            zoomLevel={zoomLevel}
+            onSelectGuild={handleSelectGuild}
             onSelectRoom={selectRoom}
             onJoinVoice={handleJoinVoice}
             onJoinDiscordCall={handleJoinDiscordCall}
-            activeVoiceRoomId={activeVoiceRoom}
-            onOpenAddModal={handleOpenAddModal}
-            onOpenVoiceProxy={() => setIsVoiceProxyOpen(true)}
-          />
-
-          {/* Bottom Voice Panel (if connected) */}
-          {activeVoiceRoom && (
-            <VoicePanel
-              roomName={activeVoiceRoom}
-              rtcPing={rtcPing}
-              onDisconnect={handleDisconnectVoice}
-              onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
-              isCoBrowsing={isCoBrowseOpen}
-            />
-          )}
-
-          {/* Bottom User Controls Bar */}
-          <UserBar
-            userId={effectiveUserId}
-            displayName={effectiveDisplayName}
-            avatarUrl={userProfile.avatarUrl.trim() || undefined}
-            onOpenSettings={() => openSettingsTab('themes')}
-            onOpenProfile={() => openSettingsTab('profile')}
-            onToggleOverlay={() => overlayService.toggleEnabled()}
-            onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
-          />
-        </div>
-
-        {/* 3. Main Chat, Voice, & Co-Browse Stage Area */}
-        <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
-          {(isCoBrowseOpen || isCurrentRoomVoice || activeActivity) && (
-            <div className="max-h-[60vh] overflow-y-auto flex-shrink-0 flex flex-col">
-              {/* Synchronized Co-Browser & Built-In Search Engine */}
-              {isCoBrowseOpen && (
-                <SharedBrowserStage
-                  isOpen={isCoBrowseOpen}
-                  roomName={activeVoiceRoom || currentRoom.name}
-                  roomId={currentRoom.id}
-                  initialQueryOrUrl={coBrowseInitialQuery}
-                  onClose={() => {
-                    setIsCoBrowseOpen(false);
-                    setCoBrowseInitialQuery(undefined);
-                  }}
-                  onShareToChat={text => void handleSendMessage(text)}
-                />
-              )}
-
-              {/* LiveKit Dual-Mode Voice / Video / Screen Share Stage */}
-              {isCurrentRoomVoice && (
-                <VoiceStage
-                  participants={voiceParticipants}
-                  roomName={activeVoiceRoom || 'Voice Channel'}
-                  onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
-                  isCoBrowsing={isCoBrowseOpen}
-                />
-              )}
-
-              {/* Embedded Synchronized Activity Stage (Mini-Games, YouTube, Web Browser) */}
-              {activeActivity && (
-                <EmbeddedActivityStage
-                  activity={activeActivity}
-                  onClose={() => setActiveActivity(null)}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Chat Area */}
-          <ChatArea
-            room={currentRoom}
-            messages={messages}
+            onDisconnectVoice={handleDisconnectVoice}
             onSendMessage={handleSendMessage}
             onMediaSent={handleMediaSent}
             onSendMediaGuest={handleSendMediaGuest}
             onEditMessage={handleEditMessage}
             onAddReaction={handleAddReaction}
             onDeleteMessage={handleDeleteMessage}
-            onJoinVoice={handleJoinVoice}
-            isVoiceActive={isCurrentRoomVoice}
-            onToggleMemberList={() => setShowMemberList(!showMemberList)}
-            showMemberList={showMemberList}
-            onOpenSyncLater={handleOpenSyncLater}
-            onOpenActivity={() => setIsActivityModalOpen(true)}
-            onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
-            onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
-            onOpenScripts={() => setIsScriptsOpen(true)}
             onMessageInjected={handleInjectedMessage}
-            currentUserId={effectiveUserId}
-            currentUserName={effectiveDisplayName}
-            isGuestMode={isGuestMode}
+            onSelectUser={user => setSelectedProfileUser(user)}
+            onOpenSettings={tab => openSettingsTab(tab || 'themes')}
+            onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+            onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+            onCloseCoBrowse={() => {
+              setIsCoBrowseOpen(false);
+              setCoBrowseInitialQuery(undefined);
+            }}
+            onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
+            onOpenScripts={() => setIsScriptsOpen(true)}
+            onOpenDiscordHub={() => openDiscordHub('quests')}
+            onOpenEquicord={() => setIsEquicordOpen(true)}
+            onOpenAddModal={() => handleOpenAddModal('server')}
+            onSwitchToDiscordLayout={() => handleToggleLayoutFormat('discord')}
+            onZoomIn={() => zoomService.zoomIn()}
+            onZoomOut={() => zoomService.zoomOut()}
+            onZoomReset={() => zoomService.resetZoom()}
           />
         </div>
-
-        {/* 4. Right Member Sidebar */}
-        {showMemberList && (
-          <MemberList
-            members={currentRoom.members}
-            onSelectUser={user => setSelectedProfileUser(user)}
+      ) : (
+        <div className="flex-1 min-h-0 w-full flex overflow-hidden">
+          {/* 1. Left Guild Rail */}
+          <ServerRail
+            guilds={guilds}
+            activeGuildId={activeGuildId}
+            engineMode={engineMode}
+            onSelectGuild={handleSelectGuild}
+            onOpenAddModal={() => handleOpenAddModal('server')}
+            onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
+            onOpenEquicord={() => setIsEquicordOpen(true)}
           />
-        )}
 
-        {/* User Profile Modal */}
-        <UserProfileModal
-          user={selectedProfileUser}
-          onClose={() => setSelectedProfileUser(null)}
-          onSendGameInvite={inviteMsg => void handleSendMessage(inviteMsg)}
-          isOwnProfile={selectedProfileUser?.userId === effectiveUserId}
-          onOpenProfileCustomization={() => {
-            setSelectedProfileUser(null);
-            openSettingsTab('profile');
-          }}
-        />
+          {/* 2. Channel & DM Sidebar */}
+          <div className="flex flex-col h-full min-h-0 flex-shrink-0 z-10">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <ChannelSidebar
+                activeGuild={activeGuild}
+                rooms={rooms}
+                activeRoomId={activeRoomId}
+                onSelectRoom={selectRoom}
+                onJoinVoice={handleJoinVoice}
+                onJoinDiscordCall={handleJoinDiscordCall}
+                activeVoiceRoomId={activeVoiceRoom}
+                onOpenAddModal={handleOpenAddModal}
+                onOpenVoiceProxy={() => setIsVoiceProxyOpen(true)}
+                voiceParticipants={voiceParticipants}
+                onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
+                onOpenEquicord={() => setIsEquicordOpen(true)}
+                onOpenScripts={() => setIsScriptsOpen(true)}
+              />
+            </div>
 
-        {/* Minecraft RCON Console & Logs Modal */}
-        <MinecraftConsoleModal
-          isOpen={isMinecraftConsoleOpen}
-          onClose={() => setIsMinecraftConsoleOpen(false)}
-        />
+            {/* Bottom Voice Panel (if connected) */}
+            {activeVoiceRoom && (
+              <VoicePanel
+                roomName={activeVoiceRoom}
+                rtcPing={rtcPing}
+                onDisconnect={handleDisconnectVoice}
+                onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+                isCoBrowsing={isCoBrowseOpen}
+                onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+                isSoundboardOpen={isSoundboardOpen}
+              />
+            )}
 
-        {/* Mini-Games & Shared Web Activity Modal */}
-        <ActivityModal
-          isOpen={isActivityModalOpen}
-          room={currentRoom}
-          onClose={() => setIsActivityModalOpen(false)}
-          onLaunchActivity={activity => {
-            setActiveActivity(activity);
-            setIsActivityModalOpen(false);
-          }}
-          onOpenCoBrowse={initialQuery => {
-            setCoBrowseInitialQuery(initialQuery);
-            setIsCoBrowseOpen(true);
-          }}
-        />
+            {/* Bottom User Controls Bar */}
+            <UserBar
+              userId={effectiveUserId}
+              displayName={effectiveDisplayName}
+              avatarUrl={userProfile.avatarUrl.trim() || undefined}
+              onOpenSettings={() => openSettingsTab('themes')}
+              onOpenProfile={() => openSettingsTab('profile')}
+              onToggleOverlay={() => overlayService.toggleEnabled()}
+              onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
+              onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+              isSoundboardOpen={isSoundboardOpen}
+            />
+          </div>
 
-        {/* Settings & Customization Modal */}
-        <SettingsModal
-          key={isSettingsOpen ? `open-${settingsInitialTab}` : 'closed'}
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          userId={effectiveUserId}
-          onLogout={handleLogout}
-          initialTab={settingsInitialTab}
-          onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
-          onOpenDiscordHub={tab => {
-            setIsSettingsOpen(false);
-            openDiscordHub(tab || 'quests');
-          }}
-          onOpenEquicord={() => {
-            setIsSettingsOpen(false);
-            setIsEquicordOpen(true);
-          }}
-        />
+          {/* 3. Main Chat, Voice, & Co-Browse Stage Area */}
+          <div className="flex-1 flex flex-col h-full min-w-0 min-h-0 overflow-hidden">
+            {(isCoBrowseOpen || isCurrentRoomVoice || activeActivity) && (
+              <div className="max-h-[65%] overflow-y-auto flex-shrink-0 flex flex-col">
+                {/* Synchronized Co-Browser & Built-In Search Engine */}
+                {isCoBrowseOpen && (
+                  <SharedBrowserStage
+                    isOpen={isCoBrowseOpen}
+                    roomName={activeVoiceRoom || currentRoom.name}
+                    roomId={currentRoom.id}
+                    initialQueryOrUrl={coBrowseInitialQuery}
+                    onClose={() => {
+                      setIsCoBrowseOpen(false);
+                      setCoBrowseInitialQuery(undefined);
+                    }}
+                    onShareToChat={text => void handleSendMessage(text)}
+                  />
+                )}
 
-        {/* Discord Hub Modal (Quests, Friends, Nitro, Inbox, Discover) */}
-        <DiscordHubModal
-          isOpen={isDiscordHubOpen}
-          onClose={() => setIsDiscordHubOpen(false)}
-          initialTab={discordHubTab}
-          onSelectChannelByName={channelName => {
-            const target = rooms.find(
-              r => r.name.toLowerCase() === channelName.toLowerCase() || r.id === channelName
+                {/* LiveKit Dual-Mode Voice / Video / Screen Share Stage */}
+                {isCurrentRoomVoice && (
+                  <VoiceStage
+                    participants={voiceParticipants}
+                    roomName={activeVoiceRoom || 'Voice Channel'}
+                    onToggleCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+                    isCoBrowsing={isCoBrowseOpen}
+                    onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
+                    onDisconnect={handleDisconnectVoice}
+                    isExpanded={isVoiceStageExpanded}
+                    onToggleExpand={() => setIsVoiceStageExpanded(prev => !prev)}
+                    isCollapsed={isVoiceStageCollapsed}
+                    onToggleCollapse={() => setIsVoiceStageCollapsed(prev => !prev)}
+                  />
+                )}
+
+                {/* Embedded Synchronized Activity Stage (Mini-Games, YouTube, Web Browser) */}
+                {activeActivity && (
+                  <EmbeddedActivityStage
+                    activity={activeActivity}
+                    onClose={() => setActiveActivity(null)}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Chat Area */}
+            <ChatArea
+              room={currentRoom}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              onMediaSent={handleMediaSent}
+              onSendMediaGuest={handleSendMediaGuest}
+              onEditMessage={handleEditMessage}
+              onAddReaction={handleAddReaction}
+              onDeleteMessage={handleDeleteMessage}
+              onJoinVoice={handleJoinVoice}
+              isVoiceActive={isCurrentRoomVoice}
+              onToggleMemberList={() => setShowMemberList(!showMemberList)}
+              showMemberList={showMemberList}
+              onOpenSyncLater={handleOpenSyncLater}
+              onOpenActivity={() => setIsActivityModalOpen(true)}
+              onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
+              onOpenCoBrowse={() => setIsCoBrowseOpen(prev => !prev)}
+              onOpenScripts={() => setIsScriptsOpen(true)}
+              onMessageInjected={handleInjectedMessage}
+              currentUserId={effectiveUserId}
+              currentUserName={effectiveDisplayName}
+              isGuestMode={isGuestMode}
+            />
+          </div>
+
+          {/* 4. Right Member Sidebar */}
+          {showMemberList && (
+            <MemberList
+              members={currentRoom.members}
+              onSelectUser={user => setSelectedProfileUser(user)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Soundboard Popover */}
+      <SoundboardPopover
+        isOpen={isSoundboardOpen}
+        onClose={() => setIsSoundboardOpen(false)}
+        senderName={effectiveDisplayName}
+      />
+
+      {/* Transient 2-Second Discord-Style Zoom HUD Pill */}
+      {zoomHudPill}
+
+      {/* Non-intrusive Bottom-Right Soundboard Play Toasts */}
+      {soundboardToasts.length > 0 && (
+        <div
+          data-testid="soundboard-play-toasts"
+          className={`fixed right-4 z-40 flex flex-col gap-1.5 pointer-events-none ${
+            updateAvailable ? 'bottom-20' : 'bottom-4'
+          }`}
+        >
+          {soundboardToasts.map(toast => {
+            const isSelf =
+              toast.senderName === effectiveDisplayName || toast.senderName === 'You';
+            return (
+              <div
+                key={toast.id}
+                className="px-3.5 py-2 rounded-lg bg-[#111214]/95 border border-[#5865f2]/45 shadow-xl text-xs text-[#f2f3f5] flex items-center gap-2 animate-fadeIn"
+              >
+                <span className="text-base leading-none">{toast.emoji}</span>
+                <span>
+                  <strong className="font-semibold text-white">
+                    {isSelf ? 'You' : toast.senderName}
+                  </strong>{' '}
+                  played <span className="font-semibold text-[#949cf7]">{toast.name}</span>
+                </span>
+              </div>
             );
-            if (target) {
-              if (target.guildId) setActiveGuildId(target.guildId);
-              selectRoom(target.id);
+          })}
+        </div>
+      )}
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        user={selectedProfileUser}
+        onClose={() => setSelectedProfileUser(null)}
+        onSendGameInvite={inviteMsg => void handleSendMessage(inviteMsg)}
+        isOwnProfile={selectedProfileUser?.userId === effectiveUserId}
+        onOpenProfileCustomization={() => {
+          setSelectedProfileUser(null);
+          openSettingsTab('profile');
+        }}
+      />
+
+      {/* Minecraft RCON Console & Logs Modal */}
+      <MinecraftConsoleModal
+        isOpen={isMinecraftConsoleOpen}
+        onClose={() => setIsMinecraftConsoleOpen(false)}
+      />
+
+      {/* Mini-Games & Shared Web Activity Modal */}
+      <ActivityModal
+        isOpen={isActivityModalOpen}
+        room={currentRoom}
+        onClose={() => setIsActivityModalOpen(false)}
+        onLaunchActivity={activity => {
+          setActiveActivity(activity);
+          setIsActivityModalOpen(false);
+        }}
+        onOpenCoBrowse={initialQuery => {
+          setCoBrowseInitialQuery(initialQuery);
+          setIsCoBrowseOpen(true);
+        }}
+      />
+
+      {/* Settings & Customization Modal */}
+      <SettingsModal
+        key={isSettingsOpen ? `open-${settingsInitialTab}` : 'closed'}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userId={effectiveUserId}
+        onLogout={handleLogout}
+        initialTab={settingsInitialTab}
+        onOpenMicrosoftStore={() => setIsStoreModalOpen(true)}
+        onOpenDiscordHub={tab => {
+          setIsSettingsOpen(false);
+          openDiscordHub(tab || 'quests');
+        }}
+        onOpenEquicord={() => {
+          setIsSettingsOpen(false);
+          setIsEquicordOpen(true);
+        }}
+        onOpenSoundboard={() => {
+          setIsSettingsOpen(false);
+          setIsSoundboardOpen(true);
+        }}
+      />
+
+      {/* Discord Hub Modal (Quests, Friends, Nitro, Inbox, Discover) */}
+      <DiscordHubModal
+        isOpen={isDiscordHubOpen}
+        onClose={() => setIsDiscordHubOpen(false)}
+        initialTab={discordHubTab}
+        onSelectChannelByName={channelName => {
+          const target = rooms.find(
+            r => r.name.toLowerCase() === channelName.toLowerCase() || r.id === channelName
+          );
+          if (target) {
+            if (target.guildId) setActiveGuildId(target.guildId);
+            selectRoom(target.id);
+          }
+          setIsDiscordHubOpen(false);
+        }}
+        onStartVoiceCall={targetName => {
+          void livekit.joinVoice(targetName, effectiveUserId, effectiveDisplayName);
+          setActiveVoiceRoom(livekit.getActiveRoom() || targetName);
+          setVoiceParticipants(livekit.getParticipants());
+          setIsDiscordHubOpen(false);
+        }}
+      />
+
+      {/* Equicord Plugins & Custom Mod Manager Modal */}
+      <EquicordModal
+        isOpen={isEquicordOpen}
+        onClose={() => setIsEquicordOpen(false)}
+      />
+
+      {/* Scripts, Webhooks & Minecraft Chat Bridge API Modal */}
+      <ScriptingModal
+        isOpen={isScriptsOpen}
+        onClose={() => setIsScriptsOpen(false)}
+        activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId}
+        activeRoomName={currentRoom.name}
+        onMessageInjected={handleInjectedMessage}
+      />
+
+      {/* Zero-Size-Cap Large File Transfer Modal */}
+      <LargeFileShareModal
+        isOpen={isLargeFileModalOpen}
+        onClose={() => setIsLargeFileModalOpen(false)}
+        activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId || 'general'}
+        senderId={effectiveUserId}
+        senderName={effectiveDisplayName}
+        onShareComplete={handleInjectedMessage}
+      />
+
+      {/* Voice Gateway & Call Proxy Modal (Discord / Stoat) */}
+      <VoiceProxyModal
+        isOpen={isVoiceProxyOpen}
+        onClose={() => setIsVoiceProxyOpen(false)}
+        availableChannels={rooms.map(r => ({
+          id: r.discordChannelId || r.id,
+          name: r.name,
+          type: r.isVoice ? 'voice' : 'text',
+          guildId: r.discordGuildId || r.guildId,
+        }))}
+      />
+
+      {/* Microsoft Store Install & Publishing Hub Modal */}
+      <MicrosoftStoreModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+      />
+
+      {/* Add / Sync Conversation Modal */}
+      <AddConversationModal
+        isOpen={isAddModalOpen}
+        initialTab={addModalTab}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={targetId => {
+          void loadData(targetId);
+        }}
+      />
+
+      {/* Optional In-Game Overlay HUD */}
+      <InGameOverlay
+        participants={voiceParticipants}
+        activeVoiceRoom={activeVoiceRoom}
+        rtcPing={rtcPing}
+        onToggleMute={() => {
+          if (voiceProxy.getSession().status === 'connected') {
+            const next = !livekit.isMuted;
+            livekit.isMuted = next;
+            voiceProxy.setMute(next);
+          } else {
+            void livekit.setMute(!livekit.isMuted);
+          }
+        }}
+        onToggleDeafen={() => {
+          if (voiceProxy.getSession().status === 'connected') {
+            const next = !livekit.isDeafened;
+            livekit.isDeafened = next;
+            voiceProxy.setDeafen(next);
+          } else {
+            livekit.setDeafened(!livekit.isDeafened);
+          }
+        }}
+        onDisconnectVoice={handleDisconnectVoice}
+        onQuickReply={async (roomId, text) => {
+          if (isGuestMode) {
+            const qrMsg: MatrixMessage = {
+              id: `guest_qr_${Date.now()}`,
+              roomId,
+              sender: '@guest:local.protutech',
+              senderName: effectiveDisplayName,
+              avatarUrl: userProfile.avatarUrl.trim() || undefined,
+              body: text,
+              timestamp: Date.now(),
+              source: 'app',
+            };
+            if (roomId === activeRoomIdRef.current) {
+              setMessages(prev => [...prev, qrMsg]);
             }
-            setIsDiscordHubOpen(false);
-          }}
-          onStartVoiceCall={targetName => {
-            void livekit.joinVoice(targetName, effectiveUserId, effectiveDisplayName);
-            setActiveVoiceRoom(livekit.getActiveRoom() || targetName);
-            setVoiceParticipants(livekit.getParticipants());
-            setIsDiscordHubOpen(false);
-          }}
-        />
+            return;
+          }
+          const sent = await matrix.sendMessage(roomId, text);
+          if (sent && roomId === activeRoomIdRef.current) {
+            setMessages(prev => (prev.some(m => m.id === sent.id) ? prev : [...prev, sent]));
+          }
+        }}
+      />
 
-        {/* Equicord Plugins & Custom Mod Manager Modal */}
-        <EquicordModal
-          isOpen={isEquicordOpen}
-          onClose={() => setIsEquicordOpen(false)}
-        />
+      {/* Create Temporary Channel Modal */}
+      {isCreateTempChannelOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-[#313338] rounded-xl shadow-2xl p-6 border border-white/10 relative">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#5865f2]" />
+                <h3 className="font-bold text-white text-base">Create Temporary Channel</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateTempChannelOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-        {/* Scripts, Webhooks & Minecraft Chat Bridge API Modal */}
-        <ScriptingModal
-          isOpen={isScriptsOpen}
-          onClose={() => setIsScriptsOpen(false)}
-          activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId}
-          activeRoomName={currentRoom.name}
-          onMessageInjected={handleInjectedMessage}
-        />
+            <form onSubmit={handleCreateTempChannel} className="space-y-4 mt-4">
+              <div>
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                  Channel Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTempChannelType('text')}
+                    className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
+                      tempChannelType === 'text'
+                        ? 'bg-[#5865f2]/20 border-[#5865f2] text-white shadow-md'
+                        : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Hash className="w-4 h-4 text-[#5865f2]" />
+                    <div className="text-left">
+                      <div className="text-white font-bold">Text Channel</div>
+                      <div className="text-[10px] text-gray-400">Instant test chat</div>
+                    </div>
+                  </button>
 
-        {/* Zero-Size-Cap Large File Transfer Modal */}
-        <LargeFileShareModal
-          isOpen={isLargeFileModalOpen}
-          onClose={() => setIsLargeFileModalOpen(false)}
-          activeRoomId={currentRoom.id !== 'placeholder' ? currentRoom.id : activeRoomId || 'general'}
-          senderId={effectiveUserId}
-          senderName={effectiveDisplayName}
-          onShareComplete={handleInjectedMessage}
-        />
-
-        {/* Voice Gateway & Call Proxy Modal (Discord / Stoat) */}
-        <VoiceProxyModal
-          isOpen={isVoiceProxyOpen}
-          onClose={() => setIsVoiceProxyOpen(false)}
-          availableChannels={rooms.map(r => ({
-            id: r.discordChannelId || r.id,
-            name: r.name,
-            type: r.isVoice ? 'voice' : 'text',
-            guildId: r.discordGuildId || r.guildId,
-          }))}
-        />
-
-        {/* Microsoft Store Install & Publishing Hub Modal */}
-        <MicrosoftStoreModal
-          isOpen={isStoreModalOpen}
-          onClose={() => setIsStoreModalOpen(false)}
-        />
-
-        {/* Add / Sync Conversation Modal */}
-        <AddConversationModal
-          isOpen={isAddModalOpen}
-          initialTab={addModalTab}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={targetId => {
-            void loadData(targetId);
-          }}
-        />
-
-        {/* Optional In-Game Overlay HUD */}
-        <InGameOverlay
-          participants={voiceParticipants}
-          activeVoiceRoom={activeVoiceRoom}
-          rtcPing={rtcPing}
-          onToggleMute={() => {
-            if (voiceProxy.getSession().status === 'connected') {
-              const next = !livekit.isMuted;
-              livekit.isMuted = next;
-              voiceProxy.setMute(next);
-            } else {
-              void livekit.setMute(!livekit.isMuted);
-            }
-          }}
-          onToggleDeafen={() => {
-            if (voiceProxy.getSession().status === 'connected') {
-              const next = !livekit.isDeafened;
-              livekit.isDeafened = next;
-              voiceProxy.setDeafen(next);
-            } else {
-              livekit.setDeafened(!livekit.isDeafened);
-            }
-          }}
-          onDisconnectVoice={handleDisconnectVoice}
-          onQuickReply={async (roomId, text) => {
-            if (isGuestMode) {
-              const qrMsg: MatrixMessage = {
-                id: `guest_qr_${Date.now()}`,
-                roomId,
-                sender: '@guest:local.protutech',
-                senderName: effectiveDisplayName,
-                avatarUrl: userProfile.avatarUrl.trim() || undefined,
-                body: text,
-                timestamp: Date.now(),
-                source: 'app',
-              };
-              if (roomId === activeRoomIdRef.current) {
-                setMessages(prev => [...prev, qrMsg]);
-              }
-              return;
-            }
-            const sent = await matrix.sendMessage(roomId, text);
-            if (sent && roomId === activeRoomIdRef.current) {
-              setMessages(prev => (prev.some(m => m.id === sent.id) ? prev : [...prev, sent]));
-            }
-          }}
-        />
-
-        {/* Create Temporary Channel Modal */}
-        {isCreateTempChannelOpen && (
-          <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-            <div className="w-full max-w-md bg-[#313338] rounded-xl shadow-2xl p-6 border border-white/10 relative">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-cyan-400" />
-                  <h3 className="font-bold text-white text-base">Create Temporary Channel</h3>
+                  <button
+                    type="button"
+                    onClick={() => setTempChannelType('voice')}
+                    className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
+                      tempChannelType === 'voice'
+                        ? 'bg-[#5865f2]/20 border-[#5865f2] text-white shadow-md'
+                        : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Volume2 className="w-4 h-4 text-[#23a55a]" />
+                    <div className="text-left">
+                      <div className="text-white font-bold">Voice Channel</div>
+                      <div className="text-[10px] text-gray-400">Mic, camera &amp; share</div>
+                    </div>
+                  </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                  Channel Name
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={tempChannelName}
+                    onChange={e => setTempChannelName(e.target.value)}
+                    placeholder={tempChannelType === 'text' ? 'e.g. testing-lounge' : 'e.g. squad-voice'}
+                    className="w-full bg-[#1e1f22] border border-black/40 rounded px-3 py-2 text-sm text-white outline-none focus:border-[#5865f2] transition-colors"
+                    autoFocus
+                  />
+                </div>
+                {tempChannelError && (
+                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{tempChannelError}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span>
+                  <b>Ephemeral:</b> Exists strictly in this browser tab&apos;s memory and automatically vanishes when closed.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateTempChannelOpen(false)}
-                  className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/10"
+                  className="px-3.5 py-2 text-xs font-semibold rounded text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold rounded bg-[#5865f2] hover:bg-[#4752c4] text-white transition-colors cursor-pointer shadow-md"
+                >
+                  Create Temp Channel
                 </button>
               </div>
-
-              <form onSubmit={handleCreateTempChannel} className="space-y-4 mt-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Channel Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTempChannelType('text')}
-                      className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
-                        tempChannelType === 'text'
-                          ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 shadow-md'
-                          : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <Hash className="w-4 h-4 text-cyan-400" />
-                      <div className="text-left">
-                        <div className="text-white font-bold">Text Channel</div>
-                        <div className="text-[10px] text-gray-400">Instant test chat</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTempChannelType('voice')}
-                      className={`p-3 rounded-lg border flex items-center gap-2.5 transition-all text-xs font-semibold cursor-pointer ${
-                        tempChannelType === 'voice'
-                          ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 shadow-md'
-                          : 'bg-black/30 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <Volume2 className="w-4 h-4 text-cyan-400" />
-                      <div className="text-left">
-                        <div className="text-white font-bold">Voice Channel</div>
-                        <div className="text-[10px] text-gray-400">Mic, camera &amp; share</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                    Channel Name
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={tempChannelName}
-                      onChange={e => setTempChannelName(e.target.value)}
-                      placeholder={tempChannelType === 'text' ? 'e.g. testing-lounge' : 'e.g. squad-voice'}
-                      className="w-full bg-[#1e1f22] border border-black/40 rounded px-3 py-2 text-sm text-white outline-none focus:border-cyan-400 transition-colors"
-                      autoFocus
-                    />
-                  </div>
-                  {tempChannelError && (
-                    <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{tempChannelError}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  <span>
-                    <b>Ephemeral:</b> Exists strictly in this browser tab's memory and automatically vanishes when closed.
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateTempChannelOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold rounded text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-xs font-bold rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors cursor-pointer shadow-md"
-                  >
-                    Create Temp Channel
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Real-time live auto-update toast banner */}
       {updateAvailable && (
-        <div className="fixed bottom-5 right-5 z-[999999] bg-[#0c132c] border border-cyan-400/80 shadow-2xl rounded-2xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+        <div className="fixed bottom-5 right-5 z-[999999] bg-[#111214] border border-[#5865f2]/70 shadow-2xl rounded-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#23a55a] animate-ping" />
           <div className="text-xs text-white">
-            <span className="font-bold text-cyan-300 block">
+            <span className="font-bold text-[#949cf7] block">
               Update Ready ({newVersion || 'latest'})
             </span>
             <span>Update downloaded in background. Restart application to apply.</span>
@@ -1567,7 +1828,7 @@ export const App: React.FC = () => {
           <button
             type="button"
             onClick={restartAndApplyUpdate}
-            className="ml-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            className="ml-2 bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
           >
             <span>Restart to Update</span>
           </button>

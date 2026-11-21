@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Minus,
   Square,
@@ -10,18 +10,24 @@ import {
   Puzzle,
   Terminal,
   Globe,
-  Zap,
-  Home,
+  ChevronDown,
+  Wrench,
+  Music,
+  Package,
+  Pickaxe,
+  RotateCcw,
 } from 'lucide-react';
 import type { EngineMode } from '../types';
 import { appIconService } from '../services/appIcon';
 import { desktopBridge } from '../services/desktopBridge';
 import { overlayService, type OverlayConfig } from '../services/overlay';
+import { vencord } from '../services/vencord';
 import { MicrosoftStoreModal } from './MicrosoftStoreModal';
 
 export interface ElectronAPI {
   isElectron?: boolean;
   platform?: string;
+  selfHostedServerUrl?: string;
   minimize: () => void;
   maximize: () => void;
   close: () => void;
@@ -39,6 +45,10 @@ export interface ElectronAPI {
   onJoinVoice?: (callback: (roomName: string) => void) => () => void;
   relaunchApp?: () => void;
   clearCacheAndReload?: () => void;
+  setZoomFactor?: (factor: number) => void;
+  getZoomFactor?: () => Promise<number>;
+  onZoomChanged?: (callback: (factor: number) => void) => () => void;
+  resetWindowBounds?: () => void;
 }
 
 declare global {
@@ -47,7 +57,7 @@ declare global {
   }
 }
 
-interface TitleBarProps {
+export interface TitleBarProps {
   onToggleOverlay?: () => void;
   onOpenMicrosoftStore?: () => void;
   engineMode?: EngineMode;
@@ -57,6 +67,15 @@ interface TitleBarProps {
   onOpenScripts?: () => void;
   onOpenCoBrowse?: () => void;
   isCoBrowsing?: boolean;
+  layoutFormat?: 'discord' | 'teamspeak';
+  onToggleLayoutFormat?: (format: 'discord' | 'teamspeak') => void;
+  zoomLevel?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomReset?: () => void;
+  onOpenSoundboard?: () => void;
+  onOpenMinecraftConsole?: () => void;
+  onOpenLargeFileShare?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -69,6 +88,15 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onOpenScripts,
   onOpenCoBrowse,
   isCoBrowsing = false,
+  layoutFormat = 'discord',
+  onToggleLayoutFormat,
+  zoomLevel = 100,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+  onOpenSoundboard,
+  onOpenMinecraftConsole,
+  onOpenLargeFileShare,
 }) => {
   const isDesktop = desktopBridge.isDesktopApp();
   const runtimeKind = desktopBridge.getRuntimeKind();
@@ -77,6 +105,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   const [currentIcon, setCurrentIcon] = useState<string>(appIconService.getIcon());
   const [overlayConfig, setOverlayConfig] = useState<OverlayConfig>(() => overlayService.getConfig());
   const [showLocalStoreModal, setShowLocalStoreModal] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubIcon = appIconService.subscribe(setCurrentIcon);
@@ -95,6 +125,29 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     return cleanup;
   }, [isDesktop]);
 
+  useEffect(() => {
+    if (!toolsMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
+        setToolsMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setToolsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [toolsMenuOpen]);
+
   const handleToggleOverlay = () => {
     if (onToggleOverlay) {
       onToggleOverlay();
@@ -111,167 +164,367 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     }
   };
 
-  const modeBadgeConfig =
+  const handleLayoutSwitch = (format: 'discord' | 'teamspeak') => {
+    if (onToggleLayoutFormat) {
+      onToggleLayoutFormat(format);
+    } else {
+      const current = vencord.getTheme();
+      vencord.setTheme({ ...current, layoutFormat: format });
+    }
+  };
+
+  const handleResetWindowBounds = () => {
+    const bridgeExt = desktopBridge as unknown as { resetWindowBounds?: () => void };
+    if (typeof bridgeExt.resetWindowBounds === 'function') {
+      bridgeExt.resetWindowBounds();
+    } else {
+      window.electronAPI?.resetWindowBounds?.();
+    }
+  };
+
+  const runMenuAction = (action?: () => void) => {
+    setToolsMenuOpen(false);
+    action?.();
+  };
+
+  const modePill =
     engineMode === 'proprietary'
       ? {
-          label: 'PROPRIETARY MODE',
-          icon: <Home className="w-3 h-3" />,
-          classes:
-            'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40',
+          label: 'Proprietary',
+          dotClass: 'bg-[#23a55a]',
+          title: 'Proprietary Mode (100% Self-Hosted) — click to switch mode',
         }
       : engineMode === 'discord_proxy'
       ? {
-          label: 'DISCORD BRIDGE',
-          icon: <Globe className="w-3 h-3" />,
-          classes:
-            'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border-indigo-500/40',
+          label: 'Bridge',
+          dotClass: 'bg-[#5865f2]',
+          title: 'Discord Bridge Mode — click to switch mode',
         }
       : {
-          label: 'HYBRID MODE',
-          icon: <Zap className="w-3 h-3" />,
-          classes:
-            'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40',
+          label: 'Hybrid',
+          dotClass: 'bg-[#23a55a]',
+          title: 'Hybrid Mode (Self-Hosted + Discord) — click to switch mode',
         };
 
   return (
     <>
-      <div
+      <header
         data-tauri-drag-region
-        className="flex items-center justify-between h-[32px] w-full bg-[#111827] border-b border-white/5 select-none z-50 text-[#9ca3af] text-xs flex-shrink-0 overflow-x-auto no-scrollbar"
+        className="flex items-center justify-between h-[28px] w-full bg-[var(--bg-frame)] border-b border-[var(--border-subtle)] select-none z-50 text-[var(--text-muted)] text-xs flex-shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        {/* Left: Branding, Runtime Tag & Clickable Mode Switcher */}
+        {/* Left: App Icon, Brand & Mode Indicator */}
         <div
-          className="flex items-center gap-2 px-3 flex-shrink-0"
+          className="flex items-center gap-1.5 px-2.5 flex-shrink-0 min-w-0"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          <img src={currentIcon} alt="Protutech" className="w-4 h-4 rounded object-cover" />
-          <span className="font-semibold text-gray-200 tracking-wide text-[11px]">Protutech</span>
+          <img
+            src={currentIcon}
+            alt="Protutech"
+            className="w-3.5 h-3.5 rounded-sm object-cover flex-shrink-0"
+          />
+          <span className="text-[11px] font-semibold text-[var(--text-header)] tracking-tight whitespace-nowrap">
+            Protutech
+          </span>
+
           {runtimeKind !== 'web' && (
-            <span className="px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 text-[9px] font-bold uppercase tracking-wider">
+            <span className="hidden sm:inline px-1 py-0.2 rounded bg-white/[0.06] text-[var(--text-muted)] text-[9px] font-semibold uppercase tracking-wide">
               {runtimeKind}
             </span>
           )}
 
-          {onToggleEngineMode && (
+          {onToggleEngineMode ? (
             <button
               type="button"
               onClick={onToggleEngineMode}
               data-testid="topbar-mode-badge"
-              title="Click to toggle between Hybrid Mode (Self-Hosted + Discord) and Proprietary Mode (100% Internal)"
-              className={`h-[22px] px-2 rounded-full text-[10px] font-extrabold tracking-wider flex items-center gap-1 border transition-all cursor-pointer ${modeBadgeConfig.classes}`}
+              title={modePill.title}
+              className="h-[18px] px-1.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-[var(--text-normal)] hover:text-[var(--text-header)] text-[10px] font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
             >
-              {modeBadgeConfig.icon}
-              <span>{modeBadgeConfig.label}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${modePill.dotClass}`} />
+              <span>{modePill.label}</span>
             </button>
+          ) : (
+            <span
+              data-testid="topbar-mode-badge"
+              className="h-[18px] px-1.5 rounded bg-white/[0.06] text-[var(--text-muted)] text-[10px] font-medium flex items-center gap-1 flex-shrink-0"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${modePill.dotClass}`} />
+              <span>{modePill.label}</span>
+            </span>
           )}
         </div>
 
         {/* Center Draggable Spacer */}
-        <div className="flex-1 h-full min-w-[16px]" data-tauri-drag-region />
+        <div className="flex-1 h-full min-w-[8px]" data-tauri-drag-region />
 
-        {/* Right: Quick-Access Pills & Desktop Window Controls */}
+        {/* Right: Layout Switcher, Compact Zoom, Tools Dropdown & Window Controls */}
         <div
-          className="flex items-center h-full gap-1.5 pr-1.5 flex-shrink-0"
+          className="flex items-center h-full gap-1.5 pr-1 flex-shrink-0"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          {onOpenDiscordHub && (
+          {/* Segmented Layout Switcher: Discord | TS3 */}
+          <div
+            className="inline-flex items-center bg-black/20 rounded p-0.5 border border-[var(--border-subtle)] flex-shrink-0"
+            role="group"
+            aria-label="Layout Format"
+          >
             <button
               type="button"
-              onClick={onOpenDiscordHub}
-              data-testid="topbar-discord-hub-btn"
-              title="Open Quests, Friends, Nitro & Discord Hub"
-              className="h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 hover:text-white border border-amber-500/30 transition-all cursor-pointer"
-            >
-              <Trophy className="w-3 h-3" />
-              <span className="hidden md:inline">Quests &amp; Hub</span>
-            </button>
-          )}
-
-          {onOpenEquicord && (
-            <button
-              type="button"
-              onClick={onOpenEquicord}
-              data-testid="topbar-equicord-btn"
-              title="Open Equicord Plugin Manager & Custom Mod Editor"
-              className="h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 hover:text-white border border-purple-500/30 transition-all cursor-pointer"
-            >
-              <Puzzle className="w-3 h-3" />
-              <span className="hidden md:inline">Equicord</span>
-            </button>
-          )}
-
-          {onOpenScripts && (
-            <button
-              type="button"
-              onClick={onOpenScripts}
-              data-testid="topbar-scripts-btn"
-              title="Open Scripts, Webhooks & Minecraft Chat Bridge API"
-              className="h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 hover:text-white border border-emerald-500/30 transition-all cursor-pointer"
-            >
-              <Terminal className="w-3 h-3" />
-              <span className="hidden md:inline">Scripts/MC API</span>
-            </button>
-          )}
-
-          {onOpenCoBrowse && (
-            <button
-              type="button"
-              onClick={onOpenCoBrowse}
-              data-testid="topbar-cobrowse-btn"
-              title="Open Built-In Search Engine & Synchronized Co-Browser"
-              className={`h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
-                isCoBrowsing
-                  ? 'bg-cyan-500/30 text-white border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)]'
-                  : 'bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 hover:text-white border-cyan-500/30'
+              onClick={() => handleLayoutSwitch('discord')}
+              data-testid="layout-toggle-discord"
+              title="Discord Layout (Standard)"
+              className={`h-[18px] px-2 rounded-[3px] text-[10px] font-semibold transition-colors cursor-pointer ${
+                layoutFormat === 'discord'
+                  ? 'bg-[var(--discord-blurple)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
             >
-              <Globe className="w-3 h-3" />
-              <span className="hidden sm:inline">Co-Browse Search</span>
+              Discord
             </button>
-          )}
-
-          {/* Optional Overlay Quick Toggle Pill */}
-          <button
-            type="button"
-            onClick={handleToggleOverlay}
-            data-testid="topbar-overlay-btn"
-            title={`Toggle Optional In-Game Overlay (${overlayConfig.hotkey || 'Alt+Shift+O'})`}
-            className={`h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer border ${
-              overlayConfig.enabled
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.25)]'
-                : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-white/10'
-            }`}
-          >
-            <Layers className="w-3 h-3" />
-            <span className="hidden lg:inline">Overlay</span>
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                overlayConfig.enabled ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
+            <button
+              type="button"
+              onClick={() => handleLayoutSwitch('teamspeak')}
+              data-testid="layout-toggle-ts3"
+              title="TeamSpeak 3 Classic Hierarchy Format"
+              className={`h-[18px] px-2 rounded-[3px] text-[10px] font-semibold transition-colors cursor-pointer ${
+                layoutFormat === 'teamspeak'
+                  ? 'bg-[var(--discord-blurple)] text-white'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
               }`}
-            />
-          </button>
+            >
+              TS3
+            </button>
+          </div>
 
-          {/* Microsoft Store Hub Quick Pill */}
-          <button
-            type="button"
-            onClick={handleOpenStore}
-            data-testid="topbar-store-btn"
-            title="Open Microsoft Store Install & Publishing Hub"
-            className="h-[22px] px-2 rounded-full text-[10px] font-bold flex items-center gap-1 bg-sky-500/15 hover:bg-sky-500/30 text-sky-300 hover:text-white border border-sky-500/30 transition-all cursor-pointer"
+          {/* Compact Zoom Control: - | 100% | + */}
+          <div
+            className="inline-flex items-center bg-black/20 rounded border border-[var(--border-subtle)] h-[20px] flex-shrink-0"
+            role="group"
+            aria-label="Zoom Controls"
           >
-            <Store className="w-3 h-3" />
-            <span className="hidden sm:inline">MS Store</span>
-          </button>
+            <button
+              type="button"
+              onClick={onZoomOut}
+              data-testid="zoom-out-btn"
+              title="Zoom Out (Ctrl+-)"
+              className="w-5 h-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] rounded-l text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={onZoomReset}
+              data-testid="zoom-reset-btn"
+              title="Reset Zoom to 100% (Ctrl+0)"
+              className="px-1.5 h-full flex items-center justify-center text-[10px] font-medium tabular-nums text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-x border-[var(--border-subtle)] transition-colors cursor-pointer min-w-[36px]"
+            >
+              {zoomLevel}%
+            </button>
+            <button
+              type="button"
+              onClick={onZoomIn}
+              data-testid="zoom-in-btn"
+              title="Zoom In (Ctrl+=)"
+              className="w-5 h-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] rounded-r text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              +
+            </button>
+          </div>
 
-          {/* Desktop Window Controls (Electron & Tauri via desktopBridge) */}
+          {/* Single Clean Tools & Plugins Dropdown */}
+          <div className="relative flex-shrink-0" ref={toolsMenuRef}>
+            <button
+              type="button"
+              onClick={() => setToolsMenuOpen(prev => !prev)}
+              data-testid="topbar-tools-menu-btn"
+              aria-expanded={toolsMenuOpen}
+              title="Tools, Plugins, Soundboard & Window Utilities"
+              className={`h-[20px] px-2 rounded text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer border ${
+                toolsMenuOpen
+                  ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] border-white/10'
+                  : 'bg-white/[0.05] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)] hover:text-[var(--text-header)] border-[var(--border-subtle)]'
+              }`}
+            >
+              <Wrench className="w-3 h-3 flex-shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">Tools &amp; Plugins</span>
+              <ChevronDown className="w-3 h-3 opacity-75 flex-shrink-0" />
+            </button>
+
+            {toolsMenuOpen && (
+              <div
+                className="absolute right-0 top-[26px] w-56 bg-[#111214] text-[#dbdee1] border border-white/10 rounded-md shadow-2xl py-1.5 px-1.5 z-[120] text-xs"
+                role="menu"
+              >
+                {onOpenDiscordHub && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-discord-hub-btn"
+                    onClick={() => runMenuAction(onOpenDiscordHub)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Trophy className="w-3.5 h-3.5 text-[#f0b232]" />
+                      <span>Quests &amp; Discord Hub</span>
+                    </span>
+                  </button>
+                )}
+
+                {onOpenEquicord && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-equicord-btn"
+                    onClick={() => runMenuAction(onOpenEquicord)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Puzzle className="w-3.5 h-3.5 text-[#a78bfa]" />
+                      <span>Equicord Plugins</span>
+                    </span>
+                  </button>
+                )}
+
+                {onOpenSoundboard && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-soundboard-btn"
+                    onClick={() => runMenuAction(onOpenSoundboard)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Music className="w-3.5 h-3.5 text-[#23a55a]" />
+                      <span>Soundboard</span>
+                    </span>
+                  </button>
+                )}
+
+                {onOpenScripts && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-scripts-btn"
+                    onClick={() => runMenuAction(onOpenScripts)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Terminal className="w-3.5 h-3.5 text-[#23a55a]" />
+                      <span>Scripts / MC API</span>
+                    </span>
+                  </button>
+                )}
+
+                {onOpenMinecraftConsole && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-mc-console-btn"
+                    onClick={() => runMenuAction(onOpenMinecraftConsole)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Pickaxe className="w-3.5 h-3.5 text-[#23a55a]" />
+                      <span>Minecraft Console</span>
+                    </span>
+                  </button>
+                )}
+
+                {onOpenCoBrowse && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-cobrowse-btn"
+                    onClick={() => runMenuAction(onOpenCoBrowse)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-3.5 h-3.5 text-[#00a8fc]" />
+                      <span>Co-Browse Search</span>
+                    </span>
+                    {isCoBrowsing && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a]" />
+                    )}
+                  </button>
+                )}
+
+                {onOpenLargeFileShare && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-large-file-btn"
+                    onClick={() => runMenuAction(onOpenLargeFileShare)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Package className="w-3.5 h-3.5 text-[#00a8fc]" />
+                      <span>Large File Share</span>
+                    </span>
+                  </button>
+                )}
+
+                <div className="h-px bg-white/[0.08] my-1 mx-1" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="topbar-overlay-btn"
+                  onClick={() => runMenuAction(handleToggleOverlay)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-[#949ba4]" />
+                    <span>In-Game Overlay</span>
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold px-1.5 py-0.2 rounded ${
+                      overlayConfig.enabled
+                        ? 'bg-[#23a55a]/25 text-[#23a55a]'
+                        : 'bg-white/[0.08] text-[#949ba4]'
+                    }`}
+                  >
+                    {overlayConfig.enabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="topbar-store-btn"
+                  onClick={() => runMenuAction(handleOpenStore)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Store className="w-3.5 h-3.5 text-[#00a8fc]" />
+                    <span>Microsoft Store Hub</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="topbar-reset-window-btn"
+                  onClick={() => runMenuAction(handleResetWindowBounds)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <RotateCcw className="w-3.5 h-3.5 text-[#949ba4]" />
+                    <span>Reset Window Position</span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Pinned Desktop Window Controls (Electron & Tauri via desktopBridge) */}
           {isDesktop && (
-            <div className="flex items-center h-full ml-1 border-l border-white/10">
+            <div className="flex items-center h-full ml-0.5 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => desktopBridge.minimize()}
                 title="Minimize"
-                className="w-10 h-full flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-full flex items-center justify-center hover:bg-white/[0.08] text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
@@ -279,7 +532,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                 type="button"
                 onClick={() => desktopBridge.maximize()}
                 title={isMaximized ? 'Restore Down' : 'Maximize'}
-                className="w-10 h-full flex items-center justify-center hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-full flex items-center justify-center hover:bg-white/[0.08] text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
               >
                 {isMaximized ? <Copy className="w-3 h-3" /> : <Square className="w-3 h-3" />}
               </button>
@@ -287,14 +540,14 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                 type="button"
                 onClick={() => desktopBridge.close()}
                 title="Close (Minimize to Tray)"
-                className="w-10 h-full flex items-center justify-center hover:bg-[#ed4245] text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-full flex items-center justify-center hover:bg-[#da373c] text-[var(--text-muted)] hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           )}
         </div>
-      </div>
+      </header>
 
       {!onOpenMicrosoftStore && (
         <MicrosoftStoreModal

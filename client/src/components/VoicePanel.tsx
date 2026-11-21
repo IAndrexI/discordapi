@@ -4,7 +4,7 @@ import {
   VideoOff,
   Monitor,
   PhoneOff,
-  Radio,
+  Signal,
   Zap,
   Sparkles,
   Settings,
@@ -13,6 +13,8 @@ import {
   Volume2,
   Globe,
   SlidersHorizontal,
+  Music,
+  ChevronDown,
 } from 'lucide-react';
 import { livekit } from '../services/livekit';
 import { voiceProxy } from '../services/voiceProxy';
@@ -27,6 +29,8 @@ export interface VoicePanelProps {
   onDisconnect: () => void;
   onOpenCoBrowse?: () => void;
   isCoBrowsing?: boolean;
+  onOpenSoundboard?: () => void;
+  isSoundboardOpen?: boolean;
 }
 
 export const VoicePanel: React.FC<VoicePanelProps> = ({
@@ -35,6 +39,8 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
   onDisconnect,
   onOpenCoBrowse,
   isCoBrowsing = false,
+  onOpenSoundboard,
+  isSoundboardOpen = false,
 }) => {
   const [hasVideo, setHasVideo] = useState(() => livekit.isCameraEnabled());
   const [isScreenSharing, setIsScreenSharing] = useState(() => livekit.isScreenShareEnabled());
@@ -43,7 +49,6 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
   const [micLoopback, setMicLoopback] = useState(() => livekit.isMicLoopbackEnabled());
   const [audioLevel, setAudioLevel] = useState(() => livekit.getAudioLevel());
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [engineKind, setEngineKind] = useState(() => livekit.getEngineKind());
   const [proxySession, setProxySession] = useState(() => voiceProxy.getSession());
 
   const [screenQuality, setScreenQuality] = useState<ScreenQualityOption>('1080p60');
@@ -62,7 +67,6 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
       setIsStudio(livekit.isStudioAudio);
       setIsGamingMode(livekit.isLowResourceGamingMode);
       setMicLoopback(livekit.isMicLoopbackEnabled());
-      setEngineKind(livekit.getEngineKind());
     });
 
     const unsubLevel = livekit.subscribeAudioLevel((level, speaking) => {
@@ -82,13 +86,11 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
   }, []);
 
   const isProxy = proxySession.status === 'connected';
-  const providerBadge = isProxy
+  const connectionTitle = isProxy
     ? proxySession.provider === 'discord_proxy'
-      ? { label: 'DISCORD PROXY', bg: 'bg-amber-500/20 text-amber-300 border-amber-500/40' }
-      : { label: 'STOAT HOSTED', bg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' }
-    : engineKind === 'sfu'
-      ? { label: 'SFU LIVE', bg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }
-      : { label: 'WEBRTC LIVE', bg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      ? 'Discord Call'
+      : 'Stoat Call'
+    : 'Voice Connected';
 
   const toggleVideo = async () => {
     const next = !hasVideo;
@@ -133,10 +135,11 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
     setIsStudio(next);
   };
 
-  const handleToggleMicLoopback = () => {
+  const handleToggleMicLoopback = async () => {
     const next = !micLoopback;
-    livekit.setMicLoopback(next);
     setMicLoopback(next);
+    const active = await livekit.setMicLoopback(next);
+    setMicLoopback(active);
   };
 
   const handleOpenCoBrowse = () => {
@@ -147,73 +150,66 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
     }
   };
 
+  const handleOpenSoundboard = () => {
+    if (onOpenSoundboard) {
+      onOpenSoundboard();
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('protutech:open-soundboard'));
+    }
+  };
+
   return (
-    <div className="bg-[var(--bg-userpanel)] border-b border-black/20 p-2.5 flex flex-col gap-2">
-      {/* Voice Status & Latency */}
-      <div className="flex items-center justify-between">
+    <div className="bg-[var(--bg-userpanel)] border-t border-b border-black/25 px-2.5 py-2 flex flex-col gap-2">
+      {/* Voice Status & Latency Header */}
+      <div className="flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-2 min-w-0">
-          <Radio className="w-4 h-4 text-[var(--status-online)] animate-pulse flex-shrink-0" />
+          <Signal className="w-4 h-4 text-[var(--status-online)] flex-shrink-0" />
           <div className="min-w-0">
-            <div className="text-[12px] font-bold text-[var(--status-online)] leading-tight flex items-center gap-1.5 flex-wrap">
-              <span>
-                {isProxy
-                  ? proxySession.provider === 'discord_proxy'
-                    ? 'Discord Call'
-                    : 'Stoat Call'
-                  : 'Voice Connected'}
-              </span>
-              <span className={`px-1 py-0.2 rounded text-[9px] font-bold border ${providerBadge.bg}`}>
-                {providerBadge.label}
-              </span>
-              <span className="bg-[var(--status-online)]/20 px-1 py-0.2 rounded text-[10px] font-mono flex items-center gap-0.5">
-                <Zap className="w-2.5 h-2.5" />
-                {rtcPing}ms RTC
-              </span>
+            <div className="text-[12px] font-bold text-[var(--status-online)] leading-tight truncate">
+              {connectionTitle}
             </div>
-            <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[155px]">
-              {roomName}
+            <div className="text-[11px] text-[var(--text-muted)] truncate leading-tight">
+              {roomName} • {rtcPing}ms
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Quick Voice Settings */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
-            title="Audio Quality & Screenshare Settings"
-            aria-label="Audio Quality & Screenshare Settings"
+            title="Audio Quality & Stream Settings"
+            aria-label="Audio Quality & Stream Settings"
             className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
               showSettings
-                ? 'bg-cyan-500/20 text-cyan-300'
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
+                ? 'bg-[var(--bg-item-active)] text-white'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)]'
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
 
-          {/* Disconnect Button */}
           <button
             type="button"
             onClick={onDisconnect}
-            title="Disconnect from Voice"
+            title="Disconnect"
             aria-label="Disconnect from Voice"
-            className="w-7 h-7 rounded hover:bg-white/10 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--status-dnd)] transition-colors cursor-pointer"
+            className="w-7 h-7 rounded hover:bg-[var(--bg-item-hover)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--status-dnd)] transition-colors cursor-pointer"
           >
             <PhoneOff className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Live Mic Audio Level Meter & Loopback Toggle */}
-      <div className="flex items-center gap-2 bg-black/25 rounded-lg px-2 py-1 border border-white/5">
+      {/* Compact Mic VU Bar & Hear Yourself (Playback) Pill */}
+      <div className="flex items-center gap-1.5 bg-black/25 rounded-md px-2 py-1 border border-white/[0.06]">
         <Mic
           className={`w-3.5 h-3.5 flex-shrink-0 ${
-            isSpeaking ? 'text-emerald-400' : 'text-gray-400'
+            isSpeaking ? 'text-[var(--status-online)]' : 'text-[var(--text-muted)]'
           }`}
         />
         <div
-          className="flex-1 h-1.5 bg-black/60 rounded-full overflow-hidden"
+          className="flex-1 h-1.5 bg-black/50 rounded-full overflow-hidden"
           title={`Microphone level: ${audioLevel}%`}
         >
           <div
@@ -222,36 +218,37 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
             style={{
               width: `${audioLevel}%`,
               background:
-                audioLevel > 75
-                  ? 'linear-gradient(90deg, #10b981 0%, #eab308 75%, #ef4444 100%)'
-                  : 'linear-gradient(90deg, #10b981 0%, #22d3ee 100%)',
+                audioLevel > 78
+                  ? '#f23f43'
+                  : audioLevel > 55
+                    ? '#f0b232'
+                    : '#23a55a',
             }}
           />
         </div>
         <button
           type="button"
           data-testid="voice-mic-loopback-btn"
-          aria-label={micLoopback ? 'Disable Mic Test Loopback' : 'Enable Mic Test Loopback'}
-          onClick={handleToggleMicLoopback}
-          title="Hear your own microphone in real-time (Mic Test / Loopback)"
-          className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0 ${
+          aria-label={micLoopback ? 'Disable Mic Playback' : 'Enable Mic Playback (Hear Yourself)'}
+          onClick={() => void handleToggleMicLoopback()}
+          title="Hear Yourself (Real-time Mic Playback)"
+          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0 border ${
             micLoopback
-              ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
-              : 'bg-white/10 text-gray-300 hover:text-white hover:bg-white/15'
+              ? 'bg-[#23a55a]/20 text-[#23a55a] border-[#23a55a]/45'
+              : 'bg-white/[0.07] text-[var(--text-normal)] hover:text-white hover:bg-white/[0.12] border-transparent'
           }`}
         >
           <Volume2 className="w-3 h-3" />
-          <span>{micLoopback ? 'Loopback ON' : 'Mic Test'}</span>
+          <span>{micLoopback ? 'Playback ON' : 'Hear Self'}</span>
         </button>
       </div>
 
-      {/* Voice Quality Settings Drawer */}
+      {/* Compact Voice Quality Settings Drawer */}
       {showSettings && (
-        <div className="p-2.5 rounded-lg bg-black/40 border border-cyan-500/20 space-y-2 text-xs animate-fadeIn">
-          {/* Studio Audio (TeamSpeak Low-Latency / 48kHz Stereo) */}
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-gray-300">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
+        <div className="p-2.5 rounded-md bg-[#111214] border border-white/[0.08] space-y-2 text-xs animate-fadeIn">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[var(--text-normal)]">
+              <Sparkles className="w-3 h-3 text-[#23a55a]" />
               <span>Studio Voice (48kHz)</span>
             </span>
             <button
@@ -259,19 +256,18 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
               onClick={handleToggleStudio}
               className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
                 isStudio
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-white/10 text-gray-400'
+                  ? 'bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/40'
+                  : 'bg-white/10 text-[var(--text-muted)]'
               }`}
             >
               {isStudio ? 'Enabled' : 'Standard'}
             </button>
           </div>
 
-          {/* Low-Resource Gaming Mode (Zero Video / Minimal CPU while in game) */}
-          <div className="flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="flex items-center gap-1 text-gray-300">
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span>Gaming Mode (Low CPU)</span>
+          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/[0.06]">
+            <span className="flex items-center gap-1.5 text-[var(--text-normal)]">
+              <Zap className="w-3 h-3 text-[#f0b232]" />
+              <span>Gaming Mode</span>
             </span>
             <button
               type="button"
@@ -281,18 +277,17 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
               }}
               className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
                 isGamingMode
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  : 'bg-white/10 text-gray-400'
+                  ? 'bg-[#f0b232]/20 text-[#f0b232] border border-[#f0b232]/40'
+                  : 'bg-white/10 text-[var(--text-muted)]'
               }`}
-              title="Pauses background incoming video streams to save CPU for maximum FPS while gaming"
+              title="Pauses background incoming video streams to save CPU while gaming"
             >
-              {isGamingMode ? 'Optimized (<0.5%)' : 'Off'}
+              {isGamingMode ? 'Low CPU' : 'Off'}
             </button>
           </div>
 
-          {/* Screenshare Resolution */}
-          <div className="flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="text-gray-300">Stream Quality</span>
+          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/[0.06]">
+            <span className="text-[var(--text-normal)]">Stream Quality</span>
             <select
               value={screenQuality}
               onChange={async (e) => {
@@ -302,110 +297,143 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
                   await livekit.setScreenShare(true, val, selectedSourceId, includeSystemAudio);
                 }
               }}
-              className="bg-neutral-800 border border-white/10 rounded px-1.5 py-0.5 text-[11px] text-cyan-300 outline-none"
+              className="bg-[#1e1f22] border border-white/10 rounded px-1.5 py-0.5 text-[11px] text-[#f2f3f5] outline-none"
             >
               <option value="720p30">720p 30FPS</option>
-              <option value="1080p60">1080p 60FPS (Nitro)</option>
+              <option value="1080p60">1080p 60FPS</option>
               <option value="1440p60">1440p 60FPS</option>
-              <option value="4k30">4K 30FPS (Studio)</option>
-              <option value="4k60">4K 60FPS (Ultra)</option>
+              <option value="4k30">4K 30FPS</option>
+              <option value="4k60">4K 60FPS</option>
             </select>
           </div>
 
-          {/* Camera Backgrounds */}
-          <div className="flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="flex items-center gap-1 text-gray-300">
-              <ImageIcon className="w-3 h-3 text-purple-400" />
+          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/[0.06]">
+            <span className="flex items-center gap-1.5 text-[var(--text-normal)]">
+              <ImageIcon className="w-3 h-3 text-[#5865f2]" />
               <span>Camera Background</span>
             </span>
             <button
               type="button"
               onClick={() => setShowBackgroundModal(true)}
-              className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 transition-colors cursor-pointer"
+              className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#5865f2]/20 text-[#dbdee1] border border-[#5865f2]/40 hover:bg-[#5865f2]/35 transition-colors cursor-pointer"
             >
-              Configure...
+              Configure
             </button>
           </div>
         </div>
       )}
 
-      {/* Webcam Background Modal */}
       <WebcamBackgroundModal
         isOpen={showBackgroundModal}
         onClose={() => setShowBackgroundModal(false)}
+        onTurnOnCamera={async () => {
+          const ok = await livekit.setCamera(true);
+          if (ok) setHasVideo(true);
+        }}
       />
 
-      {/* Screen Share Source & Quality Picker Modal */}
       <ScreenSharePickerModal
         isOpen={showScreenPicker}
         onClose={() => setShowScreenPicker(false)}
         onStartShare={handleStartScreenShareFromPicker}
       />
 
-      {/* Media Action Buttons: Camera + 1-Click Go Live (+ Picker) + Co-Browse / Search */}
-      <div className="flex items-center gap-1.5 pt-0.5">
-        <button
-          type="button"
-          data-testid="voice-camera-btn"
-          aria-label={hasVideo ? 'Turn Off Camera' : 'Turn On Camera'}
-          onClick={toggleVideo}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs font-semibold transition-colors cursor-pointer ${
-            hasVideo
-              ? 'bg-[var(--status-online)] text-white shadow-md'
-              : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.1]'
-          }`}
-          title={hasVideo ? 'Turn Off Camera' : 'Turn On Camera'}
-        >
-          {hasVideo ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-          <span>{hasVideo ? 'Cam On' : 'Camera'}</span>
-        </button>
+      {/* Uniform Discord Media Buttons Grid: Video (+Preview), Screen (+Picker), Soundboard, Co-Browse */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="flex items-center gap-1 min-w-0">
+          <button
+            type="button"
+            data-testid="voice-camera-btn"
+            aria-label={hasVideo ? 'Turn Off Video' : 'Turn On Video'}
+            onClick={toggleVideo}
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+              hasVideo
+                ? 'bg-[#23a55a] text-white hover:bg-[#1f9350]'
+                : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.12] hover:text-white'
+            }`}
+            title={hasVideo ? 'Turn Off Camera' : 'Turn On Camera'}
+          >
+            {hasVideo ? (
+              <Video className="w-3.5 h-3.5 flex-shrink-0" />
+            ) : (
+              <VideoOff className="w-3.5 h-3.5 flex-shrink-0" />
+            )}
+            <span className="truncate">Video</span>
+          </button>
 
-        <div className="flex-1 flex items-center gap-1">
+          <button
+            type="button"
+            data-testid="voice-camera-preview-btn"
+            aria-label="Camera Preview and Virtual Backgrounds"
+            onClick={() => setShowBackgroundModal(true)}
+            title="Camera Preview & Virtual Backgrounds"
+            className="p-1.5 rounded bg-white/[0.06] hover:bg-white/[0.14] text-[var(--text-normal)] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 min-w-0">
           <button
             type="button"
             data-testid="voice-screen-btn"
             aria-label={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
             onClick={handleQuickScreenShare}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs font-semibold transition-colors cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${
               isScreenSharing
-                ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg animate-pulse'
-                : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.1]'
+                ? 'bg-[#23a55a] text-white hover:bg-[#1f9350]'
+                : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.12] hover:text-white'
             }`}
-            title="1-Click Share Screen (1080p60)"
+            title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
           >
-            <Monitor className="w-3.5 h-3.5" />
-            <span>{isScreenSharing ? 'Stop Stream' : 'Go Live'}</span>
+            <Monitor className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{isScreenSharing ? 'Sharing' : 'Screen'}</span>
           </button>
 
           <button
             type="button"
             data-testid="voice-screen-picker-btn"
-            aria-label="Open Screen Share Source & Quality Picker"
+            aria-label="Open Screen Share Picker"
             onClick={() => setShowScreenPicker(true)}
             title="Choose Screen / Window & Stream Quality"
-            className="p-1.5 rounded bg-white/[0.06] hover:bg-white/[0.14] text-cyan-300 transition-colors cursor-pointer flex-shrink-0"
+            className="p-1.5 rounded bg-white/[0.06] hover:bg-white/[0.14] text-[var(--text-normal)] hover:text-white transition-colors cursor-pointer flex-shrink-0"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
 
-      {/* Co-Browse / Search Together Button */}
-      <button
-        type="button"
-        data-testid="voice-cobrowse-btn"
-        aria-label="Open Co-Browse and Search Together"
-        onClick={handleOpenCoBrowse}
-        className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs font-semibold transition-colors cursor-pointer border ${
-          isCoBrowsing
-            ? 'bg-cyan-500/25 text-cyan-200 border-cyan-400/50 shadow-sm'
-            : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 border-indigo-500/30'
-        }`}
-        title="Search the web, Wikipedia, or watch videos together in this call"
-      >
-        <Globe className="w-3.5 h-3.5 text-cyan-300" />
-        <span>{isCoBrowsing ? 'Co-Browse Active' : 'Co-Browse / Search'}</span>
-      </button>
+        <button
+          type="button"
+          data-testid="voice-soundboard-btn"
+          aria-label="Open Soundboard"
+          onClick={handleOpenSoundboard}
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs font-medium transition-colors cursor-pointer ${
+            isSoundboardOpen
+              ? 'bg-[#5865f2] text-white'
+              : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.12] hover:text-white'
+          }`}
+          title="Open Soundboard"
+        >
+          <Music className="w-3.5 h-3.5" />
+          <span>Soundboard</span>
+        </button>
+
+        <button
+          type="button"
+          data-testid="voice-cobrowse-btn"
+          aria-label="Open Co-Browse and Search Together"
+          onClick={handleOpenCoBrowse}
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs font-medium transition-colors cursor-pointer ${
+            isCoBrowsing
+              ? 'bg-[#5865f2] text-white'
+              : 'bg-white/[0.06] text-[var(--text-normal)] hover:bg-white/[0.12] hover:text-white'
+          }`}
+          title="Co-Browse & Watch Together"
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>Co-Browse</span>
+        </button>
+      </div>
     </div>
   );
 };

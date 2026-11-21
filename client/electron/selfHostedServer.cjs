@@ -714,6 +714,7 @@ function createSeedDatabase() {
     discordCatalog,
     files: [],
     media: {},
+    soundboard: [],
     cobrowse: {
       url: '',
       videoUrl: '',
@@ -740,11 +741,13 @@ function createDatabaseStore(dataDir) {
   const resolvedDir = path.resolve(dataDir || DEFAULT_DATA_DIR);
   const uploadsDir = path.join(resolvedDir, 'uploads');
   const stagingDir = path.join(uploadsDir, '.staging');
+  const soundboardDir = path.join(resolvedDir, 'soundboard');
   const dbPath = path.join(resolvedDir, 'db.json');
 
   fs.mkdirSync(resolvedDir, { recursive: true });
   fs.mkdirSync(uploadsDir, { recursive: true });
   fs.mkdirSync(stagingDir, { recursive: true });
+  fs.mkdirSync(soundboardDir, { recursive: true });
 
   const defaults = createSeedDatabase();
   let db = defaults;
@@ -770,6 +773,7 @@ function createDatabaseStore(dataDir) {
       if (!Array.isArray(db.quests) || db.quests.length === 0) db.quests = defaults.quests;
       if (!Array.isArray(db.webhooks) || db.webhooks.length === 0) db.webhooks = defaults.webhooks;
       if (!Array.isArray(db.files)) db.files = [];
+      if (!Array.isArray(db.soundboard)) db.soundboard = [];
       if (!db.media || typeof db.media !== 'object') db.media = {};
     } catch {
       db = defaults;
@@ -796,6 +800,7 @@ function createDatabaseStore(dataDir) {
     resolvedDir,
     uploadsDir,
     stagingDir,
+    soundboardDir,
     dbPath,
     get db() {
       return db;
@@ -2881,6 +2886,156 @@ function createRequestHandler(dataDir) {
         sendJson(res, 200, db.cobrowse);
         return;
       }
+    }
+
+    // ---------------------------------------------------------
+    // 9b. Soundboard Clips Persistence & Safe Audio Serving
+    // ---------------------------------------------------------
+    if (pathname === '/api/soundboard' && method === 'GET') {
+      sendJson(res, 200, { clips: db.soundboard || [] });
+      return;
+    }
+
+    if (pathname === '/api/soundboard' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const rawId = String(body.id || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]/g, '');
+      const clipId = rawId || `sb_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+      const name = String(body.name || 'Custom Sound').trim().slice(0, 80) || 'Custom Sound';
+      const emoji = String(body.emoji || '🎵').trim().slice(0, 16) || '🎵';
+      const volume = Math.max(0, Math.min(200, Math.round(Number(body.volume ?? 100) || 100)));
+
+      let mimeType = String(body.mimeType || 'audio/mpeg').split(';')[0].trim().toLowerCase();
+      let base64Data = typeof body.dataBase64 === 'string' ? body.dataBase64.trim() : '';
+
+      if (!base64Data && typeof body.dataUrl === 'string' && body.dataUrl.startsWith('data:')) {
+        const commaIdx = body.dataUrl.indexOf(',');
+        if (commaIdx > 0) {
+          const header = body.dataUrl.slice(5, commaIdx);
+          const semiIdx = header.indexOf(';');
+          if (semiIdx > 0) {
+            mimeType = header.slice(0, semiIdx).trim().toLowerCase() || mimeType;
+          }
+          base64Data = body.dataUrl.slice(commaIdx + 1).trim();
+        }
+      }
+
+      const extMap = {
+        'audio/mpeg': '.mp3',
+        'audio/mp3': '.mp3',
+        'audio/wav': '.wav',
+        'audio/wave': '.wav',
+        'audio/x-wav': '.wav',
+        'audio/ogg': '.ogg',
+        'audio/webm': '.webm',
+        'audio/mp4': '.m4a',
+        'audio/x-m4a': '.m4a',
+        'audio/aac': '.aac',
+        'audio/flac': '.flac',
+      };
+      const safeMime = extMap[mimeType] ? mimeType : 'application/octet-stream';
+      const safeExt = extMap[mimeType] || '.bin';
+
+      let diskName;
+      let audioUrl;
+      let size = 0;
+
+      if (base64Data) {
+        const buf = Buffer.from(base64Data, 'base64');
+        const MAX_CLIP_BYTES = 15 * 1024 * 1024;
+        if (buf.length > MAX_CLIP_BYTES) {
+          sendJson(res, 413, { error: 'Soundboard clip exceeds 15MB limit' });
+          return;
+        }
+        if (buf.length > 0) {
+          diskName = `${path.basename(clipId)}${safeExt}`;
+          const targetPath = path.resolve(store.soundboardDir, diskName);
+          if (!targetPath.startsWith(store.soundboardDir + path.sep)) {
+            sendJson(res, 400, { error: 'Invalid clip identifier' });
+            return;
+          }
+          fs.writeFileSync(targetPath, buf);
+          audioUrl = `/api/soundboard/${encodeURIComponent(clipId)}/audio`;
+          size = buf.length;
+        }
+      }
+
+      const existing = (db.soundboard || []).find((c) => c.id === clipId);
+      const clipRecord = {
+        id: clipId,
+        name,
+        emoji,
+        category: 'custom',
+        volume,
+        favorite: body.favorite !== undefined ? Boolean(body.favorite) : Boolean(existing?.favorite),
+        hotkey: body.hotkey !== undefined ? String(body.hotkey || '').slice(0, 16) : existing?.hotkey,
+        durationMs: typeof body.durationMs === 'number' ? body.durationMs : existing?.durationMs || 1500,
+        mimeType: safeMime,
+        diskName: diskName || existing?.diskName,
+        audioUrl: audioUrl || existing?.audioUrl,
+        size: size || existing?.size || 0,
+        createdAt: existing?.createdAt || Date.now(),
+      };
+
+      db.soundboard = (db.soundboard || []).filter((c) => c.id !== clipId);
+      db.soundboard.push(clipRecord);
+      store.save();
+
+      sendJson(res, 201, { ok: true, clip: clipRecord });
+      return;
+    }
+
+    const soundboardAudioMatch = pathname.match(/^\/api\/soundboard\/([^/]+)\/audio$/);
+    if (soundboardAudioMatch && method === 'GET') {
+      const clipId = path.basename(decodeURIComponent(soundboardAudioMatch[1]));
+      const clip = (db.soundboard || []).find((c) => c.id === clipId);
+      if (!clip || !clip.diskName) {
+        sendJson(res, 404, { error: 'Soundboard clip audio not found' });
+        return;
+      }
+      const safeFile = path.basename(String(clip.diskName));
+      const filePath = path.resolve(store.soundboardDir, safeFile);
+      if (!filePath.startsWith(store.soundboardDir + path.sep) || !fs.existsSync(filePath)) {
+        sendJson(res, 404, { error: 'Soundboard clip file missing' });
+        return;
+      }
+      const stat = fs.statSync(filePath);
+      setCorsHeaders(res);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', clip.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Length', stat.size);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      fs.createReadStream(filePath).pipe(res);
+      return;
+    }
+
+    const soundboardDeleteMatch = pathname.match(/^\/api\/soundboard\/([^/]+)$/);
+    if ((soundboardDeleteMatch || pathname === '/api/soundboard') && method === 'DELETE') {
+      const clipId = soundboardDeleteMatch
+        ? decodeURIComponent(soundboardDeleteMatch[1])
+        : String(parsedUrl.searchParams.get('id') || '').trim();
+      if (!clipId) {
+        sendJson(res, 400, { error: 'Missing soundboard clip id' });
+        return;
+      }
+      const existing = (db.soundboard || []).find((c) => c.id === clipId);
+      if (existing && existing.diskName) {
+        const safeFile = path.basename(String(existing.diskName));
+        const filePath = path.resolve(store.soundboardDir, safeFile);
+        if (filePath.startsWith(store.soundboardDir + path.sep) && fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch {
+            // Ignore unlink error
+          }
+        }
+      }
+      db.soundboard = (db.soundboard || []).filter((c) => c.id !== clipId);
+      store.save();
+      sendJson(res, 200, { ok: true, id: clipId });
+      return;
     }
 
     // ---------------------------------------------------------

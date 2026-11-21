@@ -709,7 +709,7 @@ function stripTrackingParams(text: string): string {
 export class VencordService {
   private plugins: Map<string, VencordPlugin> = new Map();
   private userPlugins: Map<string, VencordPlugin> = new Map();
-  private theme: ThemeConfig = { activeTheme: 'dark' };
+  private theme: ThemeConfig = { activeTheme: 'dark', layoutFormat: 'discord' };
   private executedPluginCleanups: Map<string, () => void> = new Map();
   private sendHooks: Map<string, MessageSendHook[]> = new Map();
   private receiveHooks: Map<string, MessageReceiveHook[]> = new Map();
@@ -798,7 +798,13 @@ export class VencordService {
 
       const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
       if (savedTheme) {
-        this.theme = JSON.parse(savedTheme);
+        const parsedTheme = JSON.parse(savedTheme) as Partial<ThemeConfig>;
+        this.theme = {
+          activeTheme: parsedTheme.activeTheme || 'dark',
+          layoutFormat: parsedTheme.layoutFormat === 'teamspeak' ? 'teamspeak' : 'discord',
+          customCssUrl: parsedTheme.customCssUrl,
+          customCssText: parsedTheme.customCssText,
+        };
       }
     } catch (err) {
       console.error('Error loading Vencord/Equicord state:', err);
@@ -1643,13 +1649,22 @@ export class VencordService {
   }
 
   public getTheme(): ThemeConfig {
-    return this.theme;
+    return {
+      ...this.theme,
+      activeTheme: this.theme.activeTheme || 'dark',
+      layoutFormat: this.theme.layoutFormat === 'teamspeak' ? 'teamspeak' : 'discord',
+    };
   }
 
   public setTheme(config: ThemeConfig) {
-    this.theme = config;
-    localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(config));
-    this.applyTheme(config);
+    const normalized: ThemeConfig = {
+      ...config,
+      activeTheme: config.activeTheme || 'dark',
+      layoutFormat: config.layoutFormat === 'teamspeak' ? 'teamspeak' : 'discord',
+    };
+    this.theme = normalized;
+    localStorage.setItem(STORAGE_KEY_THEME, JSON.stringify(normalized));
+    this.applyTheme(normalized);
     this.notifyListeners();
   }
 
@@ -1664,6 +1679,7 @@ export class VencordService {
 
   public applyTheme(config: ThemeConfig) {
     const knownThemes = [
+      'theme-light',
       'theme-midnight',
       'theme-translucent',
       'theme-transparent',
@@ -1679,6 +1695,7 @@ export class VencordService {
     if (config.activeTheme && config.activeTheme !== 'dark' && config.activeTheme !== 'custom') {
       document.body.classList.add(`theme-${config.activeTheme}`);
     }
+    document.body.classList.toggle('layout-teamspeak', config.layoutFormat === 'teamspeak');
 
     let styleEl = document.getElementById('vencord-custom-theme') as HTMLStyleElement | null;
     if (!styleEl) {

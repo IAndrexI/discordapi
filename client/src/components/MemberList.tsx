@@ -1,7 +1,7 @@
 import React from 'react';
 import type { MatrixUser } from '../types';
 
-interface MemberListProps {
+export interface MemberListProps {
   members: MatrixUser[];
   onSelectUser?: (user: MatrixUser) => void;
 }
@@ -11,10 +11,10 @@ export const MemberList: React.FC<MemberListProps> = ({ members, onSelectUser })
   const offlineMembers = members.filter(m => m.presence === 'offline');
 
   return (
-    <aside className="w-60 h-full bg-[var(--bg-channels)] flex flex-col py-4 px-3 select-none flex-shrink-0 border-l border-black/20 overflow-y-auto">
+    <aside className="hidden lg:flex w-60 h-full bg-[var(--bg-channels)] flex-col py-4 px-2 select-none flex-shrink-0 border-l border-[var(--border-subtle)] overflow-y-auto">
       {/* Online Section */}
       <div className="mb-4">
-        <h3 className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1">
+        <h3 className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1">
           Online — {onlineMembers.length}
         </h3>
         <div className="space-y-0.5">
@@ -27,12 +27,17 @@ export const MemberList: React.FC<MemberListProps> = ({ members, onSelectUser })
       {/* Offline Section */}
       {offlineMembers.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1">
+          <h3 className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1">
             Offline — {offlineMembers.length}
           </h3>
           <div className="space-y-0.5">
             {offlineMembers.map(user => (
-              <MemberItem key={user.userId} user={user} isOffline onSelect={() => onSelectUser?.(user)} />
+              <MemberItem
+                key={user.userId}
+                user={user}
+                isOffline
+                onSelect={() => onSelectUser?.(user)}
+              />
             ))}
           </div>
         </div>
@@ -58,12 +63,12 @@ const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean; onSelect?: (
           <img
             src={user.avatarUrl}
             alt={user.displayName}
-            className={`w-8 h-8 rounded-full object-cover ${isOffline ? 'opacity-60' : ''}`}
+            className={`w-8 h-8 rounded-full object-cover ${isOffline ? 'opacity-50' : ''}`}
           />
         ) : (
           <div
-            className={`w-8 h-8 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white font-bold text-xs ${
-              isOffline ? 'opacity-60' : ''
+            className={`w-8 h-8 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white font-semibold text-xs ${
+              isOffline ? 'opacity-50' : ''
             }`}
           >
             {user.displayName.slice(0, 2).toUpperCase()}
@@ -71,7 +76,7 @@ const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean; onSelect?: (
         )}
 
         <span
-          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--bg-channels)] ${
+          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-[3px] ring-[var(--bg-channels)] ${
             isOffline
               ? 'bg-[var(--status-offline)]'
               : user.presence === 'idle'
@@ -87,22 +92,24 @@ const MemberItem: React.FC<{ user: MatrixUser; isOffline?: boolean; onSelect?: (
         <div className="flex items-center gap-1.5 min-w-0">
           <span
             className={`text-sm font-medium truncate ${
-              isOffline ? 'text-[var(--text-muted)]' : 'text-[var(--text-normal)] group-hover:text-white'
+              isOffline
+                ? 'text-[var(--text-muted)]'
+                : 'text-[var(--text-normal)] group-hover:text-[var(--text-header)]'
             }`}
           >
             {user.displayName}
           </span>
           {isBot && (
-            <span className="bg-[var(--discord-blurple)] text-white text-[9px] font-bold px-1 rounded uppercase">
-              BOT
+            <span className="bg-[#5865f2] text-white text-[10px] font-semibold px-1 py-0.2 rounded-[3px] uppercase leading-tight flex-shrink-0">
+              APP
             </span>
           )}
         </div>
 
         {/* Mutual Channel or Group Chat Presence Indicator */}
         {user.currentRoomName && !isOffline && (
-          <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-medium truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
+          <div className="flex items-center gap-1 text-[11px] text-[#23a55a] font-medium truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a] flex-shrink-0" />
             <span className="truncate">in #{user.currentRoomName}</span>
           </div>
         )}

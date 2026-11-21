@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "updatedAt": "2026-11-19T18:48:00Z",
-  "buildTime": 1795079280000,
-  "changelog": "Microsoft Store submission update v1.0.1: Proxmox self-hosted backend sync, Equicord plugins, low-latency voice and video."
+  "version": "1.0.3",
+  "updatedAt": "2026-11-21T02:56:42.280Z",
+  "buildTime": 1795229802281,
+  "changelog": "Auto-bumped on commit"
 }

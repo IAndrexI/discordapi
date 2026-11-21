@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Hash,
   Volume2,
   Users,
   Search,
   ChevronDown,
+  ChevronRight,
   UserPlus,
-  Radio,
   Plus,
   Globe,
   PhoneCall,
+  Trophy,
+  Puzzle,
+  Terminal,
+  Compass,
+  Copy,
+  Check,
+  MicOff,
+  HeadphoneOff,
+  X,
 } from 'lucide-react';
-import type { MatrixRoom, DiscordGuild, MatrixUser } from '../types';
+import type { MatrixRoom, DiscordGuild, MatrixUser, VoiceParticipant } from '../types';
 import { voiceProxy } from '../services/voiceProxy';
 
-interface ChannelSidebarProps {
+export interface ChannelSidebarProps {
   activeGuild: DiscordGuild | null; // null = DMs / Home
   rooms: MatrixRoom[];
   activeRoomId: string | null;
@@ -24,7 +33,20 @@ interface ChannelSidebarProps {
   activeVoiceRoomId: string | null;
   onOpenAddModal?: (tab?: 'server' | 'group' | 'dm') => void;
   onOpenVoiceProxy?: () => void;
+  voiceParticipants?: VoiceParticipant[];
+  onOpenDiscordHub?: (tab?: 'quests' | 'friends' | 'nitro' | 'inbox' | 'discover') => void;
+  onOpenEquicord?: () => void;
+  onOpenScripts?: () => void;
 }
+
+const VOICE_LOUNGE_ROOM: MatrixRoom = {
+  id: 'livekit_lounge',
+  name: 'Voice Lounge',
+  isDirect: false,
+  isGroupChat: false,
+  isVoice: true,
+  members: [],
+};
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeGuild,
@@ -36,9 +58,53 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeVoiceRoomId,
   onOpenAddModal,
   onOpenVoiceProxy,
+  voiceParticipants = [],
+  onOpenDiscordHub,
+  onOpenEquicord,
+  onOpenScripts,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [joiningDiscordId, setJoiningDiscordId] = useState<string | null>(null);
+  const [serverMenuState, setServerMenuState] = useState<{ guildId: string | null; open: boolean }>({
+    guildId: activeGuild?.id ?? null,
+    open: false,
+  });
+  const [copiedServerId, setCopiedServerId] = useState(false);
+  const [textCollapsed, setTextCollapsed] = useState(false);
+  const [voiceCollapsed, setVoiceCollapsed] = useState(false);
+  const serverMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentGuildId = activeGuild?.id ?? null;
+  const serverMenuOpen = serverMenuState.open && serverMenuState.guildId === currentGuildId;
+  const setServerMenuOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    setServerMenuState(prev => {
+      const prevOpen = prev.open && prev.guildId === currentGuildId;
+      const open = typeof next === 'function' ? next(prevOpen) : next;
+      return { guildId: currentGuildId, open };
+    });
+  };
+
+  useEffect(() => {
+    if (!serverMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (serverMenuRef.current && !serverMenuRef.current.contains(event.target as Node)) {
+        setServerMenuState(prev => ({ ...prev, open: false }));
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setServerMenuState(prev => ({ ...prev, open: false }));
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [serverMenuOpen]);
 
   const handleQuickDiscordCall = async (e: React.MouseEvent, room: MatrixRoom) => {
     e.stopPropagation();
@@ -54,6 +120,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     }
   };
 
+  const handleCopyServerId = () => {
+    if (!activeGuild) return;
+    void navigator.clipboard?.writeText(activeGuild.id);
+    setCopiedServerId(true);
+    window.setTimeout(() => {
+      setCopiedServerId(false);
+      setServerMenuOpen(false);
+    }, 900);
+  };
+
   // Filter DMs and Groupchats
   const dms = rooms.filter(r => r.isDirect);
   const groupChats = rooms.filter(r => r.isGroupChat);
@@ -65,141 +141,217 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     gc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeChannel =
-    activeGuild?.channels.find(c => c.id === activeRoomId) ||
-    rooms.find(r => r.id === activeRoomId) ||
-    null;
+  const textChannels = activeGuild
+    ? activeGuild.channels.filter(c => !c.isVoice && c.id !== 'livekit_lounge')
+    : [];
+
+  const guildVoiceChannels = activeGuild
+    ? activeGuild.channels.filter(c => c.isVoice && c.id !== 'livekit_lounge')
+    : [];
+
+  const allVoiceChannels: MatrixRoom[] = activeGuild
+    ? [VOICE_LOUNGE_ROOM, ...guildVoiceChannels]
+    : [];
+
+  const isChannelVoiceActive = (ch: MatrixRoom): boolean => {
+    if (!activeVoiceRoomId) return false;
+    if (ch.id === 'livekit_lounge') {
+      return (
+        activeVoiceRoomId === 'livekit_lounge' ||
+        activeVoiceRoomId === 'Voice Lounge' ||
+        activeVoiceRoomId === '🔊 Ultra-Low Latency Voice'
+      );
+    }
+    return activeVoiceRoomId === ch.id || activeVoiceRoomId === ch.name;
+  };
 
   return (
-    <div className="w-60 h-full bg-[var(--bg-channels)] flex flex-col select-none flex-shrink-0 border-r border-black/20">
+    <div className="w-60 flex-1 min-h-0 bg-[var(--bg-channels)] flex flex-col select-none border-r border-[var(--border-subtle)]">
       {/* Header */}
-      <div
-        onClick={() => {
-          if (activeGuild) onOpenAddModal?.('server');
-        }}
-        className="h-12 border-b border-black/20 px-4 flex items-center justify-between font-semibold text-white shadow-sm hover:bg-white/[0.04] transition-colors cursor-pointer"
-      >
-        <div className="truncate flex items-center gap-2">
-          <span className="truncate">
-            {activeGuild ? activeGuild.name : 'Direct Messages'}
-          </span>
-          {activeGuild?.isAlwaysSynced && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
-              Always Synced
+      {activeGuild ? (
+        <div className="relative flex-shrink-0" ref={serverMenuRef}>
+          <button
+            type="button"
+            onClick={() => setServerMenuOpen(prev => !prev)}
+            className="w-full h-12 border-b border-[var(--border-subtle)] px-4 flex items-center justify-between font-semibold text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] transition-colors cursor-pointer text-left"
+          >
+            <span className="truncate text-[15px] font-semibold tracking-tight">
+              {activeGuild.name}
             </span>
+            {serverMenuOpen ? (
+              <X className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+            )}
+          </button>
+
+          {serverMenuOpen && (
+            <div
+              className="absolute top-[52px] left-2 right-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-40 text-xs text-[var(--text-normal)]"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setServerMenuOpen(false);
+                  onOpenAddModal?.('server');
+                }}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <span>Add / Sync Channels</span>
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+
+              {onOpenScripts && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setServerMenuOpen(false);
+                    onOpenScripts();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span>Scripts &amp; MC Bridge</span>
+                  <Terminal className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {onOpenVoiceProxy && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setServerMenuOpen(false);
+                    onOpenVoiceProxy();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span>Discord Call Proxy</span>
+                  <PhoneCall className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {onOpenDiscordHub && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setServerMenuOpen(false);
+                    onOpenDiscordHub('discover');
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span>Server Hub</span>
+                  <Compass className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <div className="h-px bg-[var(--border-subtle)] my-1" />
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleCopyServerId}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <span>{copiedServerId ? 'Copied Server ID' : 'Copy Server ID'}</span>
+                {copiedServerId ? (
+                  <Check className="w-3.5 h-3.5 text-[#23a55a]" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
           )}
         </div>
-        <ChevronDown className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
-      </div>
+      ) : (
+        <div className="h-12 border-b border-[var(--border-subtle)] px-2.5 flex items-center flex-shrink-0">
+          <div className="w-full bg-[var(--bg-servers)] rounded px-2 py-1.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <Search className="w-3.5 h-3.5 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Find or start a conversation"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none w-full text-[var(--text-normal)] placeholder:text-[var(--text-muted)] text-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Main Content Area */}
+      {/* Main Scrollable List */}
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
         {activeGuild === null ? (
-          // DIRECT MESSAGES VIEW
+          // DIRECT MESSAGES / HOME VIEW
           <>
-            {/* Search Input */}
-            <div className="px-1 mb-2">
-              <div className="bg-[var(--bg-userpanel)] rounded px-2.5 py-1.5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                <Search className="w-3.5 h-3.5" />
-                <input
-                  type="text"
-                  placeholder="Find or start a conversation"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none w-full text-[var(--text-normal)] placeholder:text-[var(--text-muted)]"
-                />
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)] transition-colors text-sm font-medium">
-                <Users className="w-5 h-5" />
-                <span>Friends</span>
+            {/* Discord Home Navigation */}
+            <nav className="space-y-0.5">
+              <button
+                type="button"
+                onClick={() => onOpenDiscordHub?.('friends')}
+                className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+              >
+                <Users className="w-5 h-5 flex-shrink-0" />
+                <span className="truncate">Friends</span>
               </button>
+
+              {onOpenDiscordHub && (
+                <button
+                  type="button"
+                  onClick={() => onOpenDiscordHub('quests')}
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                >
+                  <Trophy className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">Discord Hub / Quests</span>
+                </button>
+              )}
+
+              {onOpenEquicord && (
+                <button
+                  type="button"
+                  onClick={onOpenEquicord}
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
+                >
+                  <Puzzle className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">Equicord Plugins</span>
+                </button>
+              )}
+
               {onOpenVoiceProxy && (
                 <button
                   type="button"
                   onClick={onOpenVoiceProxy}
-                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/15 text-amber-300 hover:text-white transition-all text-xs font-semibold cursor-pointer group"
-                  title="Connect via Discord Call Proxy or Stoat WebRTC SFU (Optional)"
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-header)] transition-colors text-sm font-medium cursor-pointer"
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    <Globe className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                    <span className="truncate">Call Proxies (Discord / Stoat)</span>
-                  </div>
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/25 text-amber-300 font-bold uppercase tracking-wider">
-                    Tool
-                  </span>
+                  <Globe className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">Call Proxies</span>
                 </button>
               )}
-            </div>
+            </nav>
 
-            {/* Group Chats Section */}
-            <div>
-              <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                <span>Group Chats ({filteredGroupChats.length})</span>
-                <button
-                  type="button"
-                  onClick={() => onOpenAddModal?.('group')}
-                  className="p-1 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Create or Sync Group Chat"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {filteredGroupChats.length > 0 && (
-                <div className="space-y-0.5">
-                  {filteredGroupChats.map(gc => {
-                    const isActive = activeRoomId === gc.id;
-                    return (
-                      <div
-                        key={gc.id}
-                        onClick={() => onSelectRoom(gc.id)}
-                        className={`w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
-                          isActive
-                            ? 'bg-[var(--bg-item-active)] text-white'
-                            : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
-                        }`}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-[var(--discord-blurple)]/30 border border-[var(--discord-blurple)]/50 flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
-                          {gc.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="flex-1 truncate">
-                          <div className="truncate font-medium text-[var(--text-normal)]">
-                            {gc.name}
-                          </div>
-                          <div className="text-[11px] text-[var(--text-muted)]">
-                            {gc.members.length} members
-                          </div>
-                        </div>
-                        {(gc.isSynced || gc.syncSource === 'discord' || gc.discordChannelId) && (
-                          <button
-                            type="button"
-                            onClick={e => handleQuickDiscordCall(e, gc)}
-                            title="Join Discord Call (1-Click)"
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded bg-[#5865F2]/25 hover:bg-[#5865F2] text-indigo-300 hover:text-white transition-all cursor-pointer"
-                          >
-                            <PhoneCall className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <div className="h-px bg-[var(--border-subtle)] mx-1" />
 
             {/* Direct Messages Section */}
             <div>
-              <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                <span>Direct Messages ({filteredDMs.length})</span>
+              <div className="flex items-center justify-between px-2 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                <span>Direct Messages</span>
                 <button
                   type="button"
                   onClick={() => onOpenAddModal?.('dm')}
-                  className="p-1 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Start or Sync Direct Message"
+                  className="p-0.5 hover:text-[var(--text-header)] rounded transition-colors cursor-pointer"
+                  title="Create DM"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                 </button>
@@ -219,11 +371,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       onClick={() => onSelectRoom(dm.id)}
                       className={`w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
                         isActive
-                          ? 'bg-[var(--bg-item-active)] text-white'
+                          ? 'bg-[var(--bg-item-active)] text-[var(--text-header)]'
                           : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
                       }`}
                     >
-                      {/* Avatar with Status Dot */}
                       <div className="relative flex-shrink-0">
                         {dm.avatarUrl ? (
                           <img
@@ -232,13 +383,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             className="w-8 h-8 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-xs font-semibold">
+                          <div className="w-8 h-8 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white text-xs font-semibold">
                             {dm.name.slice(0, 2).toUpperCase()}
                           </div>
                         )}
 
                         <span
-                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-[var(--bg-channels)] ${
+                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-[var(--bg-channels)] ${
                             presence === 'online'
                               ? 'bg-[var(--status-online)]'
                               : presence === 'idle'
@@ -250,10 +401,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         />
                       </div>
 
-                      <div className="flex-1 truncate">
-                        <div className="truncate font-medium text-[var(--text-normal)]">
-                          {dm.name}
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{dm.name}</div>
                         {dm.topic && (
                           <div className="text-[11px] text-[var(--text-muted)] truncate">
                             {dm.topic}
@@ -265,10 +414,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         <button
                           type="button"
                           onClick={e => handleQuickDiscordCall(e, dm)}
-                          title="Join Discord Call (1-Click)"
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded bg-[#5865F2]/25 hover:bg-[#5865F2] text-indigo-300 hover:text-white transition-all cursor-pointer"
+                          disabled={joiningDiscordId === dm.id}
+                          title="Join Discord Call"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
                         >
-                          <PhoneCall className="w-3 h-3" />
+                          <PhoneCall className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -276,178 +426,241 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 })}
               </div>
             </div>
+
+            {/* Group Chats Section */}
+            <div>
+              <div className="flex items-center justify-between px-2 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                <span>Group Chats</span>
+                <button
+                  type="button"
+                  onClick={() => onOpenAddModal?.('group')}
+                  className="p-0.5 hover:text-[var(--text-header)] rounded transition-colors cursor-pointer"
+                  title="Create or Sync Group Chat"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {filteredGroupChats.length > 0 && (
+                <div className="space-y-0.5">
+                  {filteredGroupChats.map(gc => {
+                    const isActive = activeRoomId === gc.id;
+                    return (
+                      <div
+                        key={gc.id}
+                        onClick={() => onSelectRoom(gc.id)}
+                        className={`w-full flex items-center gap-3 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                          isActive
+                            ? 'bg-[var(--bg-item-active)] text-[var(--text-header)]'
+                            : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center flex-shrink-0 text-white font-semibold text-xs">
+                          {gc.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium">{gc.name}</div>
+                          <div className="text-[11px] text-[var(--text-muted)]">
+                            {gc.members.length} members
+                          </div>
+                        </div>
+                        {(gc.isSynced || gc.syncSource === 'discord' || gc.discordChannelId) && (
+                          <button
+                            type="button"
+                            onClick={e => handleQuickDiscordCall(e, gc)}
+                            disabled={joiningDiscordId === gc.id}
+                            title="Join Discord Call"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer flex-shrink-0"
+                          >
+                            <PhoneCall className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </>
         ) : (
           // GUILD CHANNELS VIEW
           <>
-            {/* Dedicated Low Latency Voice Channel */}
-            <div className="mb-3">
-              <div className="flex items-center px-2 text-[11px] font-bold text-[var(--status-online)] uppercase tracking-wider mb-1 gap-1.5">
-                <Radio className="w-3.5 h-3.5" />
-                <span>Ultra-Low Latency SFU</span>
-              </div>
-              <button
-                onClick={() =>
-                  onJoinVoice({
-                    id: 'livekit_lounge',
-                    name: '🔊 Ultra-Low Latency Voice',
-                    isDirect: false,
-                    isGroupChat: false,
-                    isVoice: true,
-                    members: [],
-                  })
-                }
-                className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
-                  activeVoiceRoomId === 'livekit_lounge' ||
-                  activeVoiceRoomId === '🔊 Ultra-Low Latency Voice'
-                    ? 'bg-[var(--status-online)]/20 text-[var(--status-online)] font-semibold'
-                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-white'
-                }`}
-              >
-                <Volume2 className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate flex-1">🔊 Voice Lounge (&lt;30ms)</span>
-                {(activeVoiceRoomId === 'livekit_lounge' ||
-                  activeVoiceRoomId === '🔊 Ultra-Low Latency Voice') && (
-                  <span className="w-2 h-2 rounded-full bg-[var(--status-online)] animate-ping" />
-                )}
-              </button>
-
-              {/* 1-Click Join Discord Call action for active Discord/voice channel */}
-              {activeChannel && (
-                <button
-                  type="button"
-                  onClick={e => handleQuickDiscordCall(e, activeChannel)}
-                  disabled={joiningDiscordId === activeChannel.id}
-                  className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded border border-[#5865F2]/35 bg-[#5865F2]/15 hover:bg-[#5865F2]/30 text-indigo-200 hover:text-white transition-all text-xs font-semibold cursor-pointer group"
-                  title={`1-Click Join Discord Call in #${activeChannel.name}`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <PhoneCall className="w-3.5 h-3.5 text-[#7289da] flex-shrink-0" />
-                    <span className="truncate text-[11px]">
-                      {joiningDiscordId === activeChannel.id ? 'Joining Call...' : 'Join Discord Call'}
-                    </span>
-                  </div>
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-[#5865F2]/30 text-indigo-200 font-bold uppercase tracking-wider">
-                    1-Click
-                  </span>
-                </button>
-              )}
-
-              {/* Optional Voice Gateways & External Call Proxies */}
-              {onOpenVoiceProxy && (
-                <button
-                  type="button"
-                  onClick={onOpenVoiceProxy}
-                  className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300 hover:text-white transition-all text-xs font-medium cursor-pointer group"
-                  title="Connect via Discord Call Proxy or Stoat WebRTC SFU (Optional)"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Globe className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
-                    <span className="truncate text-[11px]">External Call Proxy</span>
-                  </div>
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold uppercase tracking-wider">
-                    Optional
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Text Channels */}
+            {/* Text Channels Category */}
             <div>
-              <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">
-                <span>Text Channels ({activeGuild.channels.filter(c => !c.isVoice).length})</span>
+              <div className="flex items-center justify-between px-1 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setTextCollapsed(prev => !prev)}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-header)] uppercase tracking-wider cursor-pointer"
+                >
+                  {textCollapsed ? (
+                    <ChevronRight className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                  <span>Text Channels</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAddModal?.('server')}
+                  className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer"
+                  title="Add or Sync Channels"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              <div className="space-y-0.5">
-                {activeGuild.channels
-                  .filter(c => !c.isVoice && c.id !== 'livekit_lounge')
-                  .map(ch => {
+              {!textCollapsed && (
+                <div className="space-y-0.5">
+                  {textChannels.map(ch => {
                     const isActive = activeRoomId === ch.id;
-                    const isDiscordCh = ch.isSynced || ch.syncSource === 'discord' || !!ch.discordChannelId;
+                    const isDiscordCh =
+                      ch.isSynced || ch.syncSource === 'discord' || Boolean(ch.discordChannelId);
                     return (
                       <div
                         key={ch.id}
                         onClick={() => onSelectRoom(ch.id)}
                         className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
                           isActive
-                            ? 'bg-[var(--bg-item-active)] text-white'
+                            ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] font-medium'
                             : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
                         }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Hash className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
-                          <span className="truncate font-medium">{ch.name.replace('#', '')}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Hash className="w-4 h-4 text-[#80848e] flex-shrink-0" />
+                          <span className="truncate">{ch.name.replace(/^#/, '')}</span>
                         </div>
                         {isDiscordCh && (
                           <button
                             type="button"
                             onClick={e => handleQuickDiscordCall(e, ch)}
-                            title="Join Discord Call (1-Click)"
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded bg-[#5865F2]/25 hover:bg-[#5865F2] text-indigo-300 hover:text-white transition-all flex-shrink-0 cursor-pointer"
+                            disabled={joiningDiscordId === ch.id}
+                            title="Join Discord Call"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
                           >
-                            <PhoneCall className="w-3 h-3" />
+                            <PhoneCall className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
                     );
                   })}
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* Voice Channels */}
+            {/* Voice Channels Category */}
             <div>
-              <div className="flex items-center justify-between px-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 mt-4">
-                <span>Voice Channels</span>
+              <div className="flex items-center justify-between px-1 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setVoiceCollapsed(prev => !prev)}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-header)] uppercase tracking-wider cursor-pointer"
+                >
+                  {voiceCollapsed ? (
+                    <ChevronRight className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                  <span>Voice Channels</span>
+                </button>
               </div>
 
-              <div className="space-y-1">
-                {activeGuild.channels
-                  .filter(c => c.isVoice && c.id !== 'livekit_lounge')
-                  .map(ch => {
-                    const isVoiceActive =
-                      activeVoiceRoomId === ch.id || activeVoiceRoomId === ch.name;
+              {!voiceCollapsed && (
+                <div className="space-y-0.5">
+                  {allVoiceChannels.map(ch => {
+                    const isVoiceActive = isChannelVoiceActive(ch);
                     const isJoining = joiningDiscordId === ch.id;
+                    const isLounge = ch.id === 'livekit_lounge';
                     return (
-                      <div
-                        key={ch.id}
-                        onClick={() => onJoinVoice(ch)}
-                        className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
-                          isVoiceActive
-                            ? 'bg-[var(--status-online)]/20 text-[var(--status-online)] font-semibold'
-                            : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
-                        }`}
-                        title="Click to join SFU voice, or click Discord Call button"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Volume2 className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
-                          <span className="truncate font-medium">{ch.name}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={e => handleQuickDiscordCall(e, ch)}
-                          disabled={isJoining}
-                          title="Join Discord Call (1-Click)"
-                          className="px-1.5 py-0.5 rounded bg-[#5865F2]/25 hover:bg-[#5865F2] text-indigo-200 hover:text-white text-[10px] font-bold flex items-center gap-1 transition-all flex-shrink-0 cursor-pointer border border-[#5865F2]/40"
+                      <div key={ch.id}>
+                        <div
+                          onClick={() => onJoinVoice(ch)}
+                          className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 rounded text-sm transition-colors text-left group cursor-pointer ${
+                            isVoiceActive
+                              ? 'bg-[var(--bg-item-active)] text-[var(--text-header)] font-medium'
+                              : 'text-[var(--text-muted)] hover:bg-[var(--bg-item-hover)] hover:text-[var(--text-normal)]'
+                          }`}
+                          title={
+                            isLounge
+                              ? 'Click to join Voice Lounge'
+                              : 'Click to join voice channel'
+                          }
                         >
-                          <PhoneCall className="w-2.5 h-2.5" />
-                          <span>{isJoining ? '...' : 'Discord'}</span>
-                        </button>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Volume2
+                              className={`w-4 h-4 flex-shrink-0 ${
+                                isVoiceActive ? 'text-[#23a55a]' : 'text-[#80848e]'
+                              }`}
+                            />
+                            <span className="truncate">{ch.name}</span>
+                          </div>
+
+                          {!isLounge && (
+                            <button
+                              type="button"
+                              onClick={e => handleQuickDiscordCall(e, ch)}
+                              disabled={isJoining}
+                              title="Join Discord Call Proxy"
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Nested Voice Participants (1:1 Discord Style) */}
+                        {isVoiceActive && voiceParticipants.length > 0 && (
+                          <div className="mt-0.5 space-y-0.5 pb-1">
+                            {voiceParticipants.map(participant => {
+                              const initials = (participant.name || 'U')
+                                .slice(0, 2)
+                                .toUpperCase();
+                              const isTalking = participant.isSpeaking && !participant.isMuted;
+
+                              return (
+                                <div
+                                  key={participant.identity}
+                                  className="pl-7 pr-2 py-1 flex items-center gap-2 rounded hover:bg-[var(--bg-item-hover)] text-[13px]"
+                                >
+                                  <div
+                                    className={`w-6 h-6 rounded-full bg-[var(--discord-blurple)] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 transition-shadow ${
+                                      isTalking ? 'ring-2 ring-[#23a55a]' : ''
+                                    }`}
+                                  >
+                                    {initials}
+                                  </div>
+                                  <span
+                                    className={`truncate flex-1 ${
+                                      isTalking
+                                        ? 'text-[var(--text-header)] font-medium'
+                                        : 'text-[var(--text-muted)]'
+                                    }`}
+                                  >
+                                    {participant.name}
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    {participant.hasScreenShare && (
+                                      <span className="px-1 py-0.2 rounded bg-[#f23f43] text-white text-[9px] font-bold uppercase leading-tight">
+                                        LIVE
+                                      </span>
+                                    )}
+                                    {participant.isMuted && (
+                                      <MicOff className="w-3.5 h-3.5 text-[#80848e]" />
+                                    )}
+                                    {participant.isDeafened && (
+                                      <HeadphoneOff className="w-3.5 h-3.5 text-[#f23f43]" />
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-              </div>
-            </div>
-
-            {/* Quick Action to Sync More Channels */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => onOpenAddModal?.('server')}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-dashed border-cyan-500/30 text-xs font-semibold text-cyan-400 hover:text-white hover:bg-cyan-500/10 hover:border-cyan-400/60 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add or Sync Channels</span>
-              </button>
+                </div>
+              )}
             </div>
           </>
         )}

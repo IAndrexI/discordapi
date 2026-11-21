@@ -1,9 +1,20 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, dialog, Menu, Tray, globalShortcut } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  desktopCapturer,
+  dialog,
+  Menu,
+  Tray,
+  globalShortcut,
+  screen,
+} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { startStandaloneServer } = require('./selfHostedServer.cjs');
 
 const SELF_HOSTED_PORT = 4175;
+const ZOOM_FACTORS = [0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
 
 // Microsoft Store & Windows taskbar identity
 app.setAppUserModelId('vip.protutech.chat');
@@ -26,18 +37,168 @@ let isQuitting = false;
 let pendingCaptureSourceId = null;
 let localServer = null;
 let activeServerDataDir = path.join(__dirname, '../server-data');
+let saveBoundsTimer = null;
+
+function getBoundsFilePath() {
+  return path.join(app.getPath('userData'), 'window-bounds.json');
+}
+
+function clampZoomFactor(factor) {
+  const num = Number(factor);
+  if (!Number.isFinite(num)) return 1.0;
+  return Math.round(Math.max(0.5, Math.min(2.0, num)) * 100) / 100;
+}
+
+function applyZoomFactor(factor) {
+  const clamped = clampZoomFactor(factor);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.setZoomFactor(clamped);
+    mainWindow.webContents.send('zoom-changed', clamped);
+  }
+  return clamped;
+}
+
+function getDefaultBounds() {
+  const primary = screen.getPrimaryDisplay();
+  const workArea = primary.workArea || { x: 0, y: 0, width: 1280, height: 800 };
+  const maxWidth = Math.max(320, workArea.width);
+  const maxHeight = Math.max(240, workArea.height);
+  const targetWidth = Math.min(1280, Math.max(320, workArea.width - 40));
+  const targetHeight = Math.min(780, Math.max(240, workArea.height - 40));
+  const width = Math.min(maxWidth, Math.max(Math.min(760, maxWidth), targetWidth));
+  const height = Math.min(maxHeight, Math.max(Math.min(480, maxHeight), targetHeight));
+  const x = Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2));
+  const y = Math.round(workArea.y + Math.max(0, (workArea.height - height) / 2));
+  return { x, y, width, height };
+}
+
+function clampBoundsToWorkArea(bounds, workArea) {
+  const minW = Math.min(760, workArea.width);
+  const minH = Math.min(480, workArea.height);
+  const width = Math.round(Math.max(minW, Math.min(workArea.width, bounds.width)));
+  const height = Math.round(Math.max(minH, Math.min(workArea.height, bounds.height)));
+  const maxX = workArea.x + Math.max(0, workArea.width - width);
+  const maxY = workArea.y + Math.max(0, workArea.height - height);
+  const x = Math.round(Math.max(workArea.x, Math.min(maxX, bounds.x)));
+  const y = Math.round(Math.max(workArea.y, Math.min(maxY, bounds.y)));
+  return { x, y, width, height };
+}
+
+function resolveInitialBounds() {
+  try {
+    const boundsPath = getBoundsFilePath();
+    if (!fs.existsSync(boundsPath)) {
+      return getDefaultBounds();
+    }
+    const raw = fs.readFileSync(boundsPath, 'utf8');
+    const saved = JSON.parse(raw);
+    if (
+      !saved ||
+      !Number.isFinite(saved.x) ||
+      !Number.isFinite(saved.y) ||
+      !Number.isFinite(saved.width) ||
+      !Number.isFinite(saved.height) ||
+      saved.width <= 0 ||
+      saved.height <= 0
+    ) {
+      return getDefaultBounds();
+    }
+
+    const displays = screen.getAllDisplays();
+    let bestDisplay = null;
+    let bestArea = 0;
+
+    for (const display of displays) {
+      const wa = display.workArea;
+      if (!wa) continue;
+      const overlapW = Math.min(saved.x + saved.width, wa.x + wa.width) - Math.max(saved.x, wa.x);
+      const overlapH = Math.min(saved.y + saved.height, wa.y + wa.height) - Math.max(saved.y, wa.y);
+      if (overlapW >= 120 && overlapH >= 120) {
+        const area = overlapW * overlapH;
+        if (area > bestArea) {
+          bestArea = area;
+          bestDisplay = display;
+        }
+      }
+    }
+
+    if (!bestDisplay || !bestDisplay.workArea) {
+      return getDefaultBounds();
+    }
+
+    return clampBoundsToWorkArea(saved, bestDisplay.workArea);
+  } catch {
+    return getDefaultBounds();
+  }
+}
+
+function saveWindowBoundsNow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMaximized() || mainWindow.isMinimized()) return;
+  try {
+    const bounds = mainWindow.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const targetWorkArea = display?.workArea || screen.getPrimaryDisplay().workArea;
+    const clamped = clampBoundsToWorkArea(bounds, targetWorkArea);
+    fs.writeFileSync(getBoundsFilePath(), JSON.stringify(clamped, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to persist window bounds:', err);
+  }
+}
+
+function scheduleSaveBounds() {
+  if (saveBoundsTimer) {
+    clearTimeout(saveBoundsTimer);
+  }
+  saveBoundsTimer = setTimeout(() => {
+    saveBoundsTimer = null;
+    saveWindowBoundsNow();
+  }, 250);
+}
+
+function resetWindowBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  }
+  const defaults = getDefaultBounds();
+  mainWindow.setBounds(defaults);
+  mainWindow.show();
+  mainWindow.focus();
+  try {
+    fs.writeFileSync(getBoundsFilePath(), JSON.stringify(defaults, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to reset window bounds:', err);
+  }
+}
+
+function sortSourcesScreenFirst(sources) {
+  return [...sources].sort((a, b) => {
+    const aScreen = String(a.id || '').startsWith('screen:');
+    const bScreen = String(b.id || '').startsWith('screen:');
+    if (aScreen && !bScreen) return -1;
+    if (!aScreen && bScreen) return 1;
+    return 0;
+  });
+}
 
 function createWindow() {
   const iconPath = path.join(__dirname, 'icon.png');
+  const initialBounds = resolveInitialBounds();
 
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 780,
-    minWidth: 940,
-    minHeight: 520,
+    x: initialBounds.x,
+    y: initialBounds.y,
+    width: initialBounds.width,
+    height: initialBounds.height,
+    minWidth: 760,
+    minHeight: 480,
     frame: false,
     titleBarStyle: 'hidden',
-    backgroundColor: '#090d16',
+    backgroundColor: '#1e1f22',
     icon: iconPath,
     show: false,
     webPreferences: {
@@ -67,10 +228,11 @@ function createWindow() {
     desktopCapturer
       .getSources({ types: ['screen', 'window'] })
       .then((sources) => {
-        if (sources.length > 0) {
+        const sorted = sortSourcesScreenFirst(sources);
+        if (sorted.length > 0) {
           const selected = pendingCaptureSourceId
-            ? sources.find((s) => s.id === pendingCaptureSourceId) || sources[0]
-            : sources[0];
+            ? sorted.find((s) => s.id === pendingCaptureSourceId) || sorted[0]
+            : sorted[0];
           pendingCaptureSourceId = null;
           const wantsAudio = request && request.audioRequested !== false;
           callback({ video: selected, audio: wantsAudio ? 'loopback' : undefined });
@@ -85,6 +247,48 @@ function createWindow() {
       });
   });
 
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const hasPrimaryMod = Boolean(input.control || input.meta) && !input.alt;
+    if (!hasPrimaryMod) return;
+
+    const isZoomIn =
+      input.key === '=' ||
+      input.key === '+' ||
+      input.code === 'Equal' ||
+      input.code === 'NumpadAdd';
+    const isZoomOut =
+      input.key === '-' ||
+      input.key === '_' ||
+      input.code === 'Minus' ||
+      input.code === 'NumpadSubtract';
+    const isZoomReset = input.key === '0' || input.code === 'Numpad0';
+
+    if (!isZoomIn && !isZoomOut && !isZoomReset) return;
+
+    event.preventDefault();
+    const current = clampZoomFactor(mainWindow.webContents.getZoomFactor());
+    let next = 1.0;
+
+    if (isZoomIn) {
+      next =
+        ZOOM_FACTORS.find((step) => step > current + 0.005) ??
+        ZOOM_FACTORS[ZOOM_FACTORS.length - 1];
+    } else if (isZoomOut) {
+      next = ZOOM_FACTORS[0];
+      for (let i = ZOOM_FACTORS.length - 1; i >= 0; i -= 1) {
+        if (ZOOM_FACTORS[i] < current - 0.005) {
+          next = ZOOM_FACTORS[i];
+          break;
+        }
+      }
+    } else {
+      next = 1.0;
+    }
+
+    applyZoomFactor(next);
+  });
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
@@ -96,16 +300,21 @@ function createWindow() {
     }
   }, 1000);
 
+  mainWindow.on('move', scheduleSaveBounds);
+  mainWindow.on('resize', scheduleSaveBounds);
+
   mainWindow.on('maximize', () => {
     mainWindow.webContents.send('window-maximize-changed', true);
   });
 
   mainWindow.on('unmaximize', () => {
     mainWindow.webContents.send('window-maximize-changed', false);
+    scheduleSaveBounds();
   });
 
   // Minimize to tray on close
   mainWindow.on('close', (event) => {
+    saveWindowBoundsNow();
     if (!isQuitting) {
       event.preventDefault();
       mainWindow.hide();
@@ -151,6 +360,12 @@ function createTray() {
           mainWindow.show();
           mainWindow.focus();
         }
+      },
+    },
+    {
+      label: 'Center / Reset Window Position',
+      click: () => {
+        resetWindowBounds();
       },
     },
     { type: 'separator' },
@@ -231,19 +446,41 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
+ipcMain.on('reset-window-bounds', () => {
+  resetWindowBounds();
+});
+
+ipcMain.on('set-zoom-factor', (_, factor) => {
+  applyZoomFactor(factor);
+});
+
+ipcMain.handle('get-zoom-factor', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return 1.0;
+  return clampZoomFactor(mainWindow.webContents.getZoomFactor());
+});
+
 // Native Desktop Screen Capture Source Enumeration & Selection
 ipcMain.handle('get-desktop-sources', async () => {
-  const sources = await desktopCapturer.getSources({
-    types: ['window', 'screen'],
-    thumbnailSize: { width: 320, height: 180 },
-    fetchWindowIcons: true,
-  });
+  let sources = [];
+  try {
+    sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 320, height: 180 },
+      fetchWindowIcons: true,
+    });
+  } catch {
+    sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 320, height: 180 },
+    });
+  }
 
-  return sources.map((s) => ({
+  const sorted = sortSourcesScreenFirst(sources);
+  return sorted.map((s) => ({
     id: s.id,
     name: s.name,
-    thumbnail: s.thumbnail.toDataURL(),
-    appIcon: s.appIcon ? s.appIcon.toDataURL() : null,
+    thumbnail: s.thumbnail && !s.thumbnail.isEmpty() ? s.thumbnail.toDataURL() : '',
+    appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : null,
   }));
 });
 
@@ -355,6 +592,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  saveWindowBoundsNow();
   isQuitting = true;
 });
 

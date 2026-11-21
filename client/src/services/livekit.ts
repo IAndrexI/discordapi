@@ -17,9 +17,22 @@ import { desktopBridge } from './desktopBridge';
 export type VoiceStateCallback = (participants: VoiceParticipant[], rtcPing: number) => void;
 export type AudioLevelCallback = (level: number, isSpeaking: boolean) => void;
 
+export interface SoundboardBroadcastEvent {
+  clipId: string;
+  name: string;
+  emoji: string;
+  senderName: string;
+  timestamp: number;
+}
+
+export type SoundboardEventCallback = (evt: SoundboardBroadcastEvent) => void;
+
 export type ScreenShareQuality = '720p30' | '1080p60' | '1440p60' | '4k30' | '4k60';
 
 const VOICE_BROADCAST_CHANNEL = 'protutech_voice_room_v2';
+const STORAGE_KEY_LOOPBACK_VOLUME = 'protutech_loopback_volume';
+const STORAGE_KEY_INPUT_DEVICE = 'protutech_audio_input_device';
+const STORAGE_KEY_OUTPUT_DEVICE = 'protutech_audio_output_device';
 
 const SCREEN_QUALITY_MAP: Record<
   ScreenShareQuality,
@@ -63,7 +76,7 @@ const SCREEN_QUALITY_MAP: Record<
 };
 
 interface BroadcastVoiceMessage {
-  type: 'state' | 'leave' | 'ping_query';
+  type: 'state' | 'leave' | 'ping_query' | 'soundboard';
   tabId: string;
   roomName: string;
   participant?: {
@@ -76,6 +89,14 @@ interface BroadcastVoiceMessage {
     hasScreenShare: boolean;
     ping: number;
     codec: string;
+  };
+  soundboard?: {
+    kind?: 'soundboard';
+    clipId: string;
+    name: string;
+    emoji: string;
+    senderName: string;
+    timestamp: number;
   };
 }
 
@@ -164,6 +185,7 @@ class LiveKitVoiceService {
   private participants: Map<string, VoiceParticipant> = new Map();
   private listeners: Set<VoiceStateCallback> = new Set();
   private audioLevelListeners: Set<AudioLevelCallback> = new Set();
+  private soundboardListeners: Set<SoundboardEventCallback> = new Set();
   private pingInterval: number | null = null;
   private rtcPing: number = 11;
   private audioElements: Map<string, HTMLMediaElement> = new Map();
@@ -173,12 +195,18 @@ class LiveKitVoiceService {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private loopbackGainNode: GainNode | null = null;
+  private localMediaSourceNode: MediaStreamAudioSourceNode | null = null;
   private localAudioStream: MediaStream | null = null;
   private localAudioTrack: MediaStreamTrack | null = null;
   private fallbackOscillator: OscillatorNode | null = null;
+  private fallbackSilentGainNode: GainNode | null = null;
+  private pipelineStartingPromise: Promise<void> | null = null;
   private audioMeterInterval: number | null = null;
   private audioLevel: number = 0;
   private micLoopbackEnabled: boolean = false;
+  private loopbackVolume: number = 100;
+  private selectedInputDeviceId: string = 'default';
+  private selectedOutputDeviceId: string = 'default';
 
   // Camera & Screen share streams + synthetic canvas timers
   private localCameraStream: MediaStream | null = null;
@@ -202,6 +230,24 @@ class LiveKitVoiceService {
   public isDeafened: boolean = false;
 
   constructor() {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedVol = localStorage.getItem(STORAGE_KEY_LOOPBACK_VOLUME);
+        if (savedVol !== null) {
+          const parsed = Number(savedVol);
+          if (Number.isFinite(parsed)) {
+            this.loopbackVolume = Math.max(0, Math.min(200, Math.round(parsed)));
+          }
+        }
+        const savedIn = localStorage.getItem(STORAGE_KEY_INPUT_DEVICE);
+        if (savedIn) this.selectedInputDeviceId = savedIn;
+        const savedOut = localStorage.getItem(STORAGE_KEY_OUTPUT_DEVICE);
+        if (savedOut) this.selectedOutputDeviceId = savedOut;
+      } catch {
+        // Ignore storage read errors
+      }
+    }
+
     webcamBackground.subscribe((cfg) => {
       if (this.room?.localParticipant) {
         this.syncParticipant(this.room.localParticipant);
@@ -292,14 +338,204 @@ class LiveKitVoiceService {
     return this.micLoopbackEnabled;
   }
 
-  public setMicLoopback(enabled: boolean): void {
-    this.micLoopbackEnabled = enabled;
-    if (this.audioContext && this.audioContext.state === 'suspended') {
-      void this.audioContext.resume().catch(() => {});
+  public async setMicLoopback(enabled: boolean): Promise<boolean> {
+    this.micLoopbackEnabled = Boolean(enabled);
+    if (this.micLoopbackEnabled) {
+      await this.startLocalAudioPipeline();
+      if (!this.micLoopbackEnabled && !this.isConnected()) {
+        this.stopLocalAudioPipeline();
+        return false;
+      }
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        void this.audioContext.resume().catch(() => {});
+      }
+      this.updateLoopbackGain();
+    } else {
+      this.updateLoopbackGain();
+      if (!this.isConnected()) {
+        this.stopLocalAudioPipeline();
+      }
+    }
+    this.notifyAudioLevel(
+      this.micLoopbackEnabled && Boolean(this.participants.get(this.localIdentity)?.isSpeaking)
+    );
+    this.notify();
+    return this.micLoopbackEnabled;
+  }
+
+  public getLoopbackVolume(): number {
+    return this.loopbackVolume;
+  }
+
+  public setLoopbackVolume(volume: number): void {
+    const raw = Number(volume);
+    const clamped = Math.max(0, Math.min(200, Number.isFinite(raw) ? Math.round(raw) : 100));
+    this.loopbackVolume = clamped;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_LOOPBACK_VOLUME, String(clamped));
+      } catch {
+        // Ignore storage write errors
+      }
     }
     this.updateLoopbackGain();
-    this.notifyAudioLevel(Boolean(this.participants.get(this.localIdentity)?.isSpeaking));
     this.notify();
+  }
+
+  public async listAudioDevices(): Promise<{
+    inputs: MediaDeviceInfo[];
+    outputs: MediaDeviceInfo[];
+  }> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
+      return { inputs: [], outputs: [] };
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return {
+        inputs: devices.filter((d) => d.kind === 'audioinput'),
+        outputs: devices.filter((d) => d.kind === 'audiooutput'),
+      };
+    } catch {
+      return { inputs: [], outputs: [] };
+    }
+  }
+
+  public getSelectedInputDeviceId(): string {
+    return this.selectedInputDeviceId;
+  }
+
+  public async setInputDevice(deviceId: string): Promise<void> {
+    const normalized = (deviceId || '').trim() || 'default';
+    this.selectedInputDeviceId = normalized;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_INPUT_DEVICE, normalized);
+      } catch {
+        // Ignore storage write errors
+      }
+    }
+
+    if (this.room?.state === 'connected') {
+      await this.room.switchActiveDevice('audioinput', normalized).catch(() => false);
+    }
+
+    if (this.audioContext && this.audioContext.state !== 'closed' && this.analyser) {
+      const targetCtx = this.audioContext;
+      const newStream = await this.acquireMicStream(normalized);
+      if (this.audioContext === targetCtx && (targetCtx.state as string) !== 'closed' && this.analyser) {
+        this.attachStreamOrFallback(targetCtx, this.analyser, newStream);
+        if (this.participants.has(this.localIdentity)) {
+          this.updateLocalParticipantRecord({
+            audioTrack: this.localAudioTrack ?? undefined,
+          });
+        }
+      } else if (newStream) {
+        newStream.getTracks().forEach((t) => t.stop());
+      }
+    }
+
+    this.notify();
+  }
+
+  public getSelectedOutputDeviceId(): string {
+    return this.selectedOutputDeviceId;
+  }
+
+  public async setOutputDevice(deviceId: string): Promise<void> {
+    const normalized = (deviceId || '').trim() || 'default';
+    this.selectedOutputDeviceId = normalized;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEY_OUTPUT_DEVICE, normalized);
+      } catch {
+        // Ignore storage write errors
+      }
+    }
+
+    if (this.room?.state === 'connected') {
+      await this.room.switchActiveDevice('audiooutput', normalized).catch(() => false);
+    }
+
+    await Promise.all([
+      this.applySinkId(this.audioContext, normalized),
+      ...Array.from(this.audioElements.values()).map((el) => this.applySinkId(el, normalized)),
+    ]);
+
+    this.notify();
+  }
+
+  public subscribeSoundboardEvents(cb: SoundboardEventCallback): () => void {
+    this.soundboardListeners.add(cb);
+    return () => {
+      this.soundboardListeners.delete(cb);
+    };
+  }
+
+  private emitSoundboardEvent(evt: SoundboardBroadcastEvent): void {
+    this.soundboardListeners.forEach((cb) => {
+      try {
+        cb(evt);
+      } catch {
+        // Ignore listener errors
+      }
+    });
+  }
+
+  public broadcastSoundboardPlay(
+    clipId: string,
+    name: string,
+    emoji: string,
+    senderName?: string
+  ): void {
+    const evt: SoundboardBroadcastEvent = {
+      clipId,
+      name,
+      emoji,
+      senderName: senderName || this.localDisplayName || 'You',
+      timestamp: Date.now(),
+    };
+
+    if (this.broadcastChannel && this.currentRoomName) {
+      this.postBroadcast({
+        type: 'soundboard',
+        tabId: this.tabId,
+        roomName: this.currentRoomName,
+        soundboard: {
+          kind: 'soundboard',
+          ...evt,
+        },
+      });
+    } else if (typeof BroadcastChannel !== 'undefined' && this.currentRoomName) {
+      try {
+        const temp = new BroadcastChannel(VOICE_BROADCAST_CHANNEL);
+        temp.postMessage({
+          type: 'soundboard',
+          tabId: this.tabId,
+          roomName: this.currentRoomName,
+          soundboard: {
+            kind: 'soundboard',
+            ...evt,
+          },
+        });
+        temp.close();
+      } catch {
+        // Ignore BroadcastChannel errors
+      }
+    }
+
+    if (this.room?.localParticipant && this.room.state === 'connected') {
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({
+            kind: 'soundboard',
+            ...evt,
+          })
+        );
+        void this.room.localParticipant.publishData(payload, { reliable: true }).catch(() => {});
+      } catch {
+        // Ignore DataPacket publish errors
+      }
+    }
   }
 
   public getActiveScreenQuality(): ScreenShareQuality {
@@ -323,7 +559,22 @@ class LiveKitVoiceService {
   private updateLoopbackGain() {
     if (!this.loopbackGainNode) return;
     const shouldPlay = this.micLoopbackEnabled && !this.isMuted && !this.isDeafened;
-    this.loopbackGainNode.gain.value = shouldPlay ? 1.0 : 0.0;
+    this.loopbackGainNode.gain.value = shouldPlay ? this.loopbackVolume / 100 : 0.0;
+  }
+
+  private async applySinkId(
+    target: HTMLMediaElement | AudioContext | null,
+    deviceId: string
+  ): Promise<void> {
+    if (!target) return;
+    const withSink = target as unknown as { setSinkId?: (id: string) => Promise<void> };
+    if (typeof withSink.setSinkId !== 'function') return;
+    try {
+      const normalized = deviceId === 'default' ? '' : deviceId;
+      await withSink.setSinkId(normalized);
+    } catch {
+      // Ignore unsupported sinkId errors
+    }
   }
 
   private buildLocalParticipantRecord(
@@ -371,6 +622,20 @@ class LiveKitVoiceService {
         const msg = event.data;
         if (!msg || msg.tabId === this.tabId) return;
         if (!this.currentRoomName || msg.roomName !== this.currentRoomName) return;
+
+        if (msg.type === 'soundboard' && msg.soundboard) {
+          this.emitSoundboardEvent({
+            clipId: String(msg.soundboard.clipId),
+            name: String(msg.soundboard.name || 'Sound'),
+            emoji: String(msg.soundboard.emoji || '🔊'),
+            senderName: String(msg.soundboard.senderName || 'Remote User'),
+            timestamp:
+              typeof msg.soundboard.timestamp === 'number'
+                ? msg.soundboard.timestamp
+                : Date.now(),
+          });
+          return;
+        }
 
         if (msg.type === 'ping_query') {
           this.broadcastLocalState();
@@ -513,142 +778,54 @@ class LiveKitVoiceService {
     this.remoteChannelPeers.clear();
   }
 
-  private async startLocalAudioPipeline(): Promise<void> {
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      if (this.audioContext.state === 'suspended') {
-        void this.audioContext.resume().catch(() => {});
-      }
-      this.updateLoopbackGain();
-      return;
+  private async acquireMicStream(deviceId?: string): Promise<MediaStream | null> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      return null;
+    }
+    const targetId = deviceId ?? this.selectedInputDeviceId;
+    const baseAudio: MediaTrackConstraints & { latency?: number } = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      latency: 0.01,
+    };
+    if (targetId && targetId !== 'default') {
+      baseAudio.deviceId = { exact: targetId };
     }
 
-    let micStream: MediaStream | null = null;
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            latency: 0.01,
-          } as MediaTrackConstraints,
-        });
-      } catch {
-        try {
-          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch {
-          micStream = null;
-        }
-      }
-    }
-
-    if (typeof window === 'undefined') return;
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    let ctx: AudioContext;
     try {
-      ctx = new AudioCtx({ sampleRate: 48000, latencyHint: 'interactive' });
+      return await navigator.mediaDevices.getUserMedia({ audio: baseAudio });
     } catch {
-      ctx = new AudioCtx();
-    }
-    this.audioContext = ctx;
-    if (ctx.state === 'suspended') {
-      void ctx.resume().catch(() => {});
-    }
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.45;
-    this.analyser = analyser;
-
-    const loopbackGain = ctx.createGain();
-    this.loopbackGainNode = loopbackGain;
-    this.updateLoopbackGain();
-
-    if (micStream && micStream.getAudioTracks().length > 0) {
-      this.localAudioStream = micStream;
-      this.localAudioTrack = micStream.getAudioTracks()[0];
-      this.localAudioTrack.enabled = !this.isMuted;
-
-      const source = ctx.createMediaStreamSource(micStream);
-      source.connect(analyser);
-      analyser.connect(loopbackGain);
-      loopbackGain.connect(ctx.destination);
-    } else {
-      // Silent WebAudio Gain/Oscillator fallback when no microphone device exists
-      const osc = ctx.createOscillator();
-      osc.frequency.value = 220;
-      const silentGain = ctx.createGain();
-      silentGain.gain.value = 0;
-      const dest = ctx.createMediaStreamDestination();
-      osc.connect(silentGain);
-      silentGain.connect(analyser);
-      silentGain.connect(dest);
-      analyser.connect(loopbackGain);
-      loopbackGain.connect(ctx.destination);
-      osc.start();
-
-      this.fallbackOscillator = osc;
-      this.localAudioStream = dest.stream;
-      this.localAudioTrack = dest.stream.getAudioTracks()[0] ?? null;
-    }
-
-    const freqData = new Uint8Array(analyser.frequencyBinCount);
-    const timeData = new Uint8Array(analyser.fftSize);
-
-    this.audioMeterInterval = window.setInterval(() => {
-      if (!this.analyser) return;
-
-      if (this.isMuted || this.isDeafened) {
-        this.audioLevel = 0;
-        const local = this.participants.get(this.localIdentity);
-        this.notifyAudioLevel(false);
-        if (local && local.isSpeaking) {
-          local.isSpeaking = false;
-          this.broadcastLocalState();
-          this.notify();
+      if (targetId && targetId !== 'default') {
+        try {
+          return await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              latency: 0.01,
+            } as MediaTrackConstraints,
+          });
+        } catch {
+          // Fall through to bare audio constraint
         }
-        return;
       }
-
-      this.analyser.getByteFrequencyData(freqData);
-      let freqSum = 0;
-      for (let i = 0; i < freqData.length; i += 1) {
-        freqSum += freqData[i];
+      try {
+        return await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        return null;
       }
-      const freqAvg = freqSum / freqData.length;
-
-      this.analyser.getByteTimeDomainData(timeData);
-      let rmsAcc = 0;
-      for (let i = 0; i < timeData.length; i += 1) {
-        const norm = (timeData[i] - 128) / 128;
-        rmsAcc += norm * norm;
-      }
-      const rms = Math.sqrt(rmsAcc / timeData.length);
-
-      const freqScore = Math.min(100, Math.round((freqAvg / 85) * 100));
-      const rmsScore = Math.min(100, Math.round(rms * 280));
-      this.audioLevel = Math.max(freqScore, rmsScore);
-
-      const speakingNow = this.audioLevel > 8;
-      this.notifyAudioLevel(speakingNow);
-
-      const local = this.participants.get(this.localIdentity);
-      if (local && local.isSpeaking !== speakingNow) {
-        local.isSpeaking = speakingNow;
-        this.broadcastLocalState();
-        this.notify();
-      }
-    }, 80);
+    }
   }
 
-  private stopLocalAudioPipeline() {
-    if (this.audioMeterInterval) {
-      clearInterval(this.audioMeterInterval);
-      this.audioMeterInterval = null;
+  private disconnectCurrentAudioSource(): void {
+    if (this.localMediaSourceNode) {
+      try {
+        this.localMediaSourceNode.disconnect();
+      } catch {
+        // Ignore disconnect errors
+      }
+      this.localMediaSourceNode = null;
     }
     if (this.fallbackOscillator) {
       try {
@@ -659,11 +836,180 @@ class LiveKitVoiceService {
       }
       this.fallbackOscillator = null;
     }
+    if (this.fallbackSilentGainNode) {
+      try {
+        this.fallbackSilentGainNode.disconnect();
+      } catch {
+        // Ignore disconnect errors
+      }
+      this.fallbackSilentGainNode = null;
+    }
     if (this.localAudioStream) {
       this.localAudioStream.getTracks().forEach((t) => t.stop());
       this.localAudioStream = null;
     }
     this.localAudioTrack = null;
+  }
+
+  private attachStreamOrFallback(
+    ctx: AudioContext,
+    analyser: AnalyserNode,
+    micStream: MediaStream | null
+  ): void {
+    this.disconnectCurrentAudioSource();
+
+    if (micStream && micStream.getAudioTracks().length > 0) {
+      this.localAudioStream = micStream;
+      this.localAudioTrack = micStream.getAudioTracks()[0];
+      this.localAudioTrack.enabled = !this.isMuted;
+
+      const source = ctx.createMediaStreamSource(micStream);
+      source.connect(analyser);
+      this.localMediaSourceNode = source;
+    } else {
+      // Silent WebAudio Gain/Oscillator fallback when no microphone device exists
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 220;
+      const silentGain = ctx.createGain();
+      silentGain.gain.value = 0;
+      const dest = ctx.createMediaStreamDestination();
+      osc.connect(silentGain);
+      silentGain.connect(analyser);
+      silentGain.connect(dest);
+      osc.start();
+
+      this.fallbackOscillator = osc;
+      this.fallbackSilentGainNode = silentGain;
+      this.localAudioStream = dest.stream;
+      this.localAudioTrack = dest.stream.getAudioTracks()[0] ?? null;
+    }
+  }
+
+  private async startLocalAudioPipeline(): Promise<void> {
+    if (this.pipelineStartingPromise) {
+      await this.pipelineStartingPromise;
+      return;
+    }
+
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      if (this.audioContext.state === 'suspended') {
+        void this.audioContext.resume().catch(() => {});
+      }
+      this.updateLoopbackGain();
+      return;
+    }
+
+    const startTask = async () => {
+      const micStream = await this.acquireMicStream(this.selectedInputDeviceId);
+
+      if (!this.micLoopbackEnabled && !this.isConnected()) {
+        if (micStream) {
+          micStream.getTracks().forEach((t) => t.stop());
+        }
+        return;
+      }
+
+      if (typeof window === 'undefined') {
+        if (micStream) micStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) {
+        if (micStream) micStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioCtx({ sampleRate: 48000, latencyHint: 'interactive' });
+      } catch {
+        ctx = new AudioCtx();
+      }
+      this.audioContext = ctx;
+      if (ctx.state === 'suspended') {
+        void ctx.resume().catch(() => {});
+      }
+      if (this.selectedOutputDeviceId !== 'default') {
+        void this.applySinkId(ctx, this.selectedOutputDeviceId);
+      }
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.45;
+      this.analyser = analyser;
+
+      const loopbackGain = ctx.createGain();
+      this.loopbackGainNode = loopbackGain;
+      this.updateLoopbackGain();
+
+      analyser.connect(loopbackGain);
+      loopbackGain.connect(ctx.destination);
+
+      this.attachStreamOrFallback(ctx, analyser, micStream);
+
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      const timeData = new Uint8Array(analyser.fftSize);
+
+      this.audioMeterInterval = window.setInterval(() => {
+        if (!this.analyser) return;
+
+        if (this.isMuted || this.isDeafened) {
+          this.audioLevel = 0;
+          const local = this.participants.get(this.localIdentity);
+          this.notifyAudioLevel(false);
+          if (local && local.isSpeaking) {
+            local.isSpeaking = false;
+            this.broadcastLocalState();
+            this.notify();
+          }
+          return;
+        }
+
+        this.analyser.getByteFrequencyData(freqData);
+        let freqSum = 0;
+        for (let i = 0; i < freqData.length; i += 1) {
+          freqSum += freqData[i];
+        }
+        const freqAvg = freqSum / freqData.length;
+
+        this.analyser.getByteTimeDomainData(timeData);
+        let rmsAcc = 0;
+        for (let i = 0; i < timeData.length; i += 1) {
+          const norm = (timeData[i] - 128) / 128;
+          rmsAcc += norm * norm;
+        }
+        const rms = Math.sqrt(rmsAcc / timeData.length);
+
+        const freqScore = Math.min(100, Math.round((freqAvg / 85) * 100));
+        const rmsScore = Math.min(100, Math.round(rms * 280));
+        this.audioLevel = Math.max(freqScore, rmsScore);
+
+        const speakingNow = this.audioLevel > 8;
+        this.notifyAudioLevel(speakingNow);
+
+        const local = this.participants.get(this.localIdentity);
+        if (local && local.isSpeaking !== speakingNow) {
+          local.isSpeaking = speakingNow;
+          this.broadcastLocalState();
+          this.notify();
+        }
+      }, 80);
+    };
+
+    this.pipelineStartingPromise = startTask().finally(() => {
+      this.pipelineStartingPromise = null;
+    });
+    await this.pipelineStartingPromise;
+  }
+
+  private stopLocalAudioPipeline() {
+    if (this.audioMeterInterval) {
+      clearInterval(this.audioMeterInterval);
+      this.audioMeterInterval = null;
+    }
+    this.disconnectCurrentAudioSource();
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});
       this.audioContext = null;
@@ -1046,6 +1392,9 @@ class LiveKitVoiceService {
           echoCancellation: true,
           noiseSuppression: true,
           latency: 0.01,
+          ...(this.selectedInputDeviceId && this.selectedInputDeviceId !== 'default'
+            ? { deviceId: this.selectedInputDeviceId }
+            : {}),
         },
         videoCaptureDefaults: {
           resolution: VideoPresets.h720.resolution,
@@ -1110,6 +1459,9 @@ class LiveKitVoiceService {
             this.audioElements.set(p.identity, el);
             const vol = this.userVolumes.get(p.identity) ?? 100;
             el.volume = Math.max(0, Math.min(1, vol / 100));
+            if (this.selectedOutputDeviceId !== 'default') {
+              void this.applySinkId(el, this.selectedOutputDeviceId);
+            }
           } else if (track.kind === Track.Kind.Video && this.isLowResourceGamingMode) {
             _pub.setEnabled(false);
           }
@@ -1151,8 +1503,38 @@ class LiveKitVoiceService {
         this.notify();
       });
 
+      room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+        try {
+          const text = new TextDecoder().decode(payload);
+          const data = JSON.parse(text) as {
+            kind?: string;
+            clipId?: string;
+            name?: string;
+            emoji?: string;
+            senderName?: string;
+            timestamp?: number;
+          };
+          if (data && data.kind === 'soundboard' && data.clipId) {
+            this.emitSoundboardEvent({
+              clipId: String(data.clipId),
+              name: String(data.name || 'Sound'),
+              emoji: String(data.emoji || '🔊'),
+              senderName: String(
+                data.senderName || participant?.name || participant?.identity || 'Remote User'
+              ),
+              timestamp: typeof data.timestamp === 'number' ? data.timestamp : Date.now(),
+            });
+          }
+        } catch {
+          // Ignore non-soundboard data packets
+        }
+      });
+
       await room.connect(wsUrl, token);
       await room.localParticipant.setMicrophoneEnabled(!this.isMuted);
+      if (this.selectedOutputDeviceId !== 'default') {
+        await this.room.switchActiveDevice('audiooutput', this.selectedOutputDeviceId).catch(() => false);
+      }
       this.syncParticipant(room.localParticipant);
       this.startPingMonitor();
       this.notify();
@@ -1179,6 +1561,7 @@ class LiveKitVoiceService {
       this.room = null;
     }
     this.isLocalEngineConnected = false;
+    this.micLoopbackEnabled = false;
     this.closeBroadcastChannel();
     this.stopLocalAudioPipeline();
     this.stopLocalCameraStream();

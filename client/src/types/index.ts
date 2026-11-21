@@ -190,6 +190,7 @@ export interface VencordPlugin {
 export interface ThemeConfig {
   activeTheme:
     | 'dark'
+    | 'light'
     | 'midnight'
     | 'translucent'
     | 'transparent'
@@ -204,6 +205,27 @@ export interface ThemeConfig {
   layoutFormat?: 'discord' | 'teamspeak';
   customCssUrl?: string;
   customCssText?: string;
+}
+
+export interface SoundboardClip {
+  id: string;
+  name: string;
+  emoji: string;
+  category: 'builtin' | 'custom';
+  volume: number; // 0-200
+  favorite?: boolean;
+  hotkey?: string;
+  durationMs?: number;
+  createdAt?: number;
+}
+
+export interface SoundboardPlayEvent {
+  id: string;
+  clipId: string;
+  name: string;
+  emoji: string;
+  senderName: string;
+  timestamp: number;
 }
 
 export type VoiceGatewayProvider = 'native_livekit' | 'discord_proxy' | 'stoat_hosted';
