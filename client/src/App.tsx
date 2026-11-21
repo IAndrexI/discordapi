@@ -14,6 +14,11 @@ import { LoginModal } from './components/LoginModal';
 import { AddConversationModal, type AddModalTab } from './components/AddConversationModal';
 import { ChannelSettingsModal } from './components/ChannelSettingsModal';
 import { ServerSettingsModal } from './components/ServerSettingsModal';
+import {
+  DiscordCallWarningModal,
+  isDiscordLatencyWarningSuppressed,
+} from './components/DiscordCallWarningModal';
+import { DiscordConnectModal } from './components/DiscordConnectModal';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { MinecraftConsoleModal } from './components/MinecraftConsoleModal';
@@ -1114,6 +1119,8 @@ export const App: React.FC = () => {
   // CRITICAL FIX: Always connect LiveKit Dual-Mode Engine across Guest, Proprietary, and Hybrid modes!
   const [editingChannel, setEditingChannel] = useState<MatrixRoom | null>(null);
   const [editingGuild, setEditingGuild] = useState<DiscordGuild | null>(null);
+  const [pendingDiscordCallRoom, setPendingDiscordCallRoom] = useState<MatrixRoom | null>(null);
+  const [isDiscordConnectOpen, setIsDiscordConnectOpen] = useState(false);
 
   // Auto-AFK idle timer: route idle voice users to the server's AFK / Sleep channel
   useEffect(() => {
@@ -1165,7 +1172,7 @@ export const App: React.FC = () => {
     setVoiceParticipants(livekit.getParticipants());
   };
 
-  const handleJoinDiscordCall = async (room: MatrixRoom) => {
+  const executeJoinDiscordCall = async (room: MatrixRoom) => {
     const ok = await voiceProxy.quickJoinDiscordChannel(room);
     if (ok) {
       setActiveVoiceRoom(
@@ -1177,6 +1184,14 @@ export const App: React.FC = () => {
       return;
     }
     await handleJoinVoice(room);
+  };
+
+  const handleJoinDiscordCall = async (room: MatrixRoom) => {
+    if (isDiscordLatencyWarningSuppressed()) {
+      await executeJoinDiscordCall(room);
+      return;
+    }
+    setPendingDiscordCallRoom(room);
   };
 
   const handleDisconnectVoice = async () => {
@@ -1333,6 +1348,7 @@ export const App: React.FC = () => {
             onLogin={handleLogin}
             onSampleGuest={handleEnterGuestMode}
             onModeChange={nextMode => setEngineMode(nextMode)}
+            onOpenDiscordConnect={() => setIsDiscordConnectOpen(true)}
           />
         </div>
         <MicrosoftStoreModal
@@ -1495,6 +1511,7 @@ export const App: React.FC = () => {
                 onOpenScripts={() => setIsScriptsOpen(true)}
                 onEditChannel={ch => setEditingChannel(ch)}
                 onOpenServerSettings={g => setEditingGuild(g)}
+                onOpenDiscordConnect={() => setIsDiscordConnectOpen(true)}
               />
             </div>
 
@@ -1724,6 +1741,10 @@ export const App: React.FC = () => {
           setIsSettingsOpen(false);
           setIsSoundboardOpen(true);
         }}
+        onOpenDiscordConnect={() => {
+          setIsSettingsOpen(false);
+          setIsDiscordConnectOpen(true);
+        }}
       />
 
       {/* Discord Hub Modal (Quests, Friends, Nitro, Inbox, Discover) */}
@@ -1746,6 +1767,10 @@ export const App: React.FC = () => {
           setActiveVoiceRoom(livekit.getActiveRoom() || targetName);
           setVoiceParticipants(livekit.getParticipants());
           setIsDiscordHubOpen(false);
+        }}
+        onOpenDiscordConnect={() => {
+          setIsDiscordHubOpen(false);
+          setIsDiscordConnectOpen(true);
         }}
       />
 
@@ -1844,6 +1869,26 @@ export const App: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={targetId => {
           void loadData(targetId);
+        }}
+      />
+
+      {pendingDiscordCallRoom && (
+        <DiscordCallWarningModal
+          room={pendingDiscordCallRoom}
+          onConfirm={() => {
+            const target = pendingDiscordCallRoom;
+            setPendingDiscordCallRoom(null);
+            void executeJoinDiscordCall(target);
+          }}
+          onCancel={() => setPendingDiscordCallRoom(null)}
+        />
+      )}
+
+      <DiscordConnectModal
+        isOpen={isDiscordConnectOpen}
+        onClose={() => setIsDiscordConnectOpen(false)}
+        onConnected={() => {
+          void loadData();
         }}
       />
 

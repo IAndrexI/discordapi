@@ -76,6 +76,10 @@ import { DiscordHubModal, type DiscordHubTab } from './DiscordHubModal';
 import { EquicordModal } from './EquicordModal';
 import { SoundboardPopover } from './SoundboardPopover';
 import { CameraPreviewPanel } from './CameraPreviewPanel';
+import {
+  isDiscordLatencyWarningSuppressed,
+  setDiscordLatencyWarningSuppressed,
+} from './DiscordCallWarningModal';
 import { matrix } from '../services/matrix';
 import type { ThemeConfig, UserAccountInfo } from '../types';
 
@@ -100,6 +104,7 @@ interface SettingsModalProps {
   onOpenDiscordHub?: (tab?: DiscordHubTab) => void;
   onOpenEquicord?: () => void;
   onOpenSoundboard?: () => void;
+  onOpenDiscordConnect?: () => void;
 }
 
 const BANNER_PRESET_COLORS = [
@@ -125,7 +130,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenDiscordHub,
   onOpenEquicord,
   onOpenSoundboard,
+  onOpenDiscordConnect,
 }) => {
+  const [discordLatencyWarningEnabled, setDiscordLatencyWarningEnabled] = useState(
+    () => !isDiscordLatencyWarningSuppressed()
+  );
   const openTabKey = `${isOpen}:${initialTab || 'themes'}`;
   const [tabOverride, setTabOverride] = useState<{ key: string; tab: SettingsTab } | null>(null);
   const activeTab: SettingsTab =
@@ -3517,6 +3526,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           External voice bridging operates outside official client software; Stoat nodes connect directly over open WebRTC.
                         </span>
                       </div>
+
+                      {/* Discord Call Latency Warning Switch */}
+                      <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)]">
+                        <div>
+                          <div className="text-xs font-bold text-[var(--text-header)] flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Discord Call Latency Warning</span>
+                          </div>
+                          <p className="text-[11px] text-[var(--text-muted)] mt-0.5 max-w-md">
+                            Show confirmation dialog warning about increased relay latency (40–120ms buffer) when connecting to bridged Discord calls. Can be toggled off.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={discordLatencyWarningEnabled}
+                          onClick={() => {
+                            const next = !discordLatencyWarningEnabled;
+                            setDiscordLatencyWarningEnabled(next);
+                            setDiscordLatencyWarningSuppressed(!next);
+                          }}
+                          className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer flex-shrink-0 ${
+                            discordLatencyWarningEnabled ? 'bg-[var(--discord-blurple)]' : 'bg-[#353842]'
+                          }`}
+                        >
+                          <span
+                            className={`block w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
+                              discordLatencyWarningEnabled ? 'left-6' : 'left-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3998,6 +4039,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     Connect &amp; Sync
                   </button>
+                  {onOpenDiscordConnect && (
+                    <button
+                      type="button"
+                      onClick={onOpenDiscordConnect}
+                      className="px-3 py-2 rounded bg-[#252834] hover:bg-[#323646] text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-colors"
+                      title="Open Easy Connect Wizard"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Easy Wizard</span>
+                    </button>
+                  )}
                   {syncSettings.discordTokenConnected && (
                     <button
                       type="button"

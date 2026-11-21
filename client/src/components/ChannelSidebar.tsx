@@ -23,6 +23,7 @@ import {
   Moon,
   Clock,
   Lock,
+  Key,
 } from 'lucide-react';
 import type { MatrixRoom, DiscordGuild, MatrixUser, VoiceParticipant } from '../types';
 import { voiceProxy } from '../services/voiceProxy';
@@ -43,6 +44,7 @@ export interface ChannelSidebarProps {
   onOpenScripts?: () => void;
   onEditChannel?: (channel: MatrixRoom) => void;
   onOpenServerSettings?: (guild: DiscordGuild) => void;
+  onOpenDiscordConnect?: () => void;
 }
 
 const VOICE_LOUNGE_ROOM: MatrixRoom = {
@@ -70,6 +72,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenScripts,
   onEditChannel,
   onOpenServerSettings,
+  onOpenDiscordConnect,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [joiningDiscordId, setJoiningDiscordId] = useState<string | null>(null);
@@ -279,6 +282,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 >
                   <span>Server Settings</span>
                   <Settings className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {onOpenDiscordConnect && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setServerMenuOpen(false);
+                    onOpenDiscordConnect();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span>Connect Discord</span>
+                  <Key className="w-3.5 h-3.5" />
                 </button>
               )}
 

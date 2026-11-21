@@ -22,28 +22,32 @@ jobs:
           cd "$TARGET_DIR"
           git fetch origin main
           git reset --hard origin/main
-          if [ -f "auto_setup_service.py" ] && [ -d "/opt/discord-auto-setup" ]; then
-            cp auto_setup_service.py /opt/discord-auto-setup/auto_setup_service.py
-          fi
-          if [ -f "Caddyfile" ] && [ -d "/etc/caddy" ]; then
-            cp Caddyfile /etc/caddy/Caddyfile
-          fi
-          if [ -d "$TARGET_DIR/client" ] && command -v npm >/dev/null 2>&1; then
-            cd "$TARGET_DIR/client"
-            npm install --no-audit --no-fund
-            npm run build
-            mkdir -p /var/www/discord-client
-            cp -r dist/* /var/www/discord-client/
-            cd "$TARGET_DIR"
-            if [ -d /var/www/discord-guide ]; then
-              cp index.html /var/www/discord-guide/index.html
-              [ -f version.json ] && cp version.json /var/www/discord-guide/version.json
-              [ -d downloads ] && cp -r downloads/* /var/www/discord-guide/downloads/ 2>/dev/null || true
+          if [ -f "update_proxmox.sh" ]; then
+            chmod +x update_proxmox.sh
+            ./update_proxmox.sh
+          else
+            if [ -f "auto_setup_service.py" ] && [ -d "/opt/discord-auto-setup" ]; then
+              cp auto_setup_service.py /opt/discord-auto-setup/auto_setup_service.py
             fi
-          fi
-          systemctl restart protutech-backend 2>/dev/null || true
-          systemctl restart discord-auto-setup 2>/dev/null || systemctl restart discordapi 2>/dev/null || true
-          systemctl reload caddy 2>/dev/null || systemctl restart caddy 2>/dev/null || true
-          if systemctl is-active --quiet mautrix-discord 2>/dev/null; then
-            systemctl restart mautrix-discord
+            if [ -f "Caddyfile" ] && [ -d "/etc/caddy" ]; then
+              cp Caddyfile /etc/caddy/Caddyfile
+            fi
+            mkdir -p /var/www/discord-guide/downloads
+            cp -f index.html /var/www/discord-guide/index.html
+            [ -f version.json ] && cp -f version.json /var/www/discord-guide/version.json
+            [ -d downloads ] && cp -rf downloads/* /var/www/discord-guide/downloads/ 2>/dev/null || true
+            if [ -d "$TARGET_DIR/client" ] && command -v npm >/dev/null 2>&1; then
+              cd "$TARGET_DIR/client"
+              npm install --no-audit --no-fund
+              npm run build
+              mkdir -p /var/www/discord-client
+              cp -rf dist/* /var/www/discord-client/
+              [ -f "$TARGET_DIR/version.json" ] && cp -f "$TARGET_DIR/version.json" /var/www/discord-client/version.json
+            fi
+            systemctl restart protutech-backend 2>/dev/null || true
+            systemctl restart discord-auto-setup 2>/dev/null || systemctl restart discordapi 2>/dev/null || true
+            systemctl reload caddy 2>/dev/null || systemctl restart caddy 2>/dev/null || true
+            if systemctl is-active --quiet mautrix-discord 2>/dev/null; then
+              systemctl restart mautrix-discord 2>/dev/null || true
+            fi
           fi

@@ -42,6 +42,7 @@ export interface DiscordHubModalProps {
   onJumpToChannel?: (name: string) => void;
   onApplyReward?: (reward: { type: string; value: string; label: string }) => void;
   onStartVoiceCall?: (targetName: string) => void;
+  onOpenDiscordConnect?: () => void;
 }
 
 interface DiscordQuestItem {
@@ -392,6 +393,7 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
   onJumpToChannel,
   onApplyReward,
   onStartVoiceCall,
+  onOpenDiscordConnect,
 }) => {
   const openTabKey = `${isOpen}:${initialTab}`;
   const [tabOverride, setTabOverride] = useState<{ key: string; tab: DiscordHubTab } | null>(null);
@@ -810,14 +812,26 @@ export const DiscordHubModal: React.FC<DiscordHubModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Community Hub"
-            className="w-9 h-9 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center cursor-pointer flex-shrink-0"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenDiscordConnect && (
+              <button
+                type="button"
+                onClick={onOpenDiscordConnect}
+                className="hidden sm:flex px-3 py-1.5 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold items-center gap-1.5 shadow transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{syncSettings.discordTokenConnected ? 'Discord Account' : 'Connect Discord'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Community Hub"
+              className="w-9 h-9 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] flex items-center justify-center cursor-pointer flex-shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Sub-nav Tabs */}

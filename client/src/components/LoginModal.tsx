@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   KeyRound,
+  Key,
   LogIn,
   Mail,
   CheckCircle2,
@@ -24,6 +25,7 @@ interface LoginModalProps {
   onLogin: (username: string, password: string) => Promise<boolean>;
   onSampleGuest?: () => void;
   onModeChange?: (mode: EngineMode) => void;
+  onOpenDiscordConnect?: () => void;
 }
 
 const MODE_OPTIONS: Array<{
@@ -60,6 +62,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLogin,
   onSampleGuest,
   onModeChange,
+  onOpenDiscordConnect,
 }) => {
   const [engineMode, setEngineMode] = useState<EngineMode>(() => {
     try {
@@ -568,42 +571,57 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </button>
 
                 {showAdvanced && (
-                  <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[var(--border-subtle)]">
-                    <div>
-                      <label
-                        htmlFor="login-bridge-token"
-                        className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
-                      >
-                        Bridge Token (Optional)
-                      </label>
-                      <input
-                        id="login-bridge-token"
-                        type="password"
-                        value={discordToken}
-                        onChange={e => setDiscordToken(e.target.value)}
-                        placeholder="Optional bridge token..."
-                        className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)]"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="login-server-url"
-                        className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
-                      >
-                        Server URL
-                      </label>
-                      <div className="flex items-center gap-1.5 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
-                        <Server className="w-3.5 h-3.5 text-[var(--status-online)] flex-shrink-0" />
+                  <div className="p-2.5 space-y-2.5 border-t border-[var(--border-subtle)]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label
+                          htmlFor="login-bridge-token"
+                          className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                        >
+                          Bridge Token (Optional)
+                        </label>
                         <input
-                          id="login-server-url"
-                          type="text"
-                          value={customServerUrl}
-                          onChange={e => setCustomServerUrl(e.target.value)}
-                          placeholder="Default local node"
-                          className="w-full bg-transparent border-none outline-none text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] font-mono"
+                          id="login-bridge-token"
+                          type="password"
+                          value={discordToken}
+                          onChange={e => setDiscordToken(e.target.value)}
+                          placeholder="Optional bridge token..."
+                          className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)]"
                         />
                       </div>
+                      <div>
+                        <label
+                          htmlFor="login-server-url"
+                          className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                        >
+                          Server URL
+                        </label>
+                        <div className="flex items-center gap-1.5 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
+                          <Server className="w-3.5 h-3.5 text-[var(--status-online)] flex-shrink-0" />
+                          <input
+                            id="login-server-url"
+                            type="text"
+                            value={customServerUrl}
+                            onChange={e => setCustomServerUrl(e.target.value)}
+                            placeholder="Default local node"
+                            className="w-full bg-transparent border-none outline-none text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] font-mono"
+                          />
+                        </div>
+                      </div>
                     </div>
+                    {onOpenDiscordConnect && (
+                      <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                        <span className="text-[11px] text-[var(--text-muted)]">Want 1-click token copy or QR login?</span>
+                        <button
+                          type="button"
+                          onClick={onOpenDiscordConnect}
+                          className="px-2.5 py-1 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Key className="w-3 h-3" />
+                          <span>Easy Connect Helper</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
