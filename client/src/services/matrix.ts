@@ -4,6 +4,7 @@ import type {
   MatrixMessage,
   MatrixRoom,
   MatrixUser,
+  UserAccountInfo,
 } from '../types';
 import { vencord } from './vencord';
 
@@ -310,6 +311,7 @@ export class MatrixClientService {
   private eventSource: EventSource | null = null;
   private eventSourceBaseUrl: string | null = null;
   private roomsRefreshTimer: number | null = null;
+  private lastAuthError: string | null = null;
 
   private messageListeners: Set<(roomId: string, message: MatrixMessage) => void> = new Set();
   private redactionListeners: Set<(roomId: string, eventId: string) => void> = new Set();
@@ -674,8 +676,17 @@ export class MatrixClientService {
     return normalized;
   }
 
+  public getLastAuthError(): string | null {
+    return this.lastAuthError;
+  }
+
   public async login(username: string, password: string): Promise<boolean> {
-    const cleanUser = (username || 'andrex').trim().replace(/^@/, '').split(':')[0] || 'andrex';
+    this.lastAuthError = null;
+    const rawInput = (username || 'andrex').trim();
+    const isEmailInput = rawInput.includes('@') && !rawInput.includes(':');
+    const cleanUser = isEmailInput
+      ? rawInput
+      : rawInput.replace(/^@/, '').split(':')[0] || 'andrex';
     const mode = this.getEngineMode();
 
     const saveSession = (userId: string, accessToken: string) => {
@@ -694,6 +705,7 @@ export class MatrixClientService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: cleanUser,
+          email: isEmailInput ? cleanUser : undefined,
           user: cleanUser,
           password: password || 'local',
           mode,
@@ -708,13 +720,21 @@ export class MatrixClientService {
         }
       }
 
+      if (res.status === 401 || res.status === 403) {
+        const errData = (await res.json().catch(() => ({}))) as { error?: string };
+        this.lastAuthError = errData.error || 'Invalid credentials or incorrect password.';
+        return false;
+      }
+
       // Fallback to Matrix v3 login endpoint
       const matrixRes = await this.fetchApi('/_matrix/client/v3/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'm.login.password',
-          identifier: { type: 'm.id.user', user: cleanUser },
+          identifier: isEmailInput
+            ? { type: 'm.id.thirdparty', medium: 'email', address: cleanUser }
+            : { type: 'm.id.user', user: cleanUser },
           user: cleanUser,
           password: password || 'local',
           mode,
@@ -729,6 +749,12 @@ export class MatrixClientService {
         }
       }
 
+      if (matrixRes.status === 401 || matrixRes.status === 403) {
+        const errData = (await matrixRes.json().catch(() => ({}))) as { error?: string };
+        this.lastAuthError = errData.error || 'Invalid credentials or incorrect password.';
+        return false;
+      }
+
       // If remote returned 502 or server was unavailable in local/hybrid mode, succeed cleanly offline
       if (mode !== 'discord_proxy' || matrixRes.status === 502 || res.status === 502) {
         saveSession(`@${cleanUser}:local.protutech`, `syt_local_${cleanUser}_${Date.now()}`);
@@ -740,6 +766,195 @@ export class MatrixClientService {
       // Seamless local fallback if backend is unreachable (e.g. remote 502 / offline)
       saveSession(`@${cleanUser}:local.protutech`, `syt_local_${cleanUser}_${Date.now()}`);
       return true;
+    }
+  }
+
+  public async getAccount(): Promise<UserAccountInfo | null> {
+    try {
+      const res = await this.fetchApi('/api/account', { method: 'GET' });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { ok?: boolean; account?: UserAccountInfo };
+      return data.account || null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async linkEmail(email: string): Promise<{
+    ok: boolean;
+    delivery?: 'smtp' | 'outbox';
+    sentTo?: string;
+    alreadyLinked?: boolean;
+    error?: string;
+  }> {
+    try {
+      const res = await this.fetchApi('/api/account/email/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        delivery?: 'smtp' | 'outbox';
+        sentTo?: string;
+        alreadyLinked?: boolean;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to send confirmation code.' };
+      }
+      return {
+        ok: true,
+        delivery: data.delivery,
+        sentTo: data.sentTo,
+        alreadyLinked: data.alreadyLinked,
+      };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error sending code.' };
+    }
+  }
+
+  public async verifyEmailCode(code: string): Promise<{
+    ok: boolean;
+    account?: UserAccountInfo;
+    error?: string;
+  }> {
+    try {
+      const res = await this.fetchApi('/api/account/email/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        account?: UserAccountInfo;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Verification failed.' };
+      }
+      return { ok: true, account: data.account };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error verifying code.' };
+    }
+  }
+
+  public async unlinkEmail(password?: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const res = await this.fetchApi('/api/account/email', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password || '' }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to unlink email.' };
+      }
+      return { ok: true };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error unlinking email.' };
+    }
+  }
+
+  public async requestPasswordChangeCode(): Promise<{
+    ok: boolean;
+    delivery?: 'smtp' | 'outbox';
+    sentTo?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await this.fetchApi('/api/account/password/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        delivery?: 'smtp' | 'outbox';
+        sentTo?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to send password change code.' };
+      }
+      return { ok: true, delivery: data.delivery, sentTo: data.sentTo };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error requesting code.' };
+    }
+  }
+
+  public async changePasswordWithCode(
+    code: string,
+    newPassword: string
+  ): Promise<{ ok: boolean; account?: UserAccountInfo; error?: string }> {
+    try {
+      const res = await this.fetchApi('/api/account/password/change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), newPassword }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        account?: UserAccountInfo;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to update password.' };
+      }
+      return { ok: true, account: data.account };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error updating password.' };
+    }
+  }
+
+  public async requestPasswordReset(identifier: string): Promise<{
+    ok: boolean;
+    delivery?: 'smtp' | 'outbox';
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await this.fetchApi('/api/auth/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier.trim() }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        delivery?: 'smtp' | 'outbox';
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to request reset.' };
+      }
+      return { ok: true, delivery: data.delivery, message: data.message };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error.' };
+    }
+  }
+
+  public async resetPasswordWithCode(
+    identifier: string,
+    code: string,
+    newPassword: string
+  ): Promise<{ ok: boolean; message?: string; error?: string }> {
+    try {
+      const res = await this.fetchApi('/api/auth/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier.trim(), code: code.trim(), newPassword }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        return { ok: false, error: data.error || 'Failed to reset password.' };
+      }
+      return { ok: true, message: data.message };
+    } catch (err: unknown) {
+      return { ok: false, error: (err as Error)?.message || 'Network error.' };
     }
   }
 

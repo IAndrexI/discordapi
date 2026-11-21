@@ -49,6 +49,7 @@ import {
   Headphones,
   LayoutGrid,
   ListTree,
+  Mail,
 } from 'lucide-react';
 import { vencord, EQUICORD_CATALOG } from '../services/vencord';
 import { appIconService, APP_ICON_PRESETS } from '../services/appIcon';
@@ -75,7 +76,8 @@ import { DiscordHubModal, type DiscordHubTab } from './DiscordHubModal';
 import { EquicordModal } from './EquicordModal';
 import { SoundboardPopover } from './SoundboardPopover';
 import { CameraPreviewPanel } from './CameraPreviewPanel';
-import type { ThemeConfig } from '../types';
+import { matrix } from '../services/matrix';
+import type { ThemeConfig, UserAccountInfo } from '../types';
 
 export type SettingsTab =
   | 'profile'
@@ -192,6 +194,190 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
   const [showDiscordToken, setShowDiscordToken] = useState(false);
   const [tokenSavedNotice, setTokenSavedNotice] = useState<string | null>(null);
+
+  // Account Email & Password Management State
+  const [accountInfo, setAccountInfo] = useState<UserAccountInfo | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailCodeInput, setEmailCodeInput] = useState('');
+  const [emailStep, setEmailStep] = useState<'idle' | 'awaiting_code'>('idle');
+  const [emailPendingSentTo, setEmailPendingSentTo] = useState<string>('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+
+  const [unlinkPasswordInput, setUnlinkPasswordInput] = useState('');
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+  const [unlinkBusy, setUnlinkBusy] = useState(false);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
+
+  const [changePwStep, setChangePwStep] = useState<'idle' | 'awaiting_code'>('idle');
+  const [changePwCodeInput, setChangePwCodeInput] = useState('');
+  const [changePwNewInput, setChangePwNewInput] = useState('');
+  const [changePwConfirmInput, setChangePwConfirmInput] = useState('');
+  const [changePwBusy, setChangePwBusy] = useState(false);
+  const [changePwError, setChangePwError] = useState<string | null>(null);
+  const [changePwNotice, setChangePwNotice] = useState<string | null>(null);
+
+  const refreshAccountInfo = useCallback(async () => {
+    try {
+      const acc = await matrix.getAccount();
+      setAccountInfo(acc);
+      if (acc?.pendingEmail) {
+        setEmailInput(acc.pendingEmail);
+        setEmailStep('awaiting_code');
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isOpen && activeTab === 'account') {
+      matrix.getAccount().then(acc => {
+        if (!cancelled && acc) {
+          setAccountInfo(acc);
+          if (acc.pendingEmail) {
+            setEmailInput(acc.pendingEmail);
+            setEmailStep('awaiting_code');
+          }
+        }
+      }).catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeTab]);
+
+  const handleSendEmailLinkCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!emailInput.trim()) {
+      setEmailError('Please enter an email address.');
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError(null);
+    setEmailNotice(null);
+    try {
+      const res = await matrix.linkEmail(emailInput.trim());
+      if (!res.ok) {
+        setEmailError(res.error || 'Failed to send confirmation code.');
+      } else {
+        setEmailStep('awaiting_code');
+        setEmailPendingSentTo(res.sentTo || emailInput.trim());
+        setEmailNotice(`Verification code sent to ${res.sentTo || emailInput.trim()}.`);
+      }
+    } catch {
+      setEmailError('Could not reach the server.');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleVerifyEmailLinkCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!emailCodeInput.trim()) {
+      setEmailError('Please enter the 6-digit code.');
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError(null);
+    setEmailNotice(null);
+    try {
+      const res = await matrix.verifyEmailCode(emailCodeInput.trim());
+      if (!res.ok) {
+        setEmailError(res.error || 'Verification failed.');
+      } else {
+        setAccountInfo(res.account || null);
+        setEmailStep('idle');
+        setEmailCodeInput('');
+        setEmailNotice('Email successfully linked and verified! ✓');
+        setTimeout(() => setEmailNotice(null), 3000);
+      }
+    } catch {
+      setEmailError('Could not reach the server.');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleUnlinkEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setUnlinkBusy(true);
+    setUnlinkError(null);
+    try {
+      const res = await matrix.unlinkEmail(unlinkPasswordInput);
+      if (!res.ok) {
+        setUnlinkError(res.error || 'Failed to unlink email.');
+      } else {
+        setShowUnlinkConfirm(false);
+        setUnlinkPasswordInput('');
+        void refreshAccountInfo();
+        setEmailNotice('Email unlinked.');
+        setTimeout(() => setEmailNotice(null), 3000);
+      }
+    } catch {
+      setUnlinkError('Could not reach the server.');
+    } finally {
+      setUnlinkBusy(false);
+    }
+  };
+
+  const handleRequestPasswordChangeCode = async () => {
+    setChangePwBusy(true);
+    setChangePwError(null);
+    setChangePwNotice(null);
+    try {
+      const res = await matrix.requestPasswordChangeCode();
+      if (!res.ok) {
+        setChangePwError(res.error || 'Failed to send password change code.');
+      } else {
+        setChangePwStep('awaiting_code');
+        setChangePwNotice(`Verification code sent to ${res.sentTo || 'your linked email'}.`);
+      }
+    } catch {
+      setChangePwError('Could not reach the server.');
+    } finally {
+      setChangePwBusy(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changePwCodeInput.trim()) {
+      setChangePwError('Enter the 6-digit verification code.');
+      return;
+    }
+    if (changePwNewInput.length < 8) {
+      setChangePwError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (changePwNewInput !== changePwConfirmInput) {
+      setChangePwError('Passwords do not match.');
+      return;
+    }
+    setChangePwBusy(true);
+    setChangePwError(null);
+    setChangePwNotice(null);
+    try {
+      const res = await matrix.changePasswordWithCode(changePwCodeInput.trim(), changePwNewInput);
+      if (!res.ok) {
+        setChangePwError(res.error || 'Failed to change password.');
+      } else {
+        setAccountInfo(res.account || null);
+        setChangePwStep('idle');
+        setChangePwCodeInput('');
+        setChangePwNewInput('');
+        setChangePwConfirmInput('');
+        setChangePwNotice('Password successfully updated! ✓');
+        setTimeout(() => setChangePwNotice(null), 3000);
+      }
+    } catch {
+      setChangePwError('Could not reach the server.');
+    } finally {
+      setChangePwBusy(false);
+    }
+  };
 
   // User Profile Customization State
   const [profileDraft, setProfileDraft] = useState<UserProfileCustomizations>(() =>
@@ -3217,7 +3403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h2 className="text-xl font-bold text-[var(--text-header)] mb-1">My Account</h2>
                 <p className="text-sm text-[var(--text-muted)]">
-                  Manage your account ID, privacy preferences, and optional bridge token.
+                  Manage your account ID, linked email address, password, privacy preferences, and optional bridge token.
                 </p>
               </div>
 
@@ -3238,6 +3424,337 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Shield className="w-4 h-4" />
                   <span>Encrypted Session &amp; Bridge Sync Ready</span>
                 </div>
+              </div>
+
+              {/* EMAIL ACCOUNT LINKING */}
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                    <Mail className="w-4 h-4 text-[var(--accent-cyan)]" />
+                    <span>Email Address &amp; Linking</span>
+                  </div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                      accountInfo?.emailVerified
+                        ? 'bg-emerald-500/20 text-[var(--status-online)]'
+                        : 'bg-[var(--bg-channels)] text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {accountInfo?.emailVerified ? 'Linked & Verified' : 'Not Linked'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-[var(--text-muted)]">
+                  Use your email to link your account, sign in from any client, and receive verification codes for password changes and recovery.
+                </p>
+
+                {emailError && (
+                  <div
+                    role="alert"
+                    className="p-2 rounded-lg bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{emailError}</span>
+                  </div>
+                )}
+
+                {emailNotice && (
+                  <div
+                    role="status"
+                    className="p-2 rounded-lg bg-[var(--status-online)]/10 border border-[var(--status-online)]/30 text-[var(--status-online)] text-xs flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{emailNotice}</span>
+                  </div>
+                )}
+
+                {accountInfo?.emailVerified ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-[var(--accent-cyan)]/15 flex items-center justify-center text-[var(--accent-cyan)] flex-shrink-0">
+                          <Mail className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-mono font-semibold text-[var(--text-header)] truncate">
+                            {accountInfo.email}
+                          </div>
+                          <div className="text-[10px] text-[var(--status-online)] flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            <span>Verified for sign-in &amp; password changes</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (accountInfo.hasPassword) {
+                            setShowUnlinkConfirm(true);
+                          } else {
+                            void handleUnlinkEmail();
+                          }
+                        }}
+                        disabled={unlinkBusy}
+                        className="px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+
+                    {showUnlinkConfirm && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
+                        <p className="text-xs text-[var(--text-header)] font-semibold">
+                          Confirm email unlinking
+                        </p>
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          Enter your current password to remove this linked email address.
+                        </p>
+                        <input
+                          type="password"
+                          value={unlinkPasswordInput}
+                          onChange={e => setUnlinkPasswordInput(e.target.value)}
+                          placeholder="Current password"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-red-400"
+                        />
+                        {unlinkError && (
+                          <div className="text-[11px] text-red-400">{unlinkError}</div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleUnlinkEmail()}
+                            disabled={unlinkBusy}
+                            className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
+                          >
+                            {unlinkBusy ? 'Unlinking...' : 'Confirm Unlink'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUnlinkConfirm(false);
+                              setUnlinkPasswordInput('');
+                              setUnlinkError(null);
+                            }}
+                            className="px-3 py-1 rounded bg-[var(--bg-channels)] text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-[var(--status-idle)]" />
+                      <span>
+                        Delivery queue: {accountInfo.emailDelivery === 'smtp' ? 'SMTP Server configured' : 'Local outbox logged on server'}
+                      </span>
+                    </div>
+                  </div>
+                ) : emailStep === 'idle' ? (
+                  <form onSubmit={handleSendEmailLinkCode} className="space-y-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Mail className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2.5" />
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={e => setEmailInput(e.target.value)}
+                          placeholder="name@example.com"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] focus:border-[var(--accent-cyan)] rounded px-3 py-1.5 pl-8 text-xs text-[var(--text-header)] outline-none"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={emailBusy}
+                        className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold cursor-pointer transition-colors disabled:opacity-60 flex-shrink-0"
+                      >
+                        {emailBusy ? 'Sending...' : 'Send Verification Code'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyEmailLinkCode} className="space-y-3 pt-1">
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Enter the 6-digit verification code sent to{' '}
+                      <span className="font-semibold text-[var(--text-header)]">
+                        {emailPendingSentTo || emailInput}
+                      </span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={emailCodeInput}
+                        onChange={e => setEmailCodeInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="123456"
+                        className="w-32 bg-[var(--bg-channels)] border border-[var(--border-subtle)] focus:border-[var(--accent-cyan)] rounded px-3 py-1.5 text-center font-mono tracking-widest text-sm text-[var(--text-header)] outline-none"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={emailBusy}
+                        className="px-3 py-1.5 rounded bg-[var(--status-online)] hover:bg-emerald-600 text-white text-xs font-semibold cursor-pointer transition-colors disabled:opacity-60"
+                      >
+                        {emailBusy ? 'Verifying...' : 'Verify & Link Email'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailStep('idle');
+                          setEmailCodeInput('');
+                          setEmailError(null);
+                        }}
+                        className="px-2.5 py-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* PASSWORD MANAGEMENT VIA EMAIL */}
+              <div className="bg-[var(--bg-userpanel)] rounded-lg p-5 border border-[var(--border-subtle)] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-header)] uppercase tracking-wider">
+                    <Lock className="w-4 h-4 text-[var(--discord-blurple)]" />
+                    <span>Password &amp; Security</span>
+                  </div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                      accountInfo?.hasPassword
+                        ? 'bg-emerald-500/20 text-[var(--status-online)]'
+                        : 'bg-[var(--bg-channels)] text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {accountInfo?.hasPassword ? 'Password Set' : 'No Password'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-[var(--text-muted)]">
+                  Change your password securely using email verification. A 6-digit confirmation code will be dispatched to your linked email address.
+                </p>
+
+                {changePwError && (
+                  <div
+                    role="alert"
+                    className="p-2 rounded-lg bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{changePwError}</span>
+                  </div>
+                )}
+
+                {changePwNotice && (
+                  <div
+                    role="status"
+                    className="p-2 rounded-lg bg-[var(--status-online)]/10 border border-[var(--status-online)]/30 text-[var(--status-online)] text-xs flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{changePwNotice}</span>
+                  </div>
+                )}
+
+                {!accountInfo?.emailVerified ? (
+                  <div className="p-3 rounded-lg bg-[var(--bg-channels)] border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-[var(--status-idle)] flex-shrink-0" />
+                    <span>Link and verify an email address above to enable email-verified password changes.</span>
+                  </div>
+                ) : changePwStep === 'idle' ? (
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="text-xs text-[var(--text-muted)]">
+                      {accountInfo.hasPassword
+                        ? 'Your account password is encrypted and active.'
+                        : 'Set a new password to secure your account and sign in with email.'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleRequestPasswordChangeCode()}
+                      disabled={changePwBusy}
+                      className="px-3 py-1.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-semibold cursor-pointer transition-colors disabled:opacity-60"
+                    >
+                      {changePwBusy
+                        ? 'Sending Code...'
+                        : accountInfo.hasPassword
+                        ? 'Change Password via Email'
+                        : 'Set Password via Email'}
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleChangePasswordSubmit} className="space-y-3 pt-1">
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Enter the 6-digit verification code sent to your linked email and choose your new password.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">
+                          6-Digit Code
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={changePwCodeInput}
+                          onChange={e => setChangePwCodeInput(e.target.value.replace(/\D/g, ''))}
+                          placeholder="123456"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-center font-mono tracking-widest text-xs text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={changePwNewInput}
+                          onChange={e => setChangePwNewInput(e.target.value)}
+                          placeholder="Min 8 characters"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                          required
+                          minLength={8}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">
+                          Confirm Password
+                        </label>
+                        <input
+                          type="password"
+                          value={changePwConfirmInput}
+                          onChange={e => setChangePwConfirmInput(e.target.value)}
+                          placeholder="Confirm password"
+                          className="w-full bg-[var(--bg-channels)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                          required
+                          minLength={8}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="submit"
+                        disabled={changePwBusy}
+                        className="px-4 py-1.5 rounded bg-[var(--status-online)] hover:bg-emerald-600 text-white text-xs font-semibold cursor-pointer transition-colors disabled:opacity-60"
+                      >
+                        {changePwBusy ? 'Updating...' : 'Update Password'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChangePwStep('idle');
+                          setChangePwCodeInput('');
+                          setChangePwNewInput('');
+                          setChangePwConfirmInput('');
+                          setChangePwError(null);
+                        }}
+                        className="px-3 py-1.5 rounded bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
 
               {/* Privacy & Sync */}

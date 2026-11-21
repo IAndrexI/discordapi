@@ -17,7 +17,9 @@ function protutechSelfHostedBackend(): Plugin {
     ) => (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
   }
 
-  const dataDir = path.resolve(currentDir, 'server-data')
+  const dataDir = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.resolve(currentDir, 'server-data')
   const handler = createRequestHandler(dataDir)
 
   const attachBackendMiddleware = (middlewares: Connect.Server) => {

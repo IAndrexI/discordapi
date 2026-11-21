@@ -4,6 +4,12 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {
+  createAccountService,
+  handleAccountRoutes,
+  verifyPassword,
+  isValidEmail,
+} = require('./accountEmail.cjs');
 
 const DEFAULT_DATA_DIR = path.resolve(__dirname, '../server-data');
 
@@ -1116,6 +1122,7 @@ function simulateMinecraftRcon(command) {
 
 function createRequestHandler(dataDir) {
   const store = createDatabaseStore(dataDir);
+  const accounts = createAccountService(store);
   const sseClients = new Set();
   const activeUploads = new Map();
   let syncBatchCounter = 1;
@@ -1369,9 +1376,42 @@ function createRequestHandler(dataDir) {
       method === 'POST'
     ) {
       const body = await readJsonBody(req);
-      const username = sanitizeUsername(
-        body.username || body.user || body.identifier?.user || 'andrex'
-      );
+      const rawIdentifier = String(
+        body.email ||
+          body.identifier?.address ||
+          body.username ||
+          body.user ||
+          body.identifier?.user ||
+          ''
+      ).trim();
+
+      let username;
+      if (rawIdentifier.includes('@') && isValidEmail(rawIdentifier.replace(/^@/, ''))) {
+        const emailUserId = accounts.findUserIdByEmail(rawIdentifier);
+        if (!emailUserId) {
+          sendJson(res, 401, {
+            errcode: 'M_FORBIDDEN',
+            error: 'No account is linked to that email.',
+          });
+          return;
+        }
+        username = emailUserId.replace(/^@/, '').split(':')[0];
+      } else {
+        username = sanitizeUsername(rawIdentifier || 'andrex');
+      }
+
+      const existingAccount = (db.accounts || {})[`@${username}:local.protutech`];
+      if (existingAccount && existingAccount.passwordHash) {
+        if (!verifyPassword(body.password, existingAccount.passwordHash)) {
+          await new Promise((r) => setTimeout(r, 400));
+          sendJson(res, 401, {
+            errcode: 'M_FORBIDDEN',
+            error: 'Incorrect password. Use "Forgot password?" to reset it by email.',
+          });
+          return;
+        }
+      }
+
       const requestedMode = body.mode;
       if (
         requestedMode &&
@@ -1393,9 +1433,9 @@ function createRequestHandler(dataDir) {
       } else {
         db.users[userId].presence = 'online';
       }
+      const accessToken = accounts.createSession(userId);
       store.save();
 
-      const accessToken = `syt_local_${username}_${crypto.randomBytes(12).toString('hex')}`;
       sendJson(res, 200, {
         user_id: userId,
         access_token: accessToken,
@@ -1403,8 +1443,25 @@ function createRequestHandler(dataDir) {
         device_id: 'PROTUTECH_SELFHOSTED',
         username,
         mode: db.mode,
+        account: accounts.publicAccount(userId),
       });
       return;
+    }
+
+    // Email-linked accounts & password management
+    if (pathname.startsWith('/api/account') || pathname.startsWith('/api/auth/password/')) {
+      const handled = await handleAccountRoutes({
+        pathname,
+        method,
+        req,
+        res,
+        accounts,
+        readJsonBody,
+        sendJson,
+        store,
+        sanitizeUsername,
+      });
+      if (handled) return;
     }
 
     if (pathname === '/api/bootstrap' && method === 'GET') {

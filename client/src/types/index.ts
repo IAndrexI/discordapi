@@ -362,4 +362,15 @@ export interface DiscordSyncedSettings {
   lastSyncLog: string;
 }
 
+export interface UserAccountInfo {
+  userId: string;
+  username: string;
+  email: string | null;
+  emailVerified: boolean;
+  pendingEmail: string | null;
+  hasPassword: boolean;
+  passwordUpdatedAt: number | null;
+  emailDelivery: 'smtp' | 'outbox';
+}
+
 

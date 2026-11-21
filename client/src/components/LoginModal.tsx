@@ -13,6 +13,9 @@ import {
   ChevronUp,
   KeyRound,
   LogIn,
+  Mail,
+  CheckCircle2,
+  ArrowLeft,
 } from 'lucide-react';
 import type { EngineMode } from '../types';
 import { matrix } from '../services/matrix';
@@ -89,6 +92,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Forgot / Reset Password via Email state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotStep, setForgotStep] = useState<'request' | 'verify'>('request');
+  const [resetCode, setResetCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+
   const persistModeAndOptions = (mode: EngineMode) => {
     try {
       localStorage.setItem('protutech_engine_mode', mode);
@@ -132,7 +146,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     try {
       const ok = await onLogin(cleanUser, effectivePass);
       if (!ok) {
-        setError('Sign-in failed. Check your credentials or switch mode.');
+        const lastErr = matrix.getLastAuthError?.();
+        setError(lastErr || 'Sign-in failed. Check your credentials or switch mode.');
       }
     } catch {
       setError('Failed to connect to server.');
@@ -144,6 +159,73 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await executeLogin(username, password);
+  };
+
+  const handleRequestResetCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const id = forgotIdentifier.trim() || username.trim();
+    if (!id) {
+      setForgotError('Enter your email address or username.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+    try {
+      const res = await matrix.requestPasswordReset(id);
+      if (!res.ok) {
+        setForgotError(res.error || 'Failed to request reset code.');
+      } else {
+        setForgotStep('verify');
+        setForgotSuccess(
+          res.message || 'If a matching account with an email exists, a reset code was sent.'
+        );
+      }
+    } catch {
+      setForgotError('Could not reach the server.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetCode.trim()) {
+      setForgotError('Enter the 6-digit verification code.');
+      return;
+    }
+    if (resetNewPassword.length < 8) {
+      setForgotError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      setForgotError('Passwords do not match.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+    try {
+      const id = forgotIdentifier.trim() || username.trim();
+      const res = await matrix.resetPasswordWithCode(id, resetCode, resetNewPassword);
+      if (!res.ok) {
+        setForgotError(res.error || 'Failed to reset password.');
+      } else {
+        setForgotSuccess('Password successfully reset! You can now sign in.');
+        setPassword(resetNewPassword);
+        setTimeout(() => {
+          setShowForgotPassword(false);
+          setForgotStep('request');
+          setResetCode('');
+          setResetNewPassword('');
+          setResetConfirmPassword('');
+        }, 1500);
+      }
+    } catch {
+      setForgotError('Could not reach the server.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const handleOneClickSelfHosted = async () => {
@@ -217,142 +299,318 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
         </div>
 
-        {/* 1-Click Quick Sign In */}
-        <button
-          type="button"
-          onClick={handleOneClickSelfHosted}
-          disabled={isLoading}
-          data-testid="quick-signin-andrex-btn"
-          className="w-full mb-3 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold py-2 px-4 rounded-lg text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-60"
-        >
-          <LogIn className="w-4 h-4" />
-          <span>Quick Sign In</span>
-        </button>
-
-        {/* Error Alert */}
-        {error && (
-          <div
-            role="alert"
-            className="mb-3 p-2 rounded-lg bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2"
-          >
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label
-                htmlFor="login-username"
-                className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1"
+        {/* Forgot / Reset Password via Email View */}
+        {showForgotPassword ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2 mb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setForgotError(null);
+                  setForgotSuccess(null);
+                }}
+                className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-header)] cursor-pointer transition-colors"
               >
-                Username
-              </label>
-              <div className="relative">
-                <User className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
-                <input
-                  id="login-username"
-                  type="text"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="andrex"
-                  className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)] transition-colors"
-                  required
-                />
-              </div>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Sign In</span>
+              </button>
+              <span className="text-xs font-semibold text-[var(--text-header)]">Reset Password</span>
             </div>
 
-            <div>
-              <label
-                htmlFor="login-password"
-                className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1"
+            {forgotError && (
+              <div
+                role="alert"
+                className="p-2 rounded-lg bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2"
               >
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
-                <input
-                  id="login-password"
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder={engineMode === 'discord_proxy' ? 'Required' : 'Optional'}
-                  className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)] transition-colors"
-                />
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{forgotError}</span>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Collapsible Advanced Options */}
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-channels)] overflow-hidden">
-            <button
-              type="button"
-              aria-expanded={showAdvanced}
-              onClick={() => setShowAdvanced(prev => !prev)}
-              className="w-full px-3 py-1.5 flex items-center justify-between text-xs font-medium text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] cursor-pointer transition-colors"
-            >
-              <span className="flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-[var(--status-idle)]" />
-                <span>Advanced Options</span>
-              </span>
-              {showAdvanced ? (
-                <ChevronUp className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-              )}
-            </button>
+            {forgotSuccess && (
+              <div
+                role="status"
+                className="p-2 rounded-lg bg-[var(--status-online)]/10 border border-[var(--status-online)]/30 text-[var(--status-online)] text-xs flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
 
-            {showAdvanced && (
-              <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[var(--border-subtle)]">
+            {forgotStep === 'request' ? (
+              <form onSubmit={handleRequestResetCode} className="space-y-3">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Enter your username or linked email address. We will send a 6-digit verification code.
+                </p>
                 <div>
                   <label
-                    htmlFor="login-bridge-token"
+                    htmlFor="forgot-identifier"
                     className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
                   >
-                    Bridge Token (Optional)
+                    Username or Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
+                    <input
+                      id="forgot-identifier"
+                      type="text"
+                      value={forgotIdentifier}
+                      onChange={e => setForgotIdentifier(e.target.value)}
+                      placeholder="andrex or you@example.com"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)]"
+                      required
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold py-1.5 rounded-lg text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-60"
+                >
+                  {forgotLoading ? <span>Sending Code...</span> : <span>Send Reset Code</span>}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-2.5">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Enter the 6-digit code received via email and choose a new password.
+                </p>
+                <div>
+                  <label
+                    htmlFor="reset-code"
+                    className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                  >
+                    6-Digit Verification Code
                   </label>
                   <input
-                    id="login-bridge-token"
-                    type="password"
-                    value={discordToken}
-                    onChange={e => setDiscordToken(e.target.value)}
-                    placeholder="Optional bridge token..."
-                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)]"
+                    id="reset-code"
+                    type="text"
+                    maxLength={6}
+                    value={resetCode}
+                    onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-3 py-1.5 text-center font-mono tracking-widest text-sm text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                    required
                   />
                 </div>
                 <div>
                   <label
-                    htmlFor="login-server-url"
+                    htmlFor="reset-new-pw"
                     className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
                   >
-                    Server URL
+                    New Password (min 8 chars)
                   </label>
-                  <div className="flex items-center gap-1.5 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
-                    <Server className="w-3.5 h-3.5 text-[var(--status-online)] flex-shrink-0" />
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
                     <input
-                      id="login-server-url"
+                      id="reset-new-pw"
+                      type="password"
+                      value={resetNewPassword}
+                      onChange={e => setResetNewPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor="reset-confirm-pw"
+                    className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                  >
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
+                    <input
+                      id="reset-confirm-pw"
+                      type="password"
+                      value={resetConfirmPassword}
+                      onChange={e => setResetConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] outline-none focus:border-[var(--accent-cyan)]"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold py-1.5 rounded-lg text-xs cursor-pointer transition-colors disabled:opacity-60"
+                  >
+                    {forgotLoading ? 'Resetting...' : 'Reset Password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRequestResetCode()}
+                    disabled={forgotLoading}
+                    className="px-3 py-1.5 rounded-lg bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] text-xs cursor-pointer border border-[var(--border-subtle)]"
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* 1-Click Quick Sign In */}
+            <button
+              type="button"
+              onClick={handleOneClickSelfHosted}
+              disabled={isLoading}
+              data-testid="quick-signin-andrex-btn"
+              className="w-full mb-3 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-semibold py-2 px-4 rounded-lg text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-60"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Quick Sign In</span>
+            </button>
+
+            {/* Error Alert */}
+            {error && (
+              <div
+                role="alert"
+                className="mb-3 p-2 rounded-lg bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/30 text-[var(--status-dnd)] text-xs flex items-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Credentials Form */}
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label
+                    htmlFor="login-username"
+                    className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1"
+                  >
+                    Username or Email
+                  </label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
+                    <input
+                      id="login-username"
                       type="text"
-                      value={customServerUrl}
-                      onChange={e => setCustomServerUrl(e.target.value)}
-                      placeholder="Default local node"
-                      className="w-full bg-transparent border-none outline-none text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] font-mono"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      placeholder="andrex or email"
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)] transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label
+                      htmlFor="login-password"
+                      className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block"
+                    >
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setForgotIdentifier(username);
+                        setForgotError(null);
+                        setForgotSuccess(null);
+                        setForgotStep('request');
+                      }}
+                      className="text-[10px] text-[var(--accent-cyan)] hover:underline cursor-pointer"
+                    >
+                      Forgot?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-2" />
+                    <input
+                      id="login-password"
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder={engineMode === 'discord_proxy' ? 'Required' : 'Optional'}
+                      className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md pl-8 pr-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)] transition-colors"
                     />
                   </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] font-semibold py-1.5 rounded-lg transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {isLoading ? <span>Signing in...</span> : <span>Sign In</span>}
-          </button>
-        </form>
+              {/* Collapsible Advanced Options */}
+              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-channels)] overflow-hidden">
+                <button
+                  type="button"
+                  aria-expanded={showAdvanced}
+                  onClick={() => setShowAdvanced(prev => !prev)}
+                  className="w-full px-3 py-1.5 flex items-center justify-between text-xs font-medium text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] cursor-pointer transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-[var(--status-idle)]" />
+                    <span>Advanced Options</span>
+                  </span>
+                  {showAdvanced ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  )}
+                </button>
+
+                {showAdvanced && (
+                  <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-[var(--border-subtle)]">
+                    <div>
+                      <label
+                        htmlFor="login-bridge-token"
+                        className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                      >
+                        Bridge Token (Optional)
+                      </label>
+                      <input
+                        id="login-bridge-token"
+                        type="password"
+                        value={discordToken}
+                        onChange={e => setDiscordToken(e.target.value)}
+                        placeholder="Optional bridge token..."
+                        className="w-full bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5 text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent-cyan)]"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="login-server-url"
+                        className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1"
+                      >
+                        Server URL
+                      </label>
+                      <div className="flex items-center gap-1.5 bg-[var(--bg-message-input)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
+                        <Server className="w-3.5 h-3.5 text-[var(--status-online)] flex-shrink-0" />
+                        <input
+                          id="login-server-url"
+                          type="text"
+                          value={customServerUrl}
+                          onChange={e => setCustomServerUrl(e.target.value)}
+                          placeholder="Default local node"
+                          className="w-full bg-transparent border-none outline-none text-xs text-[var(--text-header)] placeholder:text-[var(--text-muted)] font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] border border-[var(--border-subtle)] text-[var(--text-header)] font-semibold py-1.5 rounded-lg transition-colors text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isLoading ? <span>Signing in...</span> : <span>Sign In</span>}
+              </button>
+            </form>
+          </>
+        )}
 
         {/* Guest Mode Section */}
         {onSampleGuest && (
