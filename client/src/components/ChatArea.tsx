@@ -91,6 +91,7 @@ export interface ChatAreaProps {
   currentUserId?: string;
   currentUserName?: string;
   isGuestMode?: boolean;
+  onEditChannel?: (room: MatrixRoom) => void;
 }
 
 const formatTimestamp = (ts: number) => {
@@ -1053,7 +1054,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   currentUserId,
   currentUserName,
   isGuestMode,
+  onEditChannel,
 }) => {
+  const [slowmodeRemaining, setSlowmodeRemaining] = useState(0);
+
+  useEffect(() => {
+    setSlowmodeRemaining(0);
+  }, [room.id]);
+
+  useEffect(() => {
+    if (slowmodeRemaining <= 0) return;
+    const timer = window.setInterval(() => {
+      setSlowmodeRemaining(prev => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [slowmodeRemaining]);
   const [searchState, setSearchState] = useState<{ roomId: string; query: string }>({
     roomId: room.id,
     query: '',
@@ -1230,6 +1245,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 {room.topic}
               </span>
             </>
+          )}
+          {room.nsfw && (
+            <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold flex-shrink-0">
+              18+
+            </span>
+          )}
+          {(room.slowmodeSeconds || 0) > 0 && (
+            <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-semibold flex-shrink-0">
+              Slowmode {slowmodeRemaining > 0 ? `${slowmodeRemaining}s` : `${room.slowmodeSeconds}s`}
+            </span>
+          )}
+          {room.isPrivate && (
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-semibold flex-shrink-0">
+              Private
+            </span>
+          )}
+          {onEditChannel && (
+            <button
+              type="button"
+              onClick={() => onEditChannel(room)}
+              title="Channel Settings"
+              className="p-1 rounded hover:bg-[var(--bg-item-hover)] text-[var(--text-muted)] hover:text-[var(--text-header)] transition-colors cursor-pointer flex-shrink-0"
+            >
+              ⚙️
+            </button>
           )}
         </div>
 

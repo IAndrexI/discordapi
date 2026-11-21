@@ -1480,6 +1480,14 @@ export class MatrixClientService {
           isVoice: Boolean(options.isVoice),
           guildId: options.guildId,
           invites: options.invites || [],
+          bitrate: (options as Record<string, unknown>).bitrate,
+          userLimit: (options as Record<string, unknown>).userLimit,
+          isAfkChannel: (options as Record<string, unknown>).isAfkChannel,
+          rtcRegion: (options as Record<string, unknown>).rtcRegion,
+          videoQualityMode: (options as Record<string, unknown>).videoQualityMode,
+          slowmodeSeconds: (options as Record<string, unknown>).slowmodeSeconds,
+          nsfw: (options as Record<string, unknown>).nsfw,
+          isPrivate: (options as Record<string, unknown>).isPrivate,
         }),
       });
 
@@ -1529,6 +1537,100 @@ export class MatrixClientService {
       console.error('Error creating native room:', err);
       return null;
     }
+  }
+
+  public async updateRoomSettings(
+    roomId: string,
+    updates: Partial<MatrixRoom>
+  ): Promise<MatrixRoom | null> {
+    try {
+      const res = await this.fetchApi(`/api/rooms/${encodeURIComponent(roomId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { room?: MatrixRoom };
+        if (data.room) {
+          this.roomsCache.set(data.room.id, data.room);
+          if (data.room.guildId && this.guildsCache.has(data.room.guildId)) {
+            const g = this.guildsCache.get(data.room.guildId)!;
+            g.channels = g.channels.map((c) => (c.id === data.room!.id ? data.room! : c));
+            if (data.room.isAfkChannel) g.afkChannelId = data.room.id;
+            else if (g.afkChannelId === data.room.id) g.afkChannelId = null;
+          }
+          this.persistRoomsCache();
+          return data.room;
+        }
+      }
+    } catch (err) {
+      console.error('Error updating room settings:', err);
+    }
+    const existing = this.roomsCache.get(roomId);
+    if (existing) {
+      const updated = { ...existing, ...updates };
+      this.roomsCache.set(roomId, updated);
+      this.persistRoomsCache();
+      return updated;
+    }
+    return null;
+  }
+
+  public async deleteRoom(roomId: string): Promise<boolean> {
+    try {
+      const res = await this.fetchApi(`/api/rooms/${encodeURIComponent(roomId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        const existing = this.roomsCache.get(roomId);
+        this.roomsCache.delete(roomId);
+        if (existing?.guildId && this.guildsCache.has(existing.guildId)) {
+          const g = this.guildsCache.get(existing.guildId)!;
+          g.channels = g.channels.filter((c) => c.id !== roomId);
+          if (g.afkChannelId === roomId) g.afkChannelId = null;
+        }
+        this.persistRoomsCache();
+        return true;
+      }
+    } catch (err) {
+      console.error('Error deleting room:', err);
+    }
+    return false;
+  }
+
+  public async updateGuildSettings(
+    guildId: string,
+    updates: Partial<DiscordGuild>
+  ): Promise<DiscordGuild | null> {
+    try {
+      const res = await this.fetchApi(`/api/guilds/${encodeURIComponent(guildId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { guild?: DiscordGuild };
+        if (data.guild) {
+          const existing = this.guildsCache.get(guildId);
+          const merged: DiscordGuild = {
+            ...(existing || { id: guildId, name: data.guild.name, channels: [] }),
+            ...data.guild,
+            channels: existing?.channels || data.guild.channels || [],
+          };
+          if (updates.afkChannelId !== undefined) {
+            merged.channels = merged.channels.map((c) =>
+              c.isVoice ? { ...c, isAfkChannel: c.id === updates.afkChannelId } : c
+            );
+          }
+          this.guildsCache.set(guildId, merged);
+          this.persistRoomsCache();
+          return merged;
+        }
+      }
+    } catch (err) {
+      console.error('Error updating guild settings:', err);
+    }
+    return null;
   }
 
   private parseMessageEvent(

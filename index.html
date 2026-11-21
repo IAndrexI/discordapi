@@ -1354,7 +1354,7 @@
       <a href="/" class="nav-brand">
         <img src="icon.png" alt="Protutech" class="nav-logo-img" />
         <span class="nav-brand-text">Protutech</span>
-        <span class="nav-brand-badge">v1.2</span>
+        <span class="nav-brand-badge" id="live-version-badge">v1.0.7</span>
       </a>
 
       <!-- Center Segmented Pill Dock -->
@@ -1756,12 +1756,12 @@
           </div>
         </div>
 
-        <!-- Bar 2: TeamSpeak 3 / 5 -->
+        <!-- Bar 2: TS6 -->
         <div style="margin-bottom:22px;">
           <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700; margin-bottom:8px;">
             <span style="color:#38bdf8; display:flex; align-items:center; gap:8px;">
               <span style="width:8px; height:8px; border-radius:50%; background:#38bdf8;"></span>
-              TeamSpeak 3 / 5 (Direct UDP)
+              TS6 (Direct UDP)
             </span>
             <span style="color:#38bdf8; font-family:'JetBrains Mono',monospace;">32 ms &bull; Fast Voice, but Outdated UI &amp; Paid Mobile</span>
           </div>
@@ -3525,6 +3525,14 @@
         }
       });
     }, { passive: true });
+  </script>
+  <script>
+    fetch('/version.json').then(r => r.ok ? r.json() : null).then(d => {
+      if (d && d.version) {
+        const el = document.getElementById('live-version-badge');
+        if (el) el.textContent = 'v' + d.version;
+      }
+    }).catch(() => {});
   </script>
 </body>
 </html>

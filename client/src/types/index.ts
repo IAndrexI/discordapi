@@ -104,6 +104,16 @@ export interface MatrixRoom {
   unreadCount?: number;
   lastMessageTimestamp?: number;
   members: MatrixUser[];
+  // Discord-like channel settings
+  bitrate?: number; // Voice bitrate in kbps (8 - 384)
+  userLimit?: number; // Max voice members (0 = unlimited, 1 - 99)
+  isAfkChannel?: boolean; // Sleep / AFK channel (auto-mutes & routes idle users)
+  rtcRegion?: string; // 'auto' | 'us-west' | 'us-east' | 'eu-central' | 'ap-southeast'
+  videoQualityMode?: 'auto' | '720p';
+  slowmodeSeconds?: number; // Text channel rate limit per user (0 = off)
+  nsfw?: boolean; // 18+ age-restricted channel gate
+  isPrivate?: boolean; // Locked/private channel indicator
+  autoArchiveDurationMinutes?: 60 | 1440 | 4320 | 10080;
 }
 
 export interface DiscordGuild {
@@ -116,6 +126,12 @@ export interface DiscordGuild {
   bridgedChannelCount?: number;
   serverKind?: 'proprietary' | 'discord' | 'hybrid';
   isProprietary?: boolean;
+  // Discord-like server settings
+  afkChannelId?: string | null;
+  afkTimeoutSeconds?: number; // 60 | 300 | 900 | 1800 | 3600 (0 = off)
+  systemChannelId?: string | null;
+  verificationLevel?: 'none' | 'low' | 'medium' | 'high';
+  defaultNotifications?: 'all' | 'mentions';
 }
 
 export interface DiscordAvailableGuild {

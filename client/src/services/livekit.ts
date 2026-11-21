@@ -624,6 +624,17 @@ class LiveKitVoiceService {
     return SCREEN_QUALITY_MAP[this.activeScreenQuality]?.bitrateLabel || '8.0 Mbps';
   }
 
+  private activeChannelBitrateKbps = 96;
+
+  public getChannelBitrate(): number {
+    return this.activeChannelBitrateKbps;
+  }
+
+  public setChannelBitrate(kbps: number): void {
+    this.activeChannelBitrateKbps = Math.max(8, Math.min(384, Math.round(kbps || 64)));
+    this.notify();
+  }
+
   public isCameraEnabled(): boolean {
     const local = this.participants.get(this.localIdentity);
     return Boolean(local?.hasVideo && local?.videoTrack);

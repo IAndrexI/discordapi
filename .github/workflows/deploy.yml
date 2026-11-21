@@ -34,6 +34,12 @@ jobs:
             npm run build
             mkdir -p /var/www/discord-client
             cp -r dist/* /var/www/discord-client/
+            cd "$TARGET_DIR"
+            if [ -d /var/www/discord-guide ]; then
+              cp index.html /var/www/discord-guide/index.html
+              [ -f version.json ] && cp version.json /var/www/discord-guide/version.json
+              [ -d downloads ] && cp -r downloads/* /var/www/discord-guide/downloads/ 2>/dev/null || true
+            fi
           fi
           systemctl restart protutech-backend 2>/dev/null || true
           systemctl restart discord-auto-setup 2>/dev/null || systemctl restart discordapi 2>/dev/null || true

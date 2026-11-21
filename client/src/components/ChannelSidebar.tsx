@@ -19,6 +19,10 @@ import {
   MicOff,
   HeadphoneOff,
   X,
+  Settings,
+  Moon,
+  Clock,
+  Lock,
 } from 'lucide-react';
 import type { MatrixRoom, DiscordGuild, MatrixUser, VoiceParticipant } from '../types';
 import { voiceProxy } from '../services/voiceProxy';
@@ -37,6 +41,8 @@ export interface ChannelSidebarProps {
   onOpenDiscordHub?: (tab?: 'quests' | 'friends' | 'nitro' | 'inbox' | 'discover') => void;
   onOpenEquicord?: () => void;
   onOpenScripts?: () => void;
+  onEditChannel?: (channel: MatrixRoom) => void;
+  onOpenServerSettings?: (guild: DiscordGuild) => void;
 }
 
 const VOICE_LOUNGE_ROOM: MatrixRoom = {
@@ -62,6 +68,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenDiscordHub,
   onOpenEquicord,
   onOpenScripts,
+  onEditChannel,
+  onOpenServerSettings,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [joiningDiscordId, setJoiningDiscordId] = useState<string | null>(null);
@@ -256,6 +264,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 >
                   <span>Discover Servers</span>
                   <Compass className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {onOpenServerSettings && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setServerMenuOpen(false);
+                    onOpenServerSettings(activeGuild);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  <span>Server Settings</span>
+                  <Settings className="w-3.5 h-3.5" />
                 </button>
               )}
 
@@ -561,22 +584,56 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <Hash className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+                          {ch.isPrivate ? (
+                            <Lock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                          ) : (
+                            <Hash className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+                          )}
                           <span className="truncate">{cleanName}</span>
+                          {ch.nsfw && (
+                            <span className="px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[9px] font-bold flex-shrink-0">
+                              18+
+                            </span>
+                          )}
+                          {(ch.slowmodeSeconds || 0) > 0 && (
+                            <span
+                              title={`Slowmode: ${ch.slowmodeSeconds}s`}
+                              className="flex items-center gap-0.5 text-[10px] text-indigo-300 flex-shrink-0"
+                            >
+                              <Clock className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
-                        {isBridgedCh && (
-                          <button
-                            type="button"
-                            onClick={e => handleQuickDiscordCall(e, ch)}
-                            onKeyDown={e => e.stopPropagation()}
-                            disabled={joiningDiscordId === ch.id}
-                            aria-label={`Join bridged call for ${cleanName}`}
-                            title="Join Bridged Call"
-                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
-                          >
-                            <PhoneCall className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          {onEditChannel && (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                onEditChannel(ch);
+                              }}
+                              onKeyDown={e => e.stopPropagation()}
+                              aria-label={`Edit channel ${cleanName}`}
+                              title="Edit Channel"
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer"
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {isBridgedCh && (
+                            <button
+                              type="button"
+                              onClick={e => handleQuickDiscordCall(e, ch)}
+                              onKeyDown={e => e.stopPropagation()}
+                              disabled={joiningDiscordId === ch.id}
+                              aria-label={`Join bridged call for ${cleanName}`}
+                              title="Join Bridged Call"
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -628,27 +685,58 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                           }
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <Volume2
-                              className={`w-4 h-4 flex-shrink-0 ${
-                                isVoiceActive ? 'text-[var(--status-online)]' : 'text-[var(--text-muted)]'
-                              }`}
-                            />
+                            {ch.isAfkChannel ? (
+                              <Moon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                            ) : (
+                              <Volume2
+                                className={`w-4 h-4 flex-shrink-0 ${
+                                  isVoiceActive ? 'text-[var(--status-online)]' : 'text-[var(--text-muted)]'
+                                }`}
+                              />
+                            )}
                             <span className="truncate">{ch.name}</span>
                           </div>
 
-                          {!isLounge && (
-                            <button
-                              type="button"
-                              onClick={e => handleQuickDiscordCall(e, ch)}
-                              onKeyDown={e => e.stopPropagation()}
-                              disabled={isJoining}
-                              aria-label={`Join bridged call in ${ch.name}`}
-                              title="Join Bridged Call"
-                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
-                            >
-                              <PhoneCall className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {ch.bitrate && (
+                              <span className="text-[10px] font-mono text-[#949ba4] hidden sm:inline">
+                                {ch.bitrate}k
+                              </span>
+                            )}
+                            {(ch.userLimit || 0) > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-[#1e212b] border border-[#2d323e] text-[10px] font-mono text-[#b5bac1]">
+                                {isVoiceActive ? voiceParticipants.length : 0}/{ch.userLimit}
+                              </span>
+                            )}
+                            {onEditChannel && !isLounge && (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  onEditChannel(ch);
+                                }}
+                                onKeyDown={e => e.stopPropagation()}
+                                aria-label={`Edit voice channel ${ch.name}`}
+                                title="Edit Channel"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity cursor-pointer"
+                              >
+                                <Settings className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {!isLounge && (
+                              <button
+                                type="button"
+                                onClick={e => handleQuickDiscordCall(e, ch)}
+                                onKeyDown={e => e.stopPropagation()}
+                                disabled={isJoining}
+                                aria-label={`Join bridged call in ${ch.name}`}
+                                title="Join Bridged Call"
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--text-header)] transition-opacity flex-shrink-0 cursor-pointer"
+                              >
+                                <PhoneCall className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Nested Voice Participants */}

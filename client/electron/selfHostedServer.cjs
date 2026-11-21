@@ -230,6 +230,10 @@ function createSeedDatabase() {
       members: [...members],
       unreadCount: 0,
       lastMessageTimestamp: now - 500000,
+      bitrate: 96,
+      userLimit: 0,
+      rtcRegion: 'auto',
+      videoQualityMode: 'auto',
     },
     {
       id: '!proto_stage:local.protutech',
@@ -246,6 +250,30 @@ function createSeedDatabase() {
       members: [...members],
       unreadCount: 0,
       lastMessageTimestamp: now - 550000,
+      bitrate: 128,
+      userLimit: 25,
+      rtcRegion: 'auto',
+      videoQualityMode: '720p',
+    },
+    {
+      id: '!hq_afk:local.protutech',
+      name: '💤 AFK / Sleep',
+      topic: 'Idle users are moved here automatically and muted',
+      isDirect: false,
+      isGroupChat: false,
+      isVoice: true,
+      guildId: 'guild_protutech_hq',
+      guildName: 'Protutech HQ',
+      isSynced: false,
+      syncSource: 'matrix',
+      serverKind: 'proprietary',
+      members: [],
+      unreadCount: 0,
+      lastMessageTimestamp: now - 600000,
+      bitrate: 8,
+      userLimit: 0,
+      isAfkChannel: true,
+      rtcRegion: 'auto',
     },
 
     // Hybrid Bridged Server: Bridged Lounge
@@ -376,6 +404,10 @@ function createSeedDatabase() {
       isProprietary: true,
       serverKind: 'proprietary',
       bridgedChannelCount: 0,
+      afkChannelId: '!hq_afk:local.protutech',
+      afkTimeoutSeconds: 300,
+      verificationLevel: 'low',
+      defaultNotifications: 'mentions',
     },
     {
       id: 'guild_discord_bridged',
@@ -1926,12 +1958,109 @@ function createRequestHandler(dataDir) {
         members: [db.users['@andrex:local.protutech']].filter(Boolean),
         unreadCount: 0,
         lastMessageTimestamp: Date.now(),
+        bitrate: body.bitrate !== undefined ? Math.max(8, Math.min(384, Number(body.bitrate) || 64)) : (body.isVoice ? 64 : undefined),
+        userLimit: body.userLimit !== undefined ? Math.max(0, Math.min(99, Number(body.userLimit) || 0)) : (body.isVoice ? 0 : undefined),
+        isAfkChannel: Boolean(body.isAfkChannel),
+        rtcRegion: body.rtcRegion || 'auto',
+        videoQualityMode: body.videoQualityMode || 'auto',
+        slowmodeSeconds: body.slowmodeSeconds !== undefined ? Math.max(0, Number(body.slowmodeSeconds) || 0) : 0,
+        nsfw: Boolean(body.nsfw),
+        isPrivate: Boolean(body.isPrivate),
+        autoArchiveDurationMinutes: body.autoArchiveDurationMinutes || 1440,
       };
       db.rooms.push(room);
       db.messages[roomId] = [];
+      if (room.isAfkChannel && guild) {
+        guild.afkChannelId = room.id;
+      }
       store.save();
       broadcastEvent('rooms_updated', { room });
       sendJson(res, 201, { room });
+      return;
+    }
+
+    const patchRoomMatch = pathname.match(/^\/api\/rooms\/([^/]+)$/);
+    if (patchRoomMatch && method === 'PATCH') {
+      const roomId = decodeURIComponent(patchRoomMatch[1]);
+      const room = db.rooms.find((r) => r.id === roomId);
+      if (!room) {
+        sendJson(res, 404, { error: 'Channel not found' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (body.name !== undefined) room.name = String(body.name).trim() || room.name;
+      if (body.topic !== undefined) room.topic = String(body.topic);
+      if (body.bitrate !== undefined) room.bitrate = Math.max(8, Math.min(384, Number(body.bitrate) || 64));
+      if (body.userLimit !== undefined) room.userLimit = Math.max(0, Math.min(99, Number(body.userLimit) || 0));
+      if (body.isAfkChannel !== undefined) {
+        room.isAfkChannel = Boolean(body.isAfkChannel);
+        const guild = room.guildId ? db.guilds.find((g) => g.id === room.guildId) : null;
+        if (guild) {
+          if (room.isAfkChannel) guild.afkChannelId = room.id;
+          else if (guild.afkChannelId === room.id) guild.afkChannelId = null;
+        }
+      }
+      if (body.rtcRegion !== undefined) room.rtcRegion = String(body.rtcRegion || 'auto');
+      if (body.videoQualityMode !== undefined) room.videoQualityMode = body.videoQualityMode === '720p' ? '720p' : 'auto';
+      if (body.slowmodeSeconds !== undefined) room.slowmodeSeconds = Math.max(0, Number(body.slowmodeSeconds) || 0);
+      if (body.nsfw !== undefined) room.nsfw = Boolean(body.nsfw);
+      if (body.isPrivate !== undefined) room.isPrivate = Boolean(body.isPrivate);
+      if (body.autoArchiveDurationMinutes !== undefined) room.autoArchiveDurationMinutes = Number(body.autoArchiveDurationMinutes) || 1440;
+      store.save();
+      broadcastEvent('rooms_updated', { room });
+      sendJson(res, 200, { room });
+      return;
+    }
+
+    if (patchRoomMatch && method === 'DELETE') {
+      const roomId = decodeURIComponent(patchRoomMatch[1]);
+      const idx = db.rooms.findIndex((r) => r.id === roomId);
+      if (idx === -1) {
+        sendJson(res, 404, { error: 'Channel not found' });
+        return;
+      }
+      const [removed] = db.rooms.splice(idx, 1);
+      delete db.messages[roomId];
+      const guild = removed.guildId ? db.guilds.find((g) => g.id === removed.guildId) : null;
+      if (guild && guild.afkChannelId === roomId) {
+        guild.afkChannelId = null;
+      }
+      store.save();
+      broadcastEvent('rooms_updated', { deletedRoomId: roomId });
+      sendJson(res, 200, { ok: true, deletedRoomId: roomId });
+      return;
+    }
+
+    const patchGuildMatch = pathname.match(/^\/api\/guilds\/([^/]+)$/);
+    if (patchGuildMatch && method === 'PATCH') {
+      const guildId = decodeURIComponent(patchGuildMatch[1]);
+      const guild = db.guilds.find((g) => g.id === guildId);
+      if (!guild) {
+        sendJson(res, 404, { error: 'Server not found' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (body.name !== undefined) {
+        guild.name = String(body.name).trim() || guild.name;
+        db.rooms.forEach((r) => {
+          if (r.guildId === guildId) r.guildName = guild.name;
+        });
+      }
+      if (body.afkChannelId !== undefined) {
+        guild.afkChannelId = body.afkChannelId || null;
+        db.rooms.forEach((r) => {
+          if (r.guildId === guildId && r.isVoice) {
+            r.isAfkChannel = r.id === guild.afkChannelId;
+          }
+        });
+      }
+      if (body.afkTimeoutSeconds !== undefined) guild.afkTimeoutSeconds = Math.max(0, Number(body.afkTimeoutSeconds) || 0);
+      if (body.systemChannelId !== undefined) guild.systemChannelId = body.systemChannelId || null;
+      if (body.verificationLevel !== undefined) guild.verificationLevel = body.verificationLevel;
+      if (body.defaultNotifications !== undefined) guild.defaultNotifications = body.defaultNotifications;
+      store.save();
+      broadcastEvent('rooms_updated', { guild });
+      sendJson(res, 200, { guild });
       return;
     }
 

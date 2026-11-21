@@ -51,6 +51,12 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
   const [serverRoomName, setServerRoomName] = useState('');
   const [serverRoomTopic, setServerRoomTopic] = useState('');
   const [serverIsVoice, setServerIsVoice] = useState(false);
+  const [serverBitrate, setServerBitrate] = useState(96);
+  const [serverUserLimit, setServerUserLimit] = useState(0);
+  const [serverIsAfk, setServerIsAfk] = useState(false);
+  const [serverSlowmode, setServerSlowmode] = useState(0);
+  const [serverNsfw, setServerNsfw] = useState(false);
+  const [serverIsPrivate, setServerIsPrivate] = useState(false);
 
   // Sync mode for server: 'entire' = full clone always synced, 'selective' = pick specific channels
   const [serverSyncMode, setServerSyncMode] = useState<'entire' | 'selective'>('entire');
@@ -192,7 +198,18 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
             topic: serverRoomTopic.trim(),
             isGroupChat: false,
             isVoice: serverIsVoice,
-          });
+            ...(serverIsVoice
+              ? {
+                  bitrate: serverBitrate,
+                  userLimit: serverUserLimit,
+                  isAfkChannel: serverIsAfk,
+                }
+              : {
+                  slowmodeSeconds: serverSlowmode,
+                  nsfw: serverNsfw,
+                  isPrivate: serverIsPrivate,
+                }),
+          } as Parameters<typeof matrix.createNativeRoom>[0]);
 
           if (!room) {
             throw new Error('Sign in to create a native server or channel.');
@@ -512,6 +529,88 @@ export const AddConversationModal: React.FC<AddConversationModalProps> = ({
                       <span>Voice Channel</span>
                     </button>
                   </div>
+
+                  {serverIsVoice ? (
+                    <div className="space-y-3 bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] font-semibold text-[var(--text-normal)] mb-1">
+                          <span>Voice Bitrate</span>
+                          <span className="font-mono text-emerald-400">{serverBitrate} kbps</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={8}
+                          max={384}
+                          step={8}
+                          value={serverBitrate}
+                          onChange={(e) => setServerBitrate(Number(e.target.value))}
+                          className="w-full accent-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] font-semibold text-[var(--text-normal)] mb-1">
+                          <span>User Limit</span>
+                          <span className="font-mono text-indigo-300">
+                            {serverUserLimit === 0 ? 'Unlimited' : `${serverUserLimit} members`}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={99}
+                          step={1}
+                          value={serverUserLimit}
+                          onChange={(e) => setServerUserLimit(Number(e.target.value))}
+                          className="w-full accent-indigo-500"
+                        />
+                      </div>
+                      <label className="flex items-center justify-between text-xs text-[var(--text-normal)] cursor-pointer">
+                        <span>Mark as AFK / Sleep Channel</span>
+                        <input
+                          type="checkbox"
+                          checked={serverIsAfk}
+                          onChange={(e) => setServerIsAfk(e.target.checked)}
+                          className="h-4 w-4 accent-amber-500"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[var(--text-normal)]">Slowmode Cooldown</span>
+                        <select
+                          value={serverSlowmode}
+                          onChange={(e) => setServerSlowmode(Number(e.target.value))}
+                          className="rounded-lg border border-[var(--border-subtle)] bg-[#101218] px-2 py-1 text-xs text-white"
+                        >
+                          <option value={0}>Off</option>
+                          <option value={5}>5s</option>
+                          <option value={15}>15s</option>
+                          <option value={30}>30s</option>
+                          <option value={60}>1m</option>
+                          <option value={300}>5m</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center justify-between text-xs text-[var(--text-normal)] cursor-pointer">
+                        <span>Age-Restricted (18+)</span>
+                        <input
+                          type="checkbox"
+                          checked={serverNsfw}
+                          onChange={(e) => setServerNsfw(e.target.checked)}
+                          className="h-4 w-4 accent-rose-500"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between text-xs text-[var(--text-normal)] cursor-pointer">
+                        <span>Private Channel</span>
+                        <input
+                          type="checkbox"
+                          checked={serverIsPrivate}
+                          onChange={(e) => setServerIsPrivate(e.target.checked)}
+                          className="h-4 w-4 accent-indigo-500"
+                        />
+                      </label>
+                    </div>
+                  )}
 
                   <p className="text-xs text-[var(--text-muted)] bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] rounded-xl p-3">
                     Creates a native room that works in both Local and Hybrid modes.

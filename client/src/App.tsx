@@ -12,6 +12,8 @@ import { SettingsModal, type SettingsTab } from './components/SettingsModal';
 import { QuickSwitcherModal } from './components/QuickSwitcherModal';
 import { LoginModal } from './components/LoginModal';
 import { AddConversationModal, type AddModalTab } from './components/AddConversationModal';
+import { ChannelSettingsModal } from './components/ChannelSettingsModal';
+import { ServerSettingsModal } from './components/ServerSettingsModal';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { MinecraftConsoleModal } from './components/MinecraftConsoleModal';
@@ -1110,8 +1112,55 @@ export const App: React.FC = () => {
       : matrix.getUserId()?.split(':')[0].replace('@', '') || 'andrex');
 
   // CRITICAL FIX: Always connect LiveKit Dual-Mode Engine across Guest, Proprietary, and Hybrid modes!
+  const [editingChannel, setEditingChannel] = useState<MatrixRoom | null>(null);
+  const [editingGuild, setEditingGuild] = useState<DiscordGuild | null>(null);
+
+  // Auto-AFK idle timer: route idle voice users to the server's AFK / Sleep channel
+  useEffect(() => {
+    const currentGuild = guilds.find(g => g.id === activeGuildId);
+    if (!activeVoiceRoom || !currentGuild?.afkChannelId || !currentGuild?.afkTimeoutSeconds) return;
+    const timeoutMs = currentGuild.afkTimeoutSeconds * 1000;
+    if (timeoutMs <= 0) return;
+    const afkRoom = rooms.find(r => r.id === currentGuild.afkChannelId && r.isVoice);
+    if (!afkRoom || afkRoom.name === activeVoiceRoom) return;
+
+    let idleTimer: number;
+    const resetIdle = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        void handleJoinVoice(afkRoom);
+      }, timeoutMs);
+    };
+
+    resetIdle();
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    window.addEventListener('mousedown', resetIdle);
+    return () => {
+      window.clearTimeout(idleTimer);
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('mousedown', resetIdle);
+    };
+  }, [activeVoiceRoom, activeGuildId, guilds, rooms]);
+
   const handleJoinVoice = async (room: MatrixRoom) => {
+    if (
+      room.userLimit &&
+      room.userLimit > 0 &&
+      activeVoiceRoom !== room.name &&
+      voiceParticipants.length >= room.userLimit
+    ) {
+      window.alert(`Voice channel "${room.name}" is full (${room.userLimit}/${room.userLimit} members).`);
+      return;
+    }
+    if (room.bitrate) {
+      livekit.setChannelBitrate(room.bitrate);
+    }
     await livekit.joinVoice(room.name, effectiveUserId, effectiveDisplayName);
+    if (room.isAfkChannel) {
+      await livekit.setMute(true);
+    }
     setActiveVoiceRoom(livekit.getActiveRoom() || room.name);
     setVoiceParticipants(livekit.getParticipants());
   };
@@ -1444,6 +1493,8 @@ export const App: React.FC = () => {
                 onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
                 onOpenEquicord={() => setIsEquicordOpen(true)}
                 onOpenScripts={() => setIsScriptsOpen(true)}
+                onEditChannel={ch => setEditingChannel(ch)}
+                onOpenServerSettings={g => setEditingGuild(g)}
               />
             </div>
 
@@ -1532,6 +1583,7 @@ export const App: React.FC = () => {
 
             {/* Chat Area */}
             <ChatArea
+              onEditChannel={ch => setEditingChannel(ch)}
               room={currentRoom}
               messages={messages}
               onSendMessage={handleSendMessage}
@@ -1741,6 +1793,51 @@ export const App: React.FC = () => {
       />
 
       {/* Add / Sync Conversation Modal */}
+      {editingChannel && (
+        <ChannelSettingsModal
+          channel={editingChannel}
+          onClose={() => setEditingChannel(null)}
+          onSave={async (roomId, updates) => {
+            const updated = await matrix.updateRoomSettings(roomId, updates);
+            if (updated) {
+              setRooms(prev => prev.map(r => (r.id === roomId ? updated : r)));
+              setGuilds(prev =>
+                prev.map(g => ({
+                  ...g,
+                  channels: g.channels.map(c => (c.id === roomId ? updated : c)),
+                }))
+              );
+            }
+          }}
+          onDelete={async roomId => {
+            const ok = await matrix.deleteRoom(roomId);
+            if (ok) {
+              setRooms(prev => prev.filter(r => r.id !== roomId));
+              setGuilds(prev =>
+                prev.map(g => ({
+                  ...g,
+                  channels: g.channels.filter(c => c.id !== roomId),
+                }))
+              );
+              if (activeRoomId === roomId) setActiveRoomId(null);
+            }
+          }}
+        />
+      )}
+
+      {editingGuild && (
+        <ServerSettingsModal
+          guild={editingGuild}
+          onClose={() => setEditingGuild(null)}
+          onSave={async (guildId, updates) => {
+            const updated = await matrix.updateGuildSettings(guildId, updates);
+            if (updated) {
+              setGuilds(prev => prev.map(g => (g.id === guildId ? { ...g, ...updated } : g)));
+            }
+          }}
+        />
+      )}
+
       <AddConversationModal
         isOpen={isAddModalOpen}
         initialTab={addModalTab}

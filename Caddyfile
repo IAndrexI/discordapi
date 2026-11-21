@@ -25,7 +25,7 @@
     }
 
     @selfhosted_api {
-        path /api/health* /api/auth* /api/bootstrap* /api/rooms* /api/guilds* /api/discord/quests* /api/discord/settings* /api/discord/guilds* /api/discord/channels* /api/discord/dms* /api/discord/bridge* /api/discord/create-local-room* /api/voice/token* /api/minecraft* /api/scripts* /api/webhooks* /api/files* /api/search* /api/proxy-page* /api/cobrowse*
+        path /api/health* /api/auth* /api/account* /api/bootstrap* /api/rooms* /api/guilds* /api/soundboard* /api/discord/* /api/voice/token* /api/minecraft* /api/scripts* /api/webhooks* /api/files* /api/search* /api/proxy-page* /api/cobrowse*
     }
     handle @selfhosted_api {
         reverse_proxy localhost:4175
@@ -108,7 +108,7 @@
     }
 
     @selfhosted_api {
-        path /api/health* /api/auth* /api/bootstrap* /api/rooms* /api/guilds* /api/discord/quests* /api/discord/settings* /api/discord/guilds* /api/discord/channels* /api/discord/dms* /api/discord/bridge* /api/discord/create-local-room* /api/voice/token* /api/minecraft* /api/scripts* /api/webhooks* /api/files* /api/search* /api/proxy-page* /api/cobrowse*
+        path /api/health* /api/auth* /api/account* /api/bootstrap* /api/rooms* /api/guilds* /api/soundboard* /api/discord/* /api/voice/token* /api/minecraft* /api/scripts* /api/webhooks* /api/files* /api/search* /api/proxy-page* /api/cobrowse*
     }
     handle @selfhosted_api {
         reverse_proxy localhost:4175

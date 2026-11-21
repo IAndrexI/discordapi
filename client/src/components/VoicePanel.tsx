@@ -290,7 +290,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
               {connectionTitle}
             </div>
             <div className="text-[11px] text-[var(--text-muted)] truncate leading-tight">
-              {roomName} • {rtcPing}ms
+              {roomName} • {rtcPing}ms • {livekit.getChannelBitrate()} kbps
             </div>
           </div>
         </div>
