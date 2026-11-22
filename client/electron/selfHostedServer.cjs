@@ -142,8 +142,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: false,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -158,8 +158,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: false,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -174,8 +174,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: false,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -190,8 +190,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: false,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -206,8 +206,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: false,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -222,8 +222,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: true,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -242,8 +242,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: true,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -262,8 +262,8 @@ function createSeedDatabase() {
       isDirect: false,
       isGroupChat: false,
       isVoice: true,
-      guildId: 'guild_protutech_hq',
-      guildName: 'Protutech HQ',
+      guildId: 'guild_polar_ice_caps',
+      guildName: 'Polar Ice Caps',
       isSynced: false,
       syncSource: 'matrix',
       serverKind: 'proprietary',
@@ -397,8 +397,9 @@ function createSeedDatabase() {
 
   const guilds = [
     {
-      id: 'guild_protutech_hq',
-      name: 'Protutech HQ',
+      id: 'guild_polar_ice_caps',
+      name: 'Polar Ice Caps',
+      shortName: 'PIC',
       hasVoice: true,
       isAlwaysSynced: false,
       isProprietary: true,
@@ -408,16 +409,6 @@ function createSeedDatabase() {
       afkTimeoutSeconds: 300,
       verificationLevel: 'low',
       defaultNotifications: 'mentions',
-    },
-    {
-      id: 'guild_discord_bridged',
-      name: 'Bridged Lounge',
-      hasVoice: true,
-      isAlwaysSynced: true,
-      isProprietary: false,
-      serverKind: 'discord',
-      discordGuildId: '987654321098765432',
-      bridgedChannelCount: 4,
     },
   ];
 
@@ -2284,6 +2275,12 @@ function createRequestHandler(dataDir) {
         connected: remote.ok,
         user: remote.data,
       });
+      return;
+    }
+
+    if (pathname === '/discord-qr.html' && method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<!doctype html><html><head><meta charset="utf-8"><title>Protutech Discord QR Portal</title></head><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#16181f;color:#fff;font-family:system-ui,sans-serif;"><div style="max-width:420px;padding:28px;border-radius:16px;background:#1e212b;border:1px solid #2d323e;text-align:center;"><h2 style="margin:0 0 8px;">Discord QR Portal</h2><p style="font-size:13px;color:#949ba4;margin:0 0 18px;">Scan with your phone or click below to sign in to Discord.</p><div style="background:#fff;padding:12px;border-radius:12px;display:inline-block;margin-bottom:16px;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https%3A%2F%2Fdiscord.com%2Flogin" alt="Discord Login QR Code" width="200" height="200" style="display:block;"/></div><div><a href="https://discord.com/login" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#5865f2;color:#fff;text-decoration:none;font-weight:700;font-size:13px;">Open Discord Login</a></div></div></body></html>`);
       return;
     }
 

@@ -21,6 +21,7 @@ import {
 import { DiscordConnectModal } from './components/DiscordConnectModal';
 import { DiscordNativeEmbed } from './components/DiscordNativeEmbed';
 import { ClipsModal } from './components/ClipsModal';
+import { MusicAppsModal } from './components/MusicAppsModal';
 import { clipsService } from './services/clips';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
 import { UserProfileModal } from './components/UserProfileModal';
@@ -1133,6 +1134,7 @@ export const App: React.FC = () => {
   const [isDiscordConnectOpen, setIsDiscordConnectOpen] = useState(false);
   const [isNativeDiscordView, setIsNativeDiscordView] = useState(false);
   const [isClipsOpen, setIsClipsOpen] = useState(false);
+  const [isMusicAppsOpen, setIsMusicAppsOpen] = useState(false);
 
   // Global Discord-style Ctrl + Mouse Wheel Scroll Zoom & Alt+C Instant Clip Hotkey
   useEffect(() => {
@@ -1442,6 +1444,7 @@ export const App: React.FC = () => {
         onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
         onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
         onOpenClips={() => setIsClipsOpen(true)}
+        onOpenMusicApps={() => setIsMusicAppsOpen(true)}
       />
 
       {/* Sandbox Mode Banner */}
@@ -1958,6 +1961,11 @@ export const App: React.FC = () => {
           setIsDiscordConnectOpen(false);
           setIsNativeDiscordView(true);
         }}
+      />
+
+      <MusicAppsModal
+        isOpen={isMusicAppsOpen}
+        onClose={() => setIsMusicAppsOpen(false)}
       />
 
       <ClipsModal

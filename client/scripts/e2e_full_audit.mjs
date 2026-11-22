@@ -380,7 +380,7 @@ async function runAudit() {
           // Home/DMs switch and back
           await page.locator('aside[aria-label="Servers"] button[aria-label="Direct Messages"]').click();
           await assertInViewport(page.locator('input[aria-label="Search conversations"]'), 'Home Search conversations input');
-          await page.locator('aside[aria-label="Servers"] button[aria-label="Protutech HQ"]').click();
+          await page.locator('aside[aria-label="Servers"] button').nth(1).click();
           await page.locator('textarea[aria-label^="Message #"]').waitFor({ state: 'visible', timeout: 5000 });
 
           // MemberList toggle & UserProfileModal

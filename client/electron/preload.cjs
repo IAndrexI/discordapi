@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTrayBadge: (count) => ipcRenderer.send('set-badge', count),
   setAppIcon: (dataUrl) => ipcRenderer.send('set-app-icon', dataUrl),
   relaunchApp: () => ipcRenderer.send('relaunch-app'),
+  downloadAndInstallUpdate: (url) => ipcRenderer.invoke('download-and-install-update', url),
   clearCacheAndReload: () => ipcRenderer.send('clear-cache-and-reload'),
   setZoomFactor: (factor) => ipcRenderer.send('set-zoom-factor', factor),
   getZoomFactor: () => ipcRenderer.invoke('get-zoom-factor'),

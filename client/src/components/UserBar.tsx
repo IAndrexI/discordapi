@@ -59,6 +59,21 @@ export const UserBar: React.FC<UserBarProps> = ({
     overlayService.getConfig()
   );
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [customStatusEmoji, setCustomStatusEmoji] = useState<string>(() => {
+    try {
+      return localStorage.getItem('protutech_custom_status_emoji') || '⚡';
+    } catch {
+      return '⚡';
+    }
+  });
+  const updateStatusEmoji = (emoji: string) => {
+    setCustomStatusEmoji(emoji);
+    try {
+      localStorage.setItem('protutech_custom_status_emoji', emoji);
+    } catch {
+      // Ignore
+    }
+  };
   const [statusDraft, setStatusDraft] = useState(profile.customStatus);
   const [statusEmoji, setStatusEmoji] = useState(profile.customStatusEmoji || '⚡');
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -275,6 +290,38 @@ export const UserBar: React.FC<UserBarProps> = ({
                 )}
               </button>
             ))}
+          </div>
+
+          {/* Custom Status Emoji Picker (Preset Strip + Custom Input) */}
+          <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-1">
+              <span>Status Emoji</span>
+              <span className="text-sm">{customStatusEmoji}</span>
+            </div>
+            <div className="flex items-center gap-1 flex-wrap px-1">
+              {['⚡', '🎮', '🎵', '💤', '🔥', '🧊', '🚀', 'o7', '¯\\_(ツ)_/¯'].map(em => (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => updateStatusEmoji(em)}
+                  className={`px-1.5 py-0.5 rounded text-xs cursor-pointer transition-colors ${
+                    customStatusEmoji === em
+                      ? 'bg-[var(--discord-blurple)] text-white'
+                      : 'bg-[var(--bg-channels)] hover:bg-[var(--bg-item-hover)] text-[var(--text-normal)]'
+                  }`}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={customStatusEmoji}
+              onChange={e => updateStatusEmoji(e.target.value)}
+              placeholder="Any emoji or ASCII..."
+              aria-label="Custom status emoji"
+              className="w-full rounded bg-[var(--bg-channels)] border border-[var(--border-subtle)] px-2 py-1 text-xs text-[var(--text-header)] focus:border-[var(--discord-blurple)] focus:outline-none"
+            />
           </div>
 
           {/* Custom Status Input */}

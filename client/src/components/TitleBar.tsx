@@ -46,6 +46,7 @@ export interface ElectronAPI {
   onToggleDeafen?: (callback: () => void) => () => void;
   onJoinVoice?: (callback: (roomName: string) => void) => () => void;
   relaunchApp?: () => void;
+  downloadAndInstallUpdate?: (url?: string) => Promise<{ ok: boolean; path?: string; error?: string }>;
   clearCacheAndReload?: () => void;
   setZoomFactor?: (factor: number) => void;
   getZoomFactor?: () => Promise<number>;
@@ -84,6 +85,7 @@ export interface TitleBarProps {
   onOpenLargeFileShare?: () => void;
   onOpenCameraPreview?: () => void;
   onOpenClips?: () => void;
+  onOpenMusicApps?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -107,6 +109,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onOpenLargeFileShare,
   onOpenCameraPreview,
   onOpenClips,
+  onOpenMusicApps,
 }) => {
   const isDesktop = desktopBridge.isDesktopApp();
   const runtimeKind = desktopBridge.getRuntimeKind();
@@ -405,6 +408,20 @@ export const TitleBar: React.FC<TitleBarProps> = ({
                     <span className="flex items-center gap-2">
                       <Camera className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Instant Clips (Alt+C)</span>
+                    </span>
+                  </button>
+                )}
+                {onOpenMusicApps && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-music-apps-btn"
+                    onClick={() => runMenuAction(onOpenMusicApps)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Music className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Music Apps (Spotify / SoulSync)</span>
                     </span>
                   </button>
                 )}

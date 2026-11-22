@@ -125,6 +125,7 @@ export interface MatrixRoom {
 export interface DiscordGuild {
   id: string;
   name: string;
+  shortName?: string;
   iconUrl?: string;
   channels: MatrixRoom[];
   hasVoice?: boolean;

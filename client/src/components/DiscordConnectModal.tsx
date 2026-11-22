@@ -525,16 +525,25 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
             </p>
           </div>
 
-          {/* QR Code Option */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-[#12141a] border border-[#232734]">
-            <div className="flex items-center gap-2.5">
-              <QrCode className="w-4 h-4 text-emerald-400" />
+          {/* QR Code Option (Always Displays Scannable QR) */}
+          <div className="p-4 rounded-xl bg-[#12141a] border border-[#232734] flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="bg-white p-1.5 rounded-lg flex-shrink-0">
+                <img
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=https%3A%2F%2Fdiscord.com%2Flogin"
+                  alt="Discord Login QR Code"
+                  width={84}
+                  height={84}
+                  className="block rounded"
+                />
+              </div>
               <div>
-                <span className="font-semibold text-white text-xs block">
-                  Scan QR with Discord Mobile App
+                <span className="font-semibold text-white text-xs flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Scan QR with Discord Mobile App</span>
                 </span>
-                <span className="text-[11px] text-[#72767d]">
-                  For self-hosted mautrix-discord bridge login
+                <span className="text-[11px] text-[#949ba4] block mt-0.5">
+                  Scan to open Discord Login on mobile or click to open the QR Portal.
                 </span>
               </div>
             </div>

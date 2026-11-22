@@ -752,6 +752,37 @@ ipcMain.handle('open-shared-browser', (_, targetUrl) => {
   }
 });
 
+// Discord-style App Relaunch & Real Installer Auto-Updater
+ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
+  try {
+    const targetUrl = String(
+      downloadUrl || 'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe'
+    );
+    const res = await fetch(targetUrl, { redirect: 'follow' });
+    if (!res.ok) {
+      return { ok: false, error: `Download failed (${res.status})` };
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    if (buffer.length < 100000) {
+      return { ok: false, error: 'Downloaded installer is incomplete.' };
+    }
+    const destPath = path.join(app.getPath('temp'), 'ProtutechChat-Setup-Update.exe');
+    fs.writeFileSync(destPath, buffer);
+    const errMsg = await shell.openPath(destPath);
+    if (errMsg) {
+      return { ok: false, error: errMsg };
+    }
+    setTimeout(() => {
+      isQuitting = true;
+      app.quit();
+    }, 600);
+    return { ok: true, path: destPath };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Failed to download update.' };
+  }
+});
+
 // Discord-style App Relaunch & In-Place Update Handler
 ipcMain.on('relaunch-app', () => {
   app.relaunch();

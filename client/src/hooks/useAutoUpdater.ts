@@ -157,7 +157,13 @@ export function useAutoUpdater() {
     setUpdateAvailable(false);
   }, []);
 
-  const restartAndApplyUpdate = useCallback(() => {
+  const restartAndApplyUpdate = useCallback(async () => {
+    if (typeof window !== 'undefined' && window.electronAPI?.downloadAndInstallUpdate) {
+      const res = await window.electronAPI.downloadAndInstallUpdate(
+        'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe'
+      );
+      if (res.ok) return;
+    }
     if (typeof window !== 'undefined' && window.electronAPI?.relaunchApp) {
       window.electronAPI.relaunchApp();
     } else {

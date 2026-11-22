@@ -16,6 +16,21 @@ export interface ServerRailProps {
   onToggleNativeDiscordView?: () => void;
 }
 
+function getServerInitials(guild: DiscordGuild): string {
+  if (guild.shortName && guild.shortName.trim()) {
+    return guild.shortName.trim().slice(0, 3).toUpperCase();
+  }
+  const words = guild.name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words
+      .slice(0, 3)
+      .map(w => w[0])
+      .join('')
+      .toUpperCase();
+  }
+  return guild.name.trim().slice(0, 3).toUpperCase() || 'SRV';
+}
+
 function isDiscordBridgedGuild(guild: DiscordGuild): boolean {
   if (guild.serverKind === 'proprietary' || guild.isProprietary) return false;
   if (guild.serverKind === 'discord') return true;
@@ -98,13 +113,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
       <div className="w-full flex flex-col items-center gap-2">
         {visibleGuilds.map(guild => {
           const isActive = activeGuildId === guild.id;
-          const initials = guild.name
-            .split(' ')
-            .filter(Boolean)
-            .map(w => w[0])
-            .join('')
-            .slice(0, 3)
-            .toUpperCase();
+          const initials = getServerInitials(guild);
 
           return (
             <div
@@ -172,9 +181,11 @@ export const ServerRail: React.FC<ServerRailProps> = ({
           </button>
         </div>
 
-        {/* Native Embedded Discord (Vesktop / Equicord Mode) */}
+        {/* Native Embedded Discord (Vesktop / Equicord Extension Mode) */}
         {onToggleNativeDiscordView && (
-          <div className="relative group flex items-center justify-center w-full pb-2 flex-shrink-0">
+          <>
+            <div className="w-7 h-px bg-[var(--border-subtle)] my-1 flex-shrink-0" />
+            <div className="relative group flex items-center justify-center w-full pb-2 flex-shrink-0">
             <button
               type="button"
               onClick={onToggleNativeDiscordView}
@@ -191,6 +202,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
               <MessageSquare className="w-5 h-5" />
             </button>
           </div>
+          </>
         )}
       </div>
     </aside>

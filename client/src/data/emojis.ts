@@ -7,7 +7,8 @@ export type EmojiCategory =
   | 'Travel & Places'
   | 'Objects'
   | 'Symbols'
-  | 'Flags';
+  | 'Flags'
+  | 'ASCII & Kaomoji';
 
 export interface EmojiItem {
   emoji: string;
@@ -27,6 +28,7 @@ export const EMOJI_CATEGORIES: Array<{ id: EmojiCategory; icon: string; label: s
   { id: 'Objects', icon: '💡', label: 'Objects' },
   { id: 'Symbols', icon: '❤️', label: 'Symbols' },
   { id: 'Flags', icon: '🏁', label: 'Flags' },
+  { id: 'ASCII & Kaomoji', icon: '^_^', label: 'ASCII' },
 ];
 
 export const SKIN_TONES = [
@@ -512,6 +514,42 @@ export const ALL_EMOJIS: EmojiItem[] = [
     ['🇧🇷', 'br', ['brazil']],
     ['🇦🇺', 'au', ['australia']],
     ['🇪🇺', 'eu', ['europe']],
+  ]),
+  ...expand('ASCII & Kaomoji', [
+    ['¯\\_(ツ)_/¯', 'shrug', ['shrug', 'idk', 'ascii']],
+    ['(╯°□°）╯︵ ┻━┻', 'tableflip', ['flip', 'angry', 'ascii']],
+    ['┬─┬ノ( º _ ºノ)', 'unflip', ['table', 'calm', 'ascii']],
+    ['( ͡° ͜ʖ ͡°)', 'lenny', ['lenny', 'face', 'ascii']],
+    ['ಠ_ಠ', 'disapproval', ['stare', 'judge', 'ascii']],
+    ['(づ｡◕‿‿◕｡)づ', 'hug', ['hug', 'cute', 'ascii']],
+    ['ʕ•ᴥ•ʔ', 'bear', ['bear', 'cute', 'ascii']],
+    ['o7', 'salute', ['salute', 'respect', 'ascii']],
+    [':D', 'big_smile', ['happy', 'grin', 'ascii']],
+    [':)', 'smile', ['happy', 'ascii']],
+    [':(', 'sad', ['frown', 'ascii']],
+    [';)', 'wink', ['wink', 'ascii']],
+    ['XD', 'laugh_xd', ['lol', 'laugh', 'ascii']],
+    ['<3', 'ascii_heart', ['love', 'heart', 'ascii']],
+    ['</3', 'broken_heart_ascii', ['sad', 'heartbreak', 'ascii']],
+    ['>_<', 'cringe', ['oops', 'ascii']],
+    ['T_T', 'crying_ascii', ['cry', 'sad', 'ascii']],
+    ['O_O', 'shocked_ascii', ['wow', 'shock', 'ascii']],
+    ['o_O', 'confused_ascii', ['wat', 'confused', 'ascii']],
+    ['-_-', 'deadpan', ['bruh', 'meh', 'ascii']],
+    ['^.^', 'joy_ascii', ['cute', 'happy', 'ascii']],
+    ['UwU', 'uwu', ['cute', 'anime', 'ascii']],
+    ['OwO', 'owo', ['notice', 'cute', 'ascii']],
+    [':3', 'cat_face', ['cat', 'cute', 'ascii']],
+    ['(☞ﾟヮﾟ)☞', 'finger_guns_r', ['ayy', 'cool', 'ascii']],
+    ['☜(ﾟヮﾟ☜)', 'finger_guns_l', ['ayy', 'cool', 'ascii']],
+    ['(ง\'̀-\'́)ง', 'fight_me', ['box', 'fight', 'ascii']],
+    ['(╥﹏╥)', 'sobbing', ['cry', 'sad', 'ascii']],
+    ['♥‿♥', 'heart_eyes_ascii', ['love', 'ascii']],
+    ['ヾ(⌐■_■)ノ♪', 'cool_music', ['dance', 'vibe', 'ascii']],
+    ['(*^▽^*)', 'sparkle_happy', ['happy', 'cute', 'ascii']],
+    ['༼ つ ◕_◕ ༽つ', 'give_energy', ['gimme', 'pls', 'ascii']],
+    ['¬_¬', 'side_eye', ['sus', 'doubt', 'ascii']],
+    ['¯\\_(°_o)_/¯', 'confused_shrug', ['idk', 'ascii']],
   ]),
 ];
 

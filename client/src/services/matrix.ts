@@ -232,75 +232,70 @@ function buildFallbackSeedRooms(mode: EngineMode): {
   rooms: MatrixRoom[];
   guilds: DiscordGuild[];
 } {
-  const hqRoom: MatrixRoom = {
-    id: '!proto_general:local.protutech',
+  const picRoom: MatrixRoom = {
+    id: '!pic_general:local.protutech',
     name: 'general',
-    topic: 'Protutech HQ — Self-Hosted Workspace',
+    topic: 'Polar Ice Caps (PIC) — Self-Hosted Workspace',
     isDirect: false,
     isGroupChat: false,
     isVoice: false,
-    guildId: 'guild_protutech_hq',
-    guildName: 'Protutech HQ',
+    guildId: 'guild_polar_ice_caps',
+    guildName: 'Polar Ice Caps',
     isSynced: false,
     syncSource: 'matrix',
     serverKind: 'proprietary',
     members: [],
     unreadCount: 0,
   };
-  const hqVoice: MatrixRoom = {
-    id: '!proto_voice:local.protutech',
-    name: '🔊 Protutech Voice Lounge',
+  const picVoice: MatrixRoom = {
+    id: '!pic_voice:local.protutech',
+    name: '🔊 Voice Lounge',
     topic: 'Ultra-Low Latency Voice, Camera & Screen Share',
     isDirect: false,
     isGroupChat: false,
     isVoice: true,
-    guildId: 'guild_protutech_hq',
-    guildName: 'Protutech HQ',
+    bitrate: 96,
+    userLimit: 0,
+    guildId: 'guild_polar_ice_caps',
+    guildName: 'Polar Ice Caps',
     isSynced: false,
     syncSource: 'matrix',
     serverKind: 'proprietary',
     members: [],
     unreadCount: 0,
   };
-  const hqGuild: DiscordGuild = {
-    id: 'guild_protutech_hq',
-    name: 'Protutech HQ',
-    channels: [hqRoom, hqVoice],
+  const picAfk: MatrixRoom = {
+    id: '!pic_afk:local.protutech',
+    name: '💤 AFK / Sleep',
+    topic: 'Idle users are routed here automatically',
+    isDirect: false,
+    isGroupChat: false,
+    isVoice: true,
+    bitrate: 8,
+    userLimit: 0,
+    isAfkChannel: true,
+    guildId: 'guild_polar_ice_caps',
+    guildName: 'Polar Ice Caps',
+    isSynced: false,
+    syncSource: 'matrix',
+    serverKind: 'proprietary',
+    members: [],
+    unreadCount: 0,
+  };
+  const picGuild: DiscordGuild = {
+    id: 'guild_polar_ice_caps',
+    name: 'Polar Ice Caps',
+    shortName: 'PIC',
+    channels: [picRoom, picVoice, picAfk],
     hasVoice: true,
     isAlwaysSynced: false,
     isProprietary: true,
     serverKind: 'proprietary',
+    afkChannelId: '!pic_afk:local.protutech',
+    afkTimeoutSeconds: 300,
   };
 
-  if (mode === 'proprietary') {
-    return { rooms: [hqRoom, hqVoice], guilds: [hqGuild] };
-  }
-
-  const dcRoom: MatrixRoom = {
-    id: '!disc_general:local.protutech',
-    name: 'bridge-general',
-    topic: 'Hybrid Bridged Lounge',
-    isDirect: false,
-    isGroupChat: false,
-    isVoice: false,
-    guildId: 'guild_discord_bridged',
-    guildName: 'Bridged Lounge',
-    isSynced: true,
-    syncSource: 'discord',
-    serverKind: 'discord',
-    members: [],
-    unreadCount: 0,
-  };
-  const dcGuild: DiscordGuild = {
-    id: 'guild_discord_bridged',
-    name: 'Bridged Lounge',
-    channels: [dcRoom],
-    hasVoice: true,
-    isAlwaysSynced: true,
-    serverKind: 'discord',
-  };
-
-  return { rooms: [hqRoom, hqVoice, dcRoom], guilds: [hqGuild, dcGuild] };
+  return { rooms: [picRoom, picVoice, picAfk], guilds: [picGuild] };
 }
 
 export class MatrixClientService {
