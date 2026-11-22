@@ -70,6 +70,7 @@ export interface VoicePanelProps {
   onOpenSoundboard?: () => void;
   isSoundboardOpen?: boolean;
   onOpenCameraPreview?: () => void;
+  onOpenClips?: () => void;
 }
 
 export const VoicePanel: React.FC<VoicePanelProps> = ({
@@ -81,6 +82,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
   onOpenSoundboard,
   isSoundboardOpen = false,
   onOpenCameraPreview,
+  onOpenClips,
 }) => {
   const [hasVideo, setHasVideo] = useState(() => livekit.isCameraEnabled());
   const [localVideoTrack, setLocalVideoTrack] = useState<MediaStreamTrack | null>(null);
@@ -426,6 +428,33 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
           <Volume2 className="w-3 h-3" />
           <span>{micLoopback ? 'Playback ON' : 'Hear Self'}</span>
         </button>
+        {onOpenCoBrowse && (
+          <button
+            type="button"
+            data-testid="voice-stream-website-btn"
+            onClick={onOpenCoBrowse}
+            title="Stream Website (Shared Chromium Browser)"
+            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0 border ${
+              isCoBrowsing
+                ? 'bg-[var(--discord-blurple)]/25 text-[var(--accent-cyan)] border-[var(--discord-blurple)]/50'
+                : 'bg-[var(--bg-card)] text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-[var(--border-subtle)]'
+            }`}
+          >
+            <Globe className="w-3 h-3" />
+            <span>Stream Web</span>
+          </button>
+        )}
+        {onOpenClips && (
+          <button
+            type="button"
+            data-testid="voice-clips-btn"
+            onClick={onOpenClips}
+            title="Instant Replay & Clips (Alt+C)"
+            className="px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0 border bg-[var(--bg-card)] text-[var(--text-normal)] hover:text-[var(--text-header)] hover:bg-[var(--bg-item-hover)] border-[var(--border-subtle)]"
+          >
+            <span>Clip</span>
+          </button>
+        )}
       </div>
 
       {/* Floating Upward Voice Quality Settings Popover */}
@@ -434,7 +463,7 @@ export const VoicePanel: React.FC<VoicePanelProps> = ({
           ref={settingsPopoverRef}
           role="dialog"
           aria-label="Voice Settings"
-          className="absolute bottom-full mb-2 left-2 right-2 z-[90] max-h-[calc(55vh/var(--app-zoom,1))] overflow-y-auto shadow-2xl p-2.5 rounded-lg bg-[var(--bg-popout)] border border-[var(--border-subtle)] space-y-2 text-xs animate-fadeIn"
+          className="absolute bottom-full mb-2 left-2 right-2 z-[9999] max-h-[calc(55vh/var(--app-zoom,1))] overflow-y-auto shadow-2xl p-2.5 rounded-lg bg-[var(--bg-popout)] border border-[var(--border-subtle)] space-y-2 text-xs animate-fadeIn"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[var(--text-normal)]">

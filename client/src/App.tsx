@@ -19,6 +19,8 @@ import {
   isDiscordLatencyWarningSuppressed,
 } from './components/DiscordCallWarningModal';
 import { DiscordConnectModal } from './components/DiscordConnectModal';
+import { ClipsModal } from './components/ClipsModal';
+import { clipsService } from './services/clips';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { MinecraftConsoleModal } from './components/MinecraftConsoleModal';
@@ -1128,6 +1130,32 @@ export const App: React.FC = () => {
   const [editingGuild, setEditingGuild] = useState<DiscordGuild | null>(null);
   const [pendingDiscordCallRoom, setPendingDiscordCallRoom] = useState<MatrixRoom | null>(null);
   const [isDiscordConnectOpen, setIsDiscordConnectOpen] = useState(false);
+  const [isClipsOpen, setIsClipsOpen] = useState(false);
+
+  // Global Discord-style Ctrl + Mouse Wheel Scroll Zoom & Alt+C Instant Clip Hotkey
+  useEffect(() => {
+    const handleWheelZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) zoomService.zoomIn();
+        else if (e.deltaY > 0) zoomService.zoomOut();
+      }
+    };
+    const handleClipHotkey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        void clipsService.captureInstantClip(activeVoiceRoom || undefined).then(() => {
+          setIsClipsOpen(true);
+        });
+      }
+    };
+    window.addEventListener('wheel', handleWheelZoom, { passive: false });
+    window.addEventListener('keydown', handleClipHotkey);
+    return () => {
+      window.removeEventListener('wheel', handleWheelZoom);
+      window.removeEventListener('keydown', handleClipHotkey);
+    };
+  }, [activeVoiceRoom]);
 
   // Auto-AFK idle timer: route idle voice users to the server's AFK / Sleep channel
   useEffect(() => {
@@ -1194,6 +1222,15 @@ export const App: React.FC = () => {
   };
 
   const handleJoinDiscordCall = async (room: MatrixRoom) => {
+    // Smart Group Call Routing: if everyone in the group has Protutech installed, use the faster native LiveKit SFU; otherwise default back to Discord!
+    const allHaveProtutech =
+      room.isGroupChat &&
+      room.members.length > 0 &&
+      room.members.every(m => m.hasProtutechApp !== false && !m.isDiscordBridged);
+    if (allHaveProtutech) {
+      await handleJoinVoice(room);
+      return;
+    }
     if (isDiscordLatencyWarningSuppressed()) {
       await executeJoinDiscordCall(room);
       return;
@@ -1402,6 +1439,7 @@ export const App: React.FC = () => {
         onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
         onOpenMinecraftConsole={() => setIsMinecraftConsoleOpen(true)}
         onOpenLargeFileShare={() => setIsLargeFileModalOpen(true)}
+        onOpenClips={() => setIsClipsOpen(true)}
       />
 
       {/* Sandbox Mode Banner */}
@@ -1533,6 +1571,7 @@ export const App: React.FC = () => {
                 onOpenSoundboard={() => setIsSoundboardOpen(prev => !prev)}
                 isSoundboardOpen={isSoundboardOpen}
                 onOpenCameraPreview={() => setIsCameraPreviewOpen(true)}
+                onOpenClips={() => setIsClipsOpen(true)}
               />
             )}
 
@@ -1896,6 +1935,17 @@ export const App: React.FC = () => {
         onClose={() => setIsDiscordConnectOpen(false)}
         onConnected={() => {
           void loadData();
+        }}
+      />
+
+      <ClipsModal
+        isOpen={isClipsOpen}
+        onClose={() => setIsClipsOpen(false)}
+        activeRoomName={activeVoiceRoom || rooms.find(r => r.id === activeRoomId)?.name}
+        onShareClipToChat={clip => {
+          if (activeRoomId) {
+            void handleSendMessage(`🎬 Shared Instant Clip: ${clip.title} (${clip.durationSec}s)`);
+          }
         }}
       />
 

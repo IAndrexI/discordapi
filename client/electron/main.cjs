@@ -185,6 +185,46 @@ function sortSourcesScreenFirst(sources) {
   });
 }
 
+function getDesktopPrefsPath() {
+  return path.join(app.getPath('userData'), 'desktop-prefs.json');
+}
+
+function loadDesktopPrefs() {
+  try {
+    const raw = fs.readFileSync(getDesktopPrefsPath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      openAtLogin: Boolean(parsed.openAtLogin),
+      startMinimized: Boolean(parsed.startMinimized),
+      closeBehavior: parsed.closeBehavior === 'exit' ? 'exit' : 'minimize',
+    };
+  } catch {
+    return { openAtLogin: false, startMinimized: false, closeBehavior: 'minimize' };
+  }
+}
+
+function saveDesktopPrefs(next) {
+  const merged = {
+    ...loadDesktopPrefs(),
+    ...next,
+    closeBehavior: next.closeBehavior === 'exit' ? 'exit' : (next.closeBehavior === 'minimize' ? 'minimize' : loadDesktopPrefs().closeBehavior),
+  };
+  try {
+    fs.writeFileSync(getDesktopPrefsPath(), JSON.stringify(merged, null, 2), 'utf8');
+  } catch {
+    // Ignore write failure
+  }
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: Boolean(merged.openAtLogin),
+      args: merged.startMinimized ? ['--minimized'] : [],
+    });
+  } catch {
+    // Ignore on unsupported platforms
+  }
+  return merged;
+}
+
 function createWindow() {
   const iconPath = path.join(__dirname, 'icon.png');
   const initialBounds = resolveInitialBounds();
@@ -207,6 +247,7 @@ function createWindow() {
       nodeIntegration: false,
       webSecurity: false,
       backgroundThrottling: false,
+      webviewTag: true,
     },
   });
 
@@ -312,10 +353,11 @@ function createWindow() {
     scheduleSaveBounds();
   });
 
-  // Minimize to tray on close
+  // Respect user's closeBehavior preference ('minimize' to tray vs 'exit' app)
   mainWindow.on('close', (event) => {
     saveWindowBoundsNow();
-    if (!isQuitting) {
+    const prefs = loadDesktopPrefs();
+    if (!isQuitting && prefs.closeBehavior !== 'exit') {
       event.preventDefault();
       mainWindow.hide();
       if (tray && process.platform === 'win32' && typeof tray.displayBalloon === 'function') {
@@ -325,6 +367,8 @@ function createWindow() {
           content: 'Running in the background. Double-click tray icon to restore.',
         });
       }
+    } else {
+      isQuitting = true;
     }
   });
 
@@ -598,6 +642,113 @@ ipcMain.handle('open-discord-call', (_, targetUrl) => {
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err?.message || 'Failed to open Discord call window.' };
+  }
+});
+
+// Desktop Startup & Close Behavior Preferences
+ipcMain.handle('get-desktop-prefs', () => {
+  return loadDesktopPrefs();
+});
+
+ipcMain.handle('set-desktop-prefs', (_, updates) => {
+  return saveDesktopPrefs(updates || {});
+});
+
+// Built-in Discord Sign-In Window (captures session token cleanly after user signs in)
+let discordLoginWindow = null;
+ipcMain.handle('open-discord-login', () => {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (payload) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(payload);
+    };
+
+    try {
+      if (discordLoginWindow && !discordLoginWindow.isDestroyed()) {
+        discordLoginWindow.focus();
+        return;
+      }
+
+      discordLoginWindow = new BrowserWindow({
+        width: 980,
+        height: 740,
+        title: 'Sign in to Discord — Protutech',
+        icon: path.join(__dirname, 'icon.png'),
+        backgroundColor: '#1e1f22',
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          partition: 'persist:discord-login',
+        },
+      });
+
+      const loginSession = discordLoginWindow.webContents.session;
+      const filter = { urls: ['https://discord.com/api/*'] };
+      loginSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+        const auth = details.requestHeaders?.Authorization || details.requestHeaders?.authorization;
+        if (
+          auth &&
+          typeof auth === 'string' &&
+          auth.length > 25 &&
+          !auth.startsWith('Basic ') &&
+          !auth.startsWith('Bearer ')
+        ) {
+          finish({ ok: true, token: auth.trim() });
+          if (discordLoginWindow && !discordLoginWindow.isDestroyed()) {
+            discordLoginWindow.close();
+          }
+        }
+        callback({ requestHeaders: details.requestHeaders });
+      });
+
+      discordLoginWindow.on('closed', () => {
+        discordLoginWindow = null;
+        finish({ ok: false, cancelled: true });
+      });
+
+      discordLoginWindow.loadURL('https://discord.com/login');
+    } catch (err) {
+      finish({ ok: false, error: err?.message || 'Failed to open Discord sign-in window.' });
+    }
+  });
+});
+
+// Real Chromium Shared Browser Host Window
+let sharedBrowserWindow = null;
+ipcMain.handle('open-shared-browser', (_, targetUrl) => {
+  try {
+    const raw = String(targetUrl || 'https://www.youtube.com');
+    const urlStr = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    if (sharedBrowserWindow && !sharedBrowserWindow.isDestroyed()) {
+      sharedBrowserWindow.loadURL(urlStr);
+      sharedBrowserWindow.focus();
+      return { ok: true };
+    }
+    sharedBrowserWindow = new BrowserWindow({
+      width: 1200,
+      height: 780,
+      title: 'Protutech — Shared Chromium Browser',
+      icon: path.join(__dirname, 'icon.png'),
+      backgroundColor: '#0b0e14',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        partition: 'persist:shared-browser',
+      },
+    });
+    sharedBrowserWindow.on('closed', () => {
+      sharedBrowserWindow = null;
+    });
+    sharedBrowserWindow.loadURL(urlStr);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Failed to launch Chromium browser.' };
   }
 });
 

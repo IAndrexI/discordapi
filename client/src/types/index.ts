@@ -27,6 +27,7 @@ export interface MatrixUser {
   avatarDecoration?: 'none' | 'cyber_ring' | 'neon_pulse' | 'plasma_aura' | 'discord_crown';
   badges?: string[];
   isDiscordBridged?: boolean;
+  hasProtutechApp?: boolean;
 }
 
 export interface GameInvite {
@@ -83,6 +84,11 @@ export interface MatrixMessage {
     avatarUrl?: string;
     bridge?: 'minecraft' | 'discord' | 'script' | 'webhook';
     serverName?: string;
+  };
+  poll?: {
+    question: string;
+    options: Array<{ id: string; text: string; votes: string[] }>;
+    allowMultiple?: boolean;
   };
 }
 

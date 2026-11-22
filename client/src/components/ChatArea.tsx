@@ -514,7 +514,7 @@ const MessageRow = React.memo<MessageRowProps>(
                 <div
                   className={`absolute right-0 ${
                     isTopMessage ? 'top-full mt-1' : 'bottom-full mb-1'
-                  } z-[70]`}
+                  } z-[9999]`}
                 >
                   <EmojiPicker
                     ariaLabel="Reaction Picker"
@@ -912,7 +912,7 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
 
             {showPlusMenu && (
               <div
-                className="absolute left-0 bottom-full mb-2.5 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
+                className="absolute left-0 bottom-full mb-2.5 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[9999] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
                 role="menu"
               >
                 <button
@@ -982,13 +982,17 @@ const ChatInputBar = React.memo<ChatInputBarProps>(
               <Smile className="w-5 h-5" />
             </button>
             {showEmojiTray && (
-              <div className="absolute right-0 bottom-full mb-2 z-[80]">
+              <div className="absolute right-0 bottom-full mb-2 z-[9999]">
                 <EmojiPicker
                   ariaLabel="Emoji Picker"
                   onSelect={emoji => {
                     setInputText(prev => prev + emoji);
                     setShowEmojiTray(false);
                     textareaRef.current?.focus();
+                  }}
+                  onSelectGif={gifUrl => {
+                    onSendMessage(gifUrl);
+                    setShowEmojiTray(false);
                   }}
                   onClose={() => setShowEmojiTray(false)}
                 />
@@ -1391,7 +1395,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
             {showToolsMenu && (
               <div
-                className="absolute right-0 top-9 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
+                className="absolute right-0 top-9 w-48 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-md shadow-2xl p-1.5 z-[9999] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-xs text-[var(--text-normal)]"
                 role="menu"
               >
                 {onOpenLargeFileShare && (
@@ -1511,7 +1515,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             data-testid="chat-pins-popover"
             role="dialog"
             aria-label="Pinned Messages"
-            className="absolute right-3 top-11 w-80 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-2.5 z-[80] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-[var(--text-normal)]"
+            className="absolute right-3 top-11 w-80 max-w-[calc(100vw/var(--app-zoom,1)-24px)] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-2.5 z-[9999] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto text-[var(--text-normal)]"
           >
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-subtle)]">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-header)]">

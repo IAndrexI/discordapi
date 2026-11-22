@@ -209,7 +209,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
           {serverMenuOpen && (
             <div
-              className="absolute top-[52px] left-2 right-2 bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-1.5 z-[80] max-h-[calc(100vh/var(--app-zoom,1)-100px)] overflow-y-auto text-xs text-[var(--text-normal)] animate-fadeIn"
+              className="fixed top-[80px] left-[80px] w-[224px] bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-1.5 z-[9999] max-h-[calc(100vh/var(--app-zoom,1)-100px)] overflow-y-auto text-xs text-[var(--text-normal)] animate-fadeIn"
               role="menu"
             >
               <button

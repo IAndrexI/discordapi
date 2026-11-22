@@ -2417,6 +2417,56 @@ function createRequestHandler(dataDir) {
       return;
     }
 
+    if (pathname === '/api/discord/emojis' && method === 'GET') {
+      const customEmojis = [];
+      if (discordToken) {
+        const guildsRes = await fetchDiscordApi('/users/@me/guilds', discordToken);
+        if (guildsRes.ok && Array.isArray(guildsRes.data)) {
+          const slice = guildsRes.data.slice(0, 8);
+          for (const g of slice) {
+            const emRes = await fetchDiscordApi(`/guilds/${encodeURIComponent(g.id)}/emojis`, discordToken);
+            if (emRes.ok && Array.isArray(emRes.data)) {
+              for (const em of emRes.data.slice(0, 30)) {
+                customEmojis.push({
+                  id: String(em.id),
+                  name: String(em.name || 'emoji'),
+                  animated: Boolean(em.animated),
+                  guildId: String(g.id),
+                  guildName: String(g.name || 'Discord Server'),
+                  url: `https://cdn.discordapp.com/emojis/${em.id}.${em.animated ? 'gif' : 'webp'}?size=64&quality=lossless`,
+                });
+              }
+            }
+          }
+        }
+      }
+      sendJson(res, 200, { emojis: customEmojis });
+      return;
+    }
+
+    if (pathname === '/api/gifs/search' && method === 'GET') {
+      const q = String(urlObj.searchParams.get('q') || '').trim().toLowerCase();
+      const catalog = [
+        { id: 'gif_gg', title: 'GG Victory', tags: ['gg', 'win', 'gaming', 'victory'], url: 'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif' },
+        { id: 'gif_hype', title: 'Hype Dance', tags: ['hype', 'dance', 'party', 'excited'], url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' },
+        { id: 'gif_cat', title: 'Vibing Cat', tags: ['cat', 'vibe', 'music', 'meme'], url: 'https://media.giphy.com/media/GeimqsH0TLDt4tScGw/giphy.gif' },
+        { id: 'gif_mindblown', title: 'Mind Blown', tags: ['mind', 'blown', 'wow', 'shock'], url: 'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif' },
+        { id: 'gif_fire', title: 'This is Fine', tags: ['fire', 'fine', 'dog', 'meme'], url: 'https://media.giphy.com/media/QMHoU66sBXqqLqYvGO/giphy.gif' },
+        { id: 'gif_clap', title: 'Slow Clap', tags: ['clap', 'bravo', 'nice', 'good'], url: 'https://media.giphy.com/media/7rj2ZgttvgomY/giphy.gif' },
+        { id: 'gif_pog', title: 'Let\'s Go!', tags: ['lets go', 'pog', 'win', 'hype'], url: 'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif' },
+        { id: 'gif_laugh', title: 'LOL Laughing', tags: ['lol', 'lmao', 'laugh', 'funny'], url: 'https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif' },
+        { id: 'gif_salute', title: 'Salute o7', tags: ['salute', 'o7', 'respect'], url: 'https://media.giphy.com/media/l4pMattUYTTM7qpIk/giphy.gif' },
+        { id: 'gif_typing', title: 'Fast Typing', tags: ['code', 'typing', 'hacker', 'fast'], url: 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif' },
+        { id: 'gif_wave', title: 'Hello Wave', tags: ['hi', 'hello', 'wave', 'welcome'], url: 'https://media.giphy.com/media/3og0ISeflb7vrNzy2A/giphy.gif' },
+        { id: 'gif_sleep', title: 'AFK Sleep', tags: ['afk', 'sleep', 'tired', 'gn'], url: 'https://media.giphy.com/media/mkhMTALnrYRLnuoe5P/giphy.gif' },
+      ];
+      const filtered = q
+        ? catalog.filter((g) => g.title.toLowerCase().includes(q) || g.tags.some((t) => t.includes(q)))
+        : catalog;
+      sendJson(res, 200, { gifs: filtered.length > 0 ? filtered : catalog });
+      return;
+    }
+
     if (pathname === '/api/discord/guilds' && method === 'GET') {
       if (discordToken) {
         const remote = await fetchDiscordApi('/users/@me/guilds', discordToken);

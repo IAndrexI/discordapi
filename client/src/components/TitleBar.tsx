@@ -51,6 +51,10 @@ export interface ElectronAPI {
   getZoomFactor?: () => Promise<number>;
   onZoomChanged?: (callback: (factor: number) => void) => () => void;
   resetWindowBounds?: () => void;
+  openDiscordLogin?: () => Promise<{ ok: boolean; token?: string; cancelled?: boolean; error?: string }>;
+  openSharedBrowser?: (url: string) => Promise<{ ok: boolean; error?: string }>;
+  getDesktopPrefs?: () => Promise<{ openAtLogin: boolean; startMinimized: boolean; closeBehavior: 'minimize' | 'exit' }>;
+  setDesktopPrefs?: (updates: Partial<{ openAtLogin: boolean; startMinimized: boolean; closeBehavior: 'minimize' | 'exit' }>) => Promise<{ openAtLogin: boolean; startMinimized: boolean; closeBehavior: 'minimize' | 'exit' }>;
 }
 
 declare global {
@@ -79,6 +83,7 @@ export interface TitleBarProps {
   onOpenMinecraftConsole?: () => void;
   onOpenLargeFileShare?: () => void;
   onOpenCameraPreview?: () => void;
+  onOpenClips?: () => void;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
@@ -101,6 +106,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onOpenMinecraftConsole,
   onOpenLargeFileShare,
   onOpenCameraPreview,
+  onOpenClips,
 }) => {
   const isDesktop = desktopBridge.isDesktopApp();
   const runtimeKind = desktopBridge.getRuntimeKind();
@@ -222,7 +228,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
     <>
       <header
         data-tauri-drag-region
-        className="flex items-center justify-between h-[28px] w-full bg-[var(--bg-frame)] border-b border-[var(--border-subtle)] select-none z-50 text-[var(--text-muted)] text-xs flex-shrink-0"
+        className="flex items-center justify-between h-[28px] w-full bg-[var(--bg-frame)] border-b border-[var(--border-subtle)] select-none z-[9000] relative text-[var(--text-muted)] text-xs flex-shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         {/* Left: App Icon, Brand & Mode Indicator */}
@@ -385,9 +391,23 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
             {toolsMenuOpen && (
               <div
-                className="absolute right-0 top-[26px] w-56 bg-[var(--bg-popout)] text-[var(--text-normal)] border border-[var(--border-subtle)] rounded-lg shadow-2xl py-1.5 px-1.5 z-[120] max-h-[calc(100vh/var(--app-zoom,1)-44px)] overflow-y-auto text-xs animate-fadeIn"
+                className="absolute right-0 top-[26px] w-56 bg-[var(--bg-popout)] text-[var(--text-normal)] border border-[var(--border-subtle)] rounded-lg shadow-2xl py-1.5 px-1.5 z-[9999] max-h-[calc(100vh/var(--app-zoom,1)-44px)] overflow-y-auto text-xs animate-fadeIn"
                 role="menu"
               >
+                {onOpenClips && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="topbar-clips-btn"
+                    onClick={() => runMenuAction(onOpenClips)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-[var(--discord-blurple)] hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Camera className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Instant Clips (Alt+C)</span>
+                    </span>
+                  </button>
+                )}
                 {onOpenDiscordHub && (
                   <button
                     type="button"

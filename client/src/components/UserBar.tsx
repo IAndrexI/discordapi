@@ -211,7 +211,7 @@ export const UserBar: React.FC<UserBarProps> = ({
         <div
           role="dialog"
           aria-label="Status"
-          className="absolute bottom-[58px] left-2 w-64 max-w-[calc(100vw/var(--app-zoom,1)-24px)] max-h-[calc(100vh/var(--app-zoom,1)-96px)] overflow-y-auto bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-2.5 z-[90] space-y-2 text-[var(--text-normal)]"
+          className="fixed bottom-[60px] left-[80px] w-64 max-w-[calc(100vw/var(--app-zoom,1)-24px)] max-h-[calc(100vh/var(--app-zoom,1)-96px)] overflow-y-auto bg-[var(--bg-popout)] border border-[var(--border-subtle)] rounded-lg shadow-2xl p-2.5 z-[9999] space-y-2 text-[var(--text-normal)]"
         >
           <div className="flex items-center justify-between px-1">
             <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">

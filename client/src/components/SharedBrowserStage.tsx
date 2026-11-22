@@ -716,6 +716,17 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
+              {typeof window !== 'undefined' && window.electronAPI?.openSharedBrowser && (
+                <button
+                  type="button"
+                  onClick={() => void window.electronAPI?.openSharedBrowser?.(activeUrl)}
+                  className="px-2 py-0.5 rounded bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                  title="Open in Native Chromium Host Window"
+                >
+                  <Globe className="w-3 h-3" />
+                  <span>Chromium Host</span>
+                </button>
+              )}
               <a
                 href={activeUrl}
                 target="_blank"
@@ -748,6 +759,13 @@ export const SharedBrowserStage: React.FC<SharedBrowserStageProps> = ({
                 }}
                 className="w-full h-full object-contain bg-black"
               />
+            ) : typeof window !== 'undefined' && window.electronAPI?.isElectron && !activeVideoEmbedUrl ? (
+              React.createElement('webview', {
+                src: activeUrl,
+                partition: 'persist:shared-browser',
+                allowpopups: 'true',
+                style: { width: '100%', height: '100%', background: '#ffffff' },
+              })
             ) : (
               <iframe
                 ref={iframeRef}

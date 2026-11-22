@@ -625,6 +625,21 @@ class LiveKitVoiceService {
   }
 
   private activeChannelBitrateKbps = 96;
+  private autoInputSensitivity = (() => {
+    try {
+      return localStorage.getItem('protutech_auto_input_sensitivity') !== 'false';
+    } catch {
+      return true;
+    }
+  })();
+  private inputSensitivityDb = (() => {
+    try {
+      const saved = Number(localStorage.getItem('protutech_input_sensitivity_db'));
+      return Number.isFinite(saved) && saved >= -100 && saved <= 0 ? saved : -55;
+    } catch {
+      return -55;
+    }
+  })();
 
   public getChannelBitrate(): number {
     return this.activeChannelBitrateKbps;
@@ -632,6 +647,34 @@ class LiveKitVoiceService {
 
   public setChannelBitrate(kbps: number): void {
     this.activeChannelBitrateKbps = Math.max(8, Math.min(384, Math.round(kbps || 64)));
+    this.notify();
+  }
+
+  public getAutoInputSensitivity(): boolean {
+    return this.autoInputSensitivity;
+  }
+
+  public setAutoInputSensitivity(enabled: boolean): void {
+    this.autoInputSensitivity = Boolean(enabled);
+    try {
+      localStorage.setItem('protutech_auto_input_sensitivity', enabled ? 'true' : 'false');
+    } catch {
+      // Ignore
+    }
+    this.notify();
+  }
+
+  public getInputSensitivityDb(): number {
+    return this.inputSensitivityDb;
+  }
+
+  public setInputSensitivityDb(db: number): void {
+    this.inputSensitivityDb = Math.max(-100, Math.min(0, Math.round(db)));
+    try {
+      localStorage.setItem('protutech_input_sensitivity_db', String(this.inputSensitivityDb));
+    } catch {
+      // Ignore
+    }
     this.notify();
   }
 

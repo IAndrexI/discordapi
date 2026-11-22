@@ -128,6 +128,34 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
     }
   };
 
+  const handleBuiltInDiscordLogin = async () => {
+    if (!window.electronAPI?.openDiscordLogin) {
+      setStatusMessage({
+        type: 'info',
+        text: 'Built-in Discord login window is available in the Desktop app. Use 1-Click Clipboard Connect or QR Portal below on Web.',
+      });
+      return;
+    }
+    setLoading(true);
+    setStatusMessage({
+      type: 'info',
+      text: 'Sign in inside the Discord window — your channels, servers, and groups will sync automatically...',
+    });
+    try {
+      const res = await window.electronAPI.openDiscordLogin();
+      if (res.ok && res.token) {
+        setTokenInput(res.token);
+        await handleConnectWithToken(res.token);
+      } else if (res.cancelled) {
+        setStatusMessage({ type: 'info', text: 'Discord sign-in window closed.' });
+      } else {
+        setStatusMessage({ type: 'error', text: res.error || 'Could not complete Discord sign-in.' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClipboardPasteAndConnect = async () => {
     try {
       let clipboardText = '';
@@ -268,26 +296,37 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
             </div>
           )}
 
-          {/* Quick 1-Click Action */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-[var(--discord-blurple)]/20 to-indigo-600/10 border border-[var(--discord-blurple)]/40 space-y-3">
+          {/* Built-in Sign-In + Quick 1-Click Action */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-[var(--discord-blurple)]/25 to-indigo-600/15 border border-[var(--discord-blurple)]/50 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-[var(--discord-blurple)] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
-                Fastest Option: 1-Click Clipboard Connect
+                Easiest Option: Built-in Discord Sign-In
               </span>
             </div>
             <p className="text-[11.5px] text-[#dbdee1] leading-relaxed">
-              If you already have your Discord token on your clipboard, click below to paste and connect instantly.
+              Sign in directly inside Protutech using email/password or QR code. All your Discord servers, channels, and group DMs will appear natively.
             </p>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void handleClipboardPasteAndConnect()}
-              className="w-full py-2.5 px-4 rounded-xl bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-            >
-              <Clipboard className="w-4 h-4" />
-              <span>{loading ? 'Connecting...' : '📋 Paste from Clipboard & Connect'}</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void handleBuiltInDiscordLogin()}
+                className="w-full py-2.5 px-4 rounded-xl bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                <Key className="w-4 h-4" />
+                <span>{loading ? 'Signing in...' : 'Sign In to Discord'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void handleClipboardPasteAndConnect()}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#252834] hover:bg-[#323646] border border-[#3a3f52] text-white font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                <Clipboard className="w-4 h-4" />
+                <span>Paste Token &amp; Connect</span>
+              </button>
+            </div>
           </div>
 
           {/* Manual Input Field */}

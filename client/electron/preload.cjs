@@ -52,4 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selfHostedServerUrl: 'http://127.0.0.1:4175',
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
   openDiscordCall: (url) => ipcRenderer.invoke('open-discord-call', url),
+  openDiscordLogin: () => ipcRenderer.invoke('open-discord-login'),
+  openSharedBrowser: (url) => ipcRenderer.invoke('open-shared-browser', url),
+  getDesktopPrefs: () => ipcRenderer.invoke('get-desktop-prefs'),
+  setDesktopPrefs: (updates) => ipcRenderer.invoke('set-desktop-prefs', updates),
 });

@@ -169,6 +169,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [krispMode, setKrispMode] = useState<NoiseSuppressionMode>(() => livekit.getNoiseSuppressionMode());
   const [krispThresholdDb, setKrispThresholdDb] = useState<number>(() => livekit.getKrispThresholdDb());
   const [krispStats, setKrispStats] = useState(() => livekit.getKrispStats());
+  const [autoInputSensitivity, setAutoInputSensitivity] = useState<boolean>(() =>
+    livekit.getAutoInputSensitivity()
+  );
+  const [inputSensitivityDb, setInputSensitivityDb] = useState<number>(() =>
+    livekit.getInputSensitivityDb()
+  );
+  const [desktopPrefs, setDesktopPrefs] = useState<{
+    openAtLogin: boolean;
+    startMinimized: boolean;
+    closeBehavior: 'minimize' | 'exit';
+  }>(() => {
+    try {
+      const raw = localStorage.getItem('protutech_desktop_prefs');
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<{
+          openAtLogin: boolean;
+          startMinimized: boolean;
+          closeBehavior: 'minimize' | 'exit';
+        }>;
+        return {
+          openAtLogin: Boolean(parsed.openAtLogin),
+          startMinimized: Boolean(parsed.startMinimized),
+          closeBehavior: parsed.closeBehavior === 'exit' ? 'exit' : 'minimize',
+        };
+      }
+    } catch {
+      // Ignore
+    }
+    return { openAtLogin: false, startMinimized: false, closeBehavior: 'minimize' };
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (window.electronAPI?.getDesktopPrefs) {
+      void window.electronAPI.getDesktopPrefs().then(prefs => {
+        if (prefs) setDesktopPrefs(prefs);
+      });
+    }
+  }, [isOpen]);
+
+  const updateDesktopPrefs = (
+    updates: Partial<{ openAtLogin: boolean; startMinimized: boolean; closeBehavior: 'minimize' | 'exit' }>
+  ) => {
+    const next = { ...desktopPrefs, ...updates };
+    setDesktopPrefs(next);
+    try {
+      localStorage.setItem('protutech_desktop_prefs', JSON.stringify(next));
+    } catch {
+      // Ignore
+    }
+    if (window.electronAPI?.setDesktopPrefs) {
+      void window.electronAPI.setDesktopPrefs(next);
+    }
+  };
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [selectedInputId, setSelectedInputId] = useState<string>(() =>
@@ -3148,6 +3202,119 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
 
+                {/* Discord-Style Input Sensitivity (Auto vs Manual Slider + Live Sound Meter) */}
+                <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="text-sm font-bold text-[var(--text-header)] flex items-center gap-2">
+                        <Mic className="w-4 h-4 text-[var(--status-online)]" />
+                        <span>Input Sensitivity</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        Automatically determine input sensitivity or set a manual dB cutoff while watching your live mic signal.
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-xs font-semibold text-[var(--text-normal)]">
+                        Auto
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoInputSensitivity}
+                        data-testid="settings-auto-sensitivity-toggle"
+                        onClick={() => {
+                          const next = !autoInputSensitivity;
+                          setAutoInputSensitivity(next);
+                          livekit.setAutoInputSensitivity(next);
+                        }}
+                        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer flex-shrink-0 ${
+                          autoInputSensitivity ? 'bg-[var(--discord-blurple)]' : 'bg-[#353842]'
+                        }`}
+                      >
+                        <span
+                          className={`block w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
+                            autoInputSensitivity ? 'left-6' : 'left-1'
+                          }`}
+                        />
+                      </button>
+                    </label>
+                  </div>
+
+                  {(() => {
+                    const liveDb = Math.max(-100, Math.min(0, Math.round(krispStats.inputDb || -100)));
+                    const livePercent = Math.max(0, Math.min(100, liveDb + 100));
+                    const thresholdPercent = Math.max(0, Math.min(100, inputSensitivityDb + 100));
+                    const isTransmitting = autoInputSensitivity
+                      ? liveDb > -60
+                      : liveDb >= inputSensitivityDb;
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-[var(--text-normal)]">
+                            Live Mic Signal:{' '}
+                            <span
+                              className={`font-mono font-bold ${
+                                isTransmitting ? 'text-[var(--status-online)]' : 'text-amber-400'
+                              }`}
+                            >
+                              {liveDb} dB ({isTransmitting ? 'Transmitting' : 'Gated'})
+                            </span>
+                          </span>
+                          <span className="font-mono text-[var(--text-muted)]">
+                            {autoInputSensitivity
+                              ? 'Auto VAD Active'
+                              : `Manual Threshold: ${inputSensitivityDb} dB`}
+                          </span>
+                        </div>
+
+                        {/* Live Sound Meter with Overlaid Manual Sensitivity Slider */}
+                        <div className="relative h-7 rounded-lg bg-[#0d1017] border border-[var(--border-subtle)] overflow-hidden flex items-center">
+                          {/* Live audio level fill */}
+                          <div
+                            className={`h-full transition-all duration-75 ${
+                              isTransmitting
+                                ? 'bg-gradient-to-r from-amber-500/70 via-emerald-500 to-emerald-400'
+                                : 'bg-gradient-to-r from-amber-600/80 to-amber-400/80'
+                            }`}
+                            style={{ width: `${livePercent}%` }}
+                          />
+                          {/* Threshold marker line */}
+                          {!autoInputSensitivity && (
+                            <div
+                              className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_#fff] pointer-events-none"
+                              style={{ left: `${thresholdPercent}%` }}
+                            />
+                          )}
+                          {/* Overlaid range slider when manual mode */}
+                          {!autoInputSensitivity && (
+                            <input
+                              type="range"
+                              aria-label="Manual Input Sensitivity Threshold"
+                              data-testid="settings-manual-sensitivity-slider"
+                              min={-100}
+                              max={0}
+                              step={1}
+                              value={inputSensitivityDb}
+                              onChange={e => {
+                                const val = Number(e.target.value);
+                                setInputSensitivityDb(val);
+                                livekit.setInputSensitivityDb(val);
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize"
+                            />
+                          )}
+                        </div>
+                        <div className="flex justify-between text-[10px] font-mono text-[var(--text-muted)]">
+                          <span>-100 dB (Quiet)</span>
+                          <span>-50 dB</span>
+                          <span>0 dB (Loud)</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 {/* Input Device & Output Device Selection */}
                 <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3">
                   <div className="flex items-center justify-between">
@@ -4168,6 +4335,106 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdates ? 'animate-spin' : ''}`} />
                       <span>{checkingUpdates ? 'Checking...' : 'Check for Updates'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Windows Startup & Close Behavior Card */}
+              <div className="p-4 rounded-lg bg-[var(--bg-userpanel)] border border-[var(--border-subtle)] space-y-3.5">
+                <div>
+                  <div className="text-sm font-bold text-[var(--text-header)]">
+                    Windows Startup &amp; Close Behavior
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    Configure launch-on-boot and whether pressing X minimizes to the system tray or exits completely.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--border-subtle)]">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-header)]">
+                      Open Protutech on Startup
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      Automatically launch when you sign in to Windows.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={desktopPrefs.openAtLogin}
+                    data-testid="settings-open-at-login-toggle"
+                    onClick={() => updateDesktopPrefs({ openAtLogin: !desktopPrefs.openAtLogin })}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer flex-shrink-0 ${
+                      desktopPrefs.openAtLogin ? 'bg-[var(--discord-blurple)]' : 'bg-[#353842]'
+                    }`}
+                  >
+                    <span
+                      className={`block w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
+                        desktopPrefs.openAtLogin ? 'left-6' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--border-subtle)]">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-header)]">
+                      Start Minimized
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      Launch silently into the system tray on startup.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={desktopPrefs.startMinimized}
+                    onClick={() => updateDesktopPrefs({ startMinimized: !desktopPrefs.startMinimized })}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer flex-shrink-0 ${
+                      desktopPrefs.startMinimized ? 'bg-[var(--discord-blurple)]' : 'bg-[#353842]'
+                    }`}
+                  >
+                    <span
+                      className={`block w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
+                        desktopPrefs.startMinimized ? 'left-6' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--border-subtle)] flex-wrap">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-header)]">
+                      Close Button Behavior
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      Choose whether clicking Close (X) minimizes to tray or exits the app.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-[var(--bg-channels)] p-1 rounded-lg border border-[var(--border-subtle)]">
+                    <button
+                      type="button"
+                      onClick={() => updateDesktopPrefs({ closeBehavior: 'minimize' })}
+                      className={`px-3 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                        desktopPrefs.closeBehavior === 'minimize'
+                          ? 'bg-[var(--discord-blurple)] text-white'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      Minimize to Tray
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateDesktopPrefs({ closeBehavior: 'exit' })}
+                      className={`px-3 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                        desktopPrefs.closeBehavior === 'exit'
+                          ? 'bg-rose-600 text-white'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-header)]'
+                      }`}
+                    >
+                      Exit App
                     </button>
                   </div>
                 </div>
