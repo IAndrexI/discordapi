@@ -251,9 +251,12 @@ function createWindow() {
     },
   });
 
+  const otaIndex = path.join(app.getPath('userData'), 'ota-dist', 'index.html');
   const distIndex = path.join(__dirname, '../dist/index.html');
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else if (fs.existsSync(otaIndex)) {
+    mainWindow.loadFile(otaIndex);
   } else if (fs.existsSync(distIndex)) {
     mainWindow.loadFile(distIndex);
   } else {
@@ -752,32 +755,87 @@ ipcMain.handle('open-shared-browser', (_, targetUrl) => {
   }
 });
 
-// Real Desktop Installer & Portable Self-Updater (never fakes an update with a plain restart)
+// Instant OTA Bundle Updater (updates client UI in <1s from Proxmox) + Full PE Installer Fallback
+async function applyOtaBundleUpdate() {
+  try {
+    const vRes = await fetch(`https://chat.protutech.vip/version.json?_t=${Date.now()}`, { cache: 'no-store' });
+    if (!vRes.ok) return { ok: false };
+    const vData = await vRes.json();
+    if (!vData?.version) return { ok: false };
+
+    const htmlRes = await fetch(`https://chat.protutech.vip/chat/index.html?_t=${Date.now()}`, { cache: 'no-store' });
+    if (!htmlRes.ok) return { ok: false };
+    let html = await htmlRes.text();
+    if (!html.includes('<div id="root">')) return { ok: false };
+
+    const otaDir = path.join(app.getPath('userData'), 'ota-dist');
+    const assetsDir = path.join(otaDir, 'assets');
+    fs.mkdirSync(assetsDir, { recursive: true });
+
+    const assetMatches = [...html.matchAll(/(?:src|href)=["']\/chat\/assets\/([^"']+)["']/g)];
+    for (const m of assetMatches) {
+      const fileName = m[1];
+      const aRes = await fetch(`https://chat.protutech.vip/chat/assets/${fileName}`, { cache: 'no-store' });
+      if (!aRes.ok) return { ok: false };
+      const buf = Buffer.from(await aRes.arrayBuffer());
+      fs.writeFileSync(path.join(assetsDir, fileName), buf);
+    }
+
+    html = html.replace(/(src|href)=["']\/chat\/assets\//g, '$1="./assets/');
+    fs.writeFileSync(path.join(otaDir, 'index.html'), html, 'utf8');
+    fs.writeFileSync(path.join(otaDir, 'version.json'), JSON.stringify(vData, null, 2), 'utf8');
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      await mainWindow.loadFile(path.join(otaDir, 'index.html'));
+    }
+    return { ok: true, mode: 'ota', version: vData.version };
+  } catch {
+    return { ok: false };
+  }
+}
+
 ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   try {
+    // 1. Try instant OTA bundle update first (updates UI immediately without 100MB download)
+    const otaRes = await applyOtaBundleUpdate();
+    if (otaRes.ok) return otaRes;
+
+    // 2. Fallback: download full PE-verified Windows Setup / Portable .exe
     const { spawn } = require('child_process');
     const portableExe = process.env.PORTABLE_EXECUTABLE_FILE || '';
     const isPortable = Boolean(portableExe && fs.existsSync(portableExe));
-    const defaultUrl = isPortable
-      ? 'https://chat.protutech.vip/downloads/ProtutechChat-Portable.exe'
-      : 'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe';
-    const targetUrl = `${String(downloadUrl || defaultUrl)}?_t=${Date.now()}`;
+    const fileName = isPortable ? 'ProtutechChat-Portable.exe' : 'ProtutechChat-Setup.exe';
+    const candidateUrls = [
+      downloadUrl,
+      `https://chat.protutech.vip/downloads/${fileName}`,
+      `https://github.com/IAndrexI/discordapi/releases/latest/download/${fileName}`,
+    ].filter(Boolean);
 
-    const res = await fetch(targetUrl, {
-      redirect: 'follow',
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-    });
-    if (!res.ok) {
-      return { ok: false, error: `Download failed (HTTP ${res.status})` };
+    let buffer = null;
+    let lastStatus = 0;
+    for (const baseUrl of candidateUrls) {
+      try {
+        const res = await fetch(`${baseUrl}?_t=${Date.now()}`, {
+          redirect: 'follow',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        });
+        lastStatus = res.status;
+        if (!res.ok) continue;
+        const candidate = Buffer.from(await res.arrayBuffer());
+        if (candidate.length >= 1_000_000 && candidate[0] === 0x4d && candidate[1] === 0x5a) {
+          buffer = candidate;
+          break;
+        }
+      } catch {
+        // Try next mirror
+      }
     }
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    // Verify genuine Windows PE executable ('MZ' magic bytes + >1MB)
-    if (buffer.length < 1_000_000 || buffer[0] !== 0x4d || buffer[1] !== 0x5a) {
+
+    if (!buffer) {
       return {
         ok: false,
-        error: 'Server did not return a valid Windows executable. Ensure Proxmox downloads are synced.',
+        error: `Could not download a valid Windows executable (HTTP ${lastStatus || 404}).`,
       };
     }
 

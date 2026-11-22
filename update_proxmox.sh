@@ -56,6 +56,14 @@ if [ -d "downloads" ]; then
   cp -rf downloads/* /var/www/discord-guide/downloads/ 2>/dev/null || true
 fi
 
+# Fetch latest .exe binaries from GitHub Releases if not present in git
+for BIN in ProtutechChat-Setup.exe ProtutechChat-Portable.exe; do
+  if [ ! -f "/var/www/discord-guide/downloads/${BIN}" ] || [ "${FORCE_DOWNLOAD_BINS:-0}" = "1" ]; then
+    echo "⬇️ Syncing ${BIN} from GitHub Releases..."
+    curl -fsSL -L "https://github.com/IAndrexI/discordapi/releases/latest/download/${BIN}" -o "/var/www/discord-guide/downloads/${BIN}.tmp" 2>/dev/null && mv "/var/www/discord-guide/downloads/${BIN}.tmp" "/var/www/discord-guide/downloads/${BIN}" || rm -f "/var/www/discord-guide/downloads/${BIN}.tmp"
+  fi
+done
+
 # 3. Build & Deploy Web Client (/var/www/discord-client)
 if [ -d "$TARGET_DIR/client" ] && command -v npm >/dev/null 2>&1; then
   echo "🔨 Building web client with npm..."

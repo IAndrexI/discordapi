@@ -17,7 +17,28 @@ export interface ManualUpdateCheckResult {
 const UPDATER_PREF_KEY = 'protutech_auto_updater_enabled';
 const UPDATER_PREF_EVENT = 'protutech:updater-pref-changed';
 
-export const CURRENT_APP_VERSION: string = pkg.version || '1.0.8';
+export const CURRENT_APP_VERSION: string = pkg.version || '1.0.13';
+
+export function compareSemver(a: string, b: string): number {
+  const pa = String(a || '0.0.0').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '0.0.0').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff > 0) return 1;
+    if (diff < 0) return -1;
+  }
+  return 0;
+}
+
+export function getEffectiveAppVersion(): string {
+  try {
+    const ota = localStorage.getItem('protutech_ota_version') || '';
+    if (ota && compareSemver(ota, CURRENT_APP_VERSION) > 0) return ota;
+  } catch {
+    // Ignore
+  }
+  return CURRENT_APP_VERSION;
+}
 
 export function isAutoUpdaterEnabled(): boolean {
   try {
@@ -132,22 +153,24 @@ export function useAutoUpdater() {
       if (!data) {
         return { status: 'error', currentVersion: CURRENT_APP_VERSION };
       }
+      const effective = getEffectiveAppVersion();
       const isNewer =
-        data.version !== CURRENT_APP_VERSION ||
-        (initialBuildTimeRef.current !== null && data.buildTime > initialBuildTimeRef.current);
+        compareSemver(data.version, effective) > 0 ||
+        (initialBuildTimeRef.current !== null && data.buildTime > initialBuildTimeRef.current && compareSemver(data.version, effective) >= 0);
       if (isNewer) {
         setUpdateAvailable(true);
         setNewVersion(data.version);
         return {
           status: 'update-available',
-          currentVersion: CURRENT_APP_VERSION,
+          currentVersion: effective,
           latestVersion: data.version,
           downloadUrl: 'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe',
         };
       }
+      setUpdateAvailable(false);
       return {
         status: 'up-to-date',
-        currentVersion: CURRENT_APP_VERSION,
+        currentVersion: effective,
         latestVersion: data.version,
       };
     } finally {
@@ -164,10 +187,24 @@ export function useAutoUpdater() {
     if (typeof window !== 'undefined' && window.electronAPI?.downloadAndInstallUpdate) {
       setUpdating(true);
       try {
-        const res = await window.electronAPI.downloadAndInstallUpdate();
-        if (!res.ok) {
-          setUpdateError(res.error || 'Update download failed.');
+        const res = (await window.electronAPI.downloadAndInstallUpdate()) as {
+          ok: boolean;
+          mode?: string;
+          version?: string;
+          error?: string;
+        };
+        if (res.ok) {
+          if (res.mode === 'ota' && res.version) {
+            try {
+              localStorage.setItem('protutech_ota_version', res.version);
+            } catch {
+              // Ignore
+            }
+            setUpdateAvailable(false);
+          }
+          return;
         }
+        setUpdateError(res.error || 'Update download failed.');
       } catch (err) {
         setUpdateError(err instanceof Error ? err.message : 'Update download failed.');
       } finally {
