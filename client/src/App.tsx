@@ -369,6 +369,8 @@ export const App: React.FC = () => {
     setAutoUpdaterEnabled,
     updateAvailable,
     newVersion,
+    updating,
+    updateError,
     dismissUpdate,
     restartAndApplyUpdate,
   } = useAutoUpdater();
@@ -2162,7 +2164,10 @@ export const App: React.FC = () => {
             <span className="font-bold text-[var(--text-link)] block">
               Update Ready ({newVersion ? `v${newVersion}` : 'latest'})
             </span>
-            <span>Restart application to apply update.</span>
+            <span>{updating ? 'Downloading & installing update...' : 'Install & restart to apply update.'}</span>
+            {updateError && (
+              <span className="block text-[10px] text-rose-400 mt-0.5">{updateError}</span>
+            )}
             <button
               type="button"
               onClick={() => setAutoUpdaterEnabled(false)}
@@ -2173,10 +2178,11 @@ export const App: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={restartAndApplyUpdate}
-            className="ml-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            disabled={updating}
+            onClick={() => void restartAndApplyUpdate()}
+            className="ml-2 bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
-            <span>Restart to Update</span>
+            <span>{updating ? 'Updating...' : 'Update Now'}</span>
           </button>
           <button
             type="button"

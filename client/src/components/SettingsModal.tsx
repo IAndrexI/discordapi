@@ -253,6 +253,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     autoUpdaterEnabled,
     setAutoUpdaterEnabled,
     checking: checkingUpdates,
+    updating: updatingApp,
+    updateError,
     checkForUpdatesNow,
     restartAndApplyUpdate,
   } = useAutoUpdater();
@@ -4317,10 +4319,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {manualUpdateStatus?.status === 'update-available' && (
                       <button
                         type="button"
-                        onClick={restartAndApplyUpdate}
-                        className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                        disabled={updatingApp}
+                        onClick={() => void restartAndApplyUpdate()}
+                        className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50"
                       >
-                        Restart &amp; Update
+                        {updatingApp ? 'Downloading & Installing...' : 'Download & Install Update'}
                       </button>
                     )}
                     <button

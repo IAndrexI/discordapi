@@ -752,32 +752,60 @@ ipcMain.handle('open-shared-browser', (_, targetUrl) => {
   }
 });
 
-// Discord-style App Relaunch & Real Installer Auto-Updater
+// Real Desktop Installer & Portable Self-Updater (never fakes an update with a plain restart)
 ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   try {
-    const targetUrl = String(
-      downloadUrl || 'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe'
-    );
-    const res = await fetch(targetUrl, { redirect: 'follow' });
+    const { spawn } = require('child_process');
+    const portableExe = process.env.PORTABLE_EXECUTABLE_FILE || '';
+    const isPortable = Boolean(portableExe && fs.existsSync(portableExe));
+    const defaultUrl = isPortable
+      ? 'https://chat.protutech.vip/downloads/ProtutechChat-Portable.exe'
+      : 'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe';
+    const targetUrl = `${String(downloadUrl || defaultUrl)}?_t=${Date.now()}`;
+
+    const res = await fetch(targetUrl, {
+      redirect: 'follow',
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     if (!res.ok) {
-      return { ok: false, error: `Download failed (${res.status})` };
+      return { ok: false, error: `Download failed (HTTP ${res.status})` };
     }
     const arrayBuffer = await res.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    if (buffer.length < 100000) {
-      return { ok: false, error: 'Downloaded installer is incomplete.' };
+    // Verify genuine Windows PE executable ('MZ' magic bytes + >1MB)
+    if (buffer.length < 1_000_000 || buffer[0] !== 0x4d || buffer[1] !== 0x5a) {
+      return {
+        ok: false,
+        error: 'Server did not return a valid Windows executable. Ensure Proxmox downloads are synced.',
+      };
     }
-    const destPath = path.join(app.getPath('temp'), 'ProtutechChat-Setup-Update.exe');
-    fs.writeFileSync(destPath, buffer);
-    const errMsg = await shell.openPath(destPath);
-    if (errMsg) {
-      return { ok: false, error: errMsg };
-    }
-    setTimeout(() => {
+
+    if (isPortable) {
+      const tempNewExe = path.join(app.getPath('temp'), `ProtutechChat-Portable-${Date.now()}.exe`);
+      fs.writeFileSync(tempNewExe, buffer);
+      const batPath = path.join(app.getPath('temp'), `protutech-portable-update-${Date.now()}.bat`);
+      const batContent = [
+        '@echo off',
+        'timeout /t 2 /nobreak >nul',
+        `copy /y "${tempNewExe}" "${portableExe}" >nul`,
+        `if exist "${portableExe}" start "" "${portableExe}"`,
+        `del /f /q "${tempNewExe}" >nul 2>&1`,
+        'del "%~f0" >nul 2>&1',
+      ].join('\r\n');
+      fs.writeFileSync(batPath, batContent, 'utf8');
+      spawn('cmd.exe', ['/c', batPath], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
       isQuitting = true;
-      app.quit();
-    }, 600);
-    return { ok: true, path: destPath };
+      app.exit(0);
+      return { ok: true, mode: 'portable', path: portableExe };
+    }
+
+    const destPath = path.join(app.getPath('temp'), `ProtutechChat-Setup-${Date.now()}.exe`);
+    fs.writeFileSync(destPath, buffer);
+    spawn(destPath, [], { detached: true, stdio: 'ignore' }).unref();
+    isQuitting = true;
+    app.exit(0);
+    return { ok: true, mode: 'installer', path: destPath };
   } catch (err) {
     return { ok: false, error: err?.message || 'Failed to download update.' };
   }

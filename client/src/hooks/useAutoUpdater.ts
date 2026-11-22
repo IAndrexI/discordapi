@@ -66,6 +66,8 @@ export function useAutoUpdater() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [newVersion, setNewVersion] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
   const initialBuildTimeRef = useRef<number | null>(null);
 
@@ -158,22 +160,27 @@ export function useAutoUpdater() {
   }, []);
 
   const restartAndApplyUpdate = useCallback(async () => {
+    setUpdateError(null);
     if (typeof window !== 'undefined' && window.electronAPI?.downloadAndInstallUpdate) {
-      const res = await window.electronAPI.downloadAndInstallUpdate(
-        'https://chat.protutech.vip/downloads/ProtutechChat-Setup.exe'
-      );
-      if (res.ok) return;
-    }
-    if (typeof window !== 'undefined' && window.electronAPI?.relaunchApp) {
-      window.electronAPI.relaunchApp();
-    } else {
-      if ('caches' in window) {
-        void caches.keys().then(names => {
-          names.forEach(name => void caches.delete(name));
-        });
+      setUpdating(true);
+      try {
+        const res = await window.electronAPI.downloadAndInstallUpdate();
+        if (!res.ok) {
+          setUpdateError(res.error || 'Update download failed.');
+        }
+      } catch (err) {
+        setUpdateError(err instanceof Error ? err.message : 'Update download failed.');
+      } finally {
+        setUpdating(false);
       }
-      window.location.reload();
+      return;
     }
+    if ('caches' in window) {
+      void caches.keys().then(names => {
+        names.forEach(name => void caches.delete(name));
+      });
+    }
+    window.location.reload();
   }, []);
 
   return {
@@ -183,6 +190,8 @@ export function useAutoUpdater() {
     updateAvailable,
     newVersion,
     checking,
+    updating,
+    updateError,
     lastCheckedAt,
     checkForUpdatesNow,
     dismissUpdate,

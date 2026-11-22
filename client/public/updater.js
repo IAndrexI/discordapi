@@ -2,6 +2,15 @@
 (function() {
   'use strict';
 
+  // Skip browser sentinel inside Electron desktop or when user disabled auto-updater
+  if (
+    (window.electronAPI && window.electronAPI.isElectron) ||
+    window.location.protocol === 'file:' ||
+    localStorage.getItem('protutech_auto_updater_enabled') === 'false'
+  ) {
+    return;
+  }
+
   // 1. Unregister legacy service workers and clear cache storage
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(registrations) {
