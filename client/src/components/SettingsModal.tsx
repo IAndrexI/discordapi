@@ -4306,14 +4306,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-[var(--border-subtle)]">
                   <div className="text-xs text-[var(--text-muted)]">
                     Current version: <span className="font-mono font-bold text-[var(--text-header)]">v{appVersion}</span>
-                    {manualUpdateStatus && (
-                      <span className="ml-2 text-[var(--text-link)] font-semibold">
-                        {manualUpdateStatus.status === 'up-to-date' && '• Up to date ✓'}
-                        {manualUpdateStatus.status === 'update-available' &&
-                          `• Update v${manualUpdateStatus.latestVersion} ready!`}
-                        {manualUpdateStatus.status === 'error' && '• Could not reach update server'}
-                      </span>
-                    )}
+                    <span className="ml-2 text-[var(--text-link)] font-semibold">
+                      {updateError
+                        ? `• ${updateError}`
+                        : manualUpdateStatus?.status === 'up-to-date'
+                          ? '• Up to date ✓'
+                          : manualUpdateStatus?.status === 'update-available'
+                            ? `• Update v${manualUpdateStatus.latestVersion} ready!`
+                            : manualUpdateStatus?.status === 'error'
+                              ? '• Could not reach update server'
+                              : ''}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {manualUpdateStatus?.status === 'update-available' && (
