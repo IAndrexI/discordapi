@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Compass } from 'lucide-react';
+import { Plus, Compass, MessageSquare } from 'lucide-react';
 import type { DiscordGuild, EngineMode } from '../types';
 import { appIconService, DEFAULT_APP_ICON_FALLBACK } from '../services/appIcon';
 
@@ -12,6 +12,8 @@ export interface ServerRailProps {
   engineMode?: EngineMode;
   onOpenDiscordHub?: (tab?: 'quests' | 'friends' | 'nitro' | 'inbox' | 'discover') => void;
   onOpenEquicord?: () => void;
+  isNativeDiscordView?: boolean;
+  onToggleNativeDiscordView?: () => void;
 }
 
 function isDiscordBridgedGuild(guild: DiscordGuild): boolean {
@@ -30,6 +32,8 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   unreadDMsCount = 0,
   engineMode = 'hybrid',
   onOpenDiscordHub,
+  isNativeDiscordView = false,
+  onToggleNativeDiscordView,
 }) => {
   const [appIcon, setAppIcon] = useState(() => appIconService.getIcon());
 
@@ -167,6 +171,27 @@ export const ServerRail: React.FC<ServerRailProps> = ({
             <Compass className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Native Embedded Discord (Vesktop / Equicord Mode) */}
+        {onToggleNativeDiscordView && (
+          <div className="relative group flex items-center justify-center w-full pb-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onToggleNativeDiscordView}
+              aria-label="Native Discord Client"
+              aria-pressed={isNativeDiscordView}
+              data-testid="rail-native-discord-btn"
+              className={`w-11 h-11 flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                isNativeDiscordView
+                  ? 'bg-[var(--discord-blurple)] text-white rounded-[14px] shadow-lg'
+                  : 'bg-[var(--bg-card)] text-[var(--discord-blurple)] rounded-[22px] hover:rounded-[14px] hover:bg-[var(--discord-blurple)] hover:text-white'
+              }`}
+              title="Native Discord Client (Vesktop / Equicord Mode)"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

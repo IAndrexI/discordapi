@@ -862,7 +862,7 @@ async function fetchJsonWithTimeout(targetUrl, options = {}, timeoutMs = 3500) {
 async function fetchDiscordApi(endpoint, token, options = {}) {
   if (!token) return { ok: false, status: 401, data: null };
   try {
-    const res = await fetch(`https://discord.com/api/v9${endpoint}`, {
+    const res = await fetch(`https://discord.com/api/v10${endpoint}`, {
       method: options.method || 'GET',
       headers: {
         Authorization: token,
@@ -870,7 +870,7 @@ async function fetchDiscordApi(endpoint, token, options = {}) {
         ...(options.headers || {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(5000),
     });
     const data = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, data };
@@ -2284,6 +2284,106 @@ function createRequestHandler(dataDir) {
         connected: remote.ok,
         user: remote.data,
       });
+      return;
+    }
+
+    // Official Discord OAuth2 API Configuration & Callback
+    if (pathname === '/api/discord/oauth/config' && method === 'GET') {
+      const cfg = db.discordOAuth || {
+        clientId: process.env.DISCORD_CLIENT_ID || '',
+        redirectUri: process.env.DISCORD_REDIRECT_URI || 'http://127.0.0.1:4175/api/discord/oauth/callback',
+        hasSecret: Boolean(process.env.DISCORD_CLIENT_SECRET),
+        hasBotToken: Boolean(process.env.DISCORD_BOT_TOKEN),
+      };
+      sendJson(res, 200, {
+        clientId: cfg.clientId || '',
+        redirectUri: cfg.redirectUri || 'http://127.0.0.1:4175/api/discord/oauth/callback',
+        hasSecret: Boolean(cfg.clientSecret || process.env.DISCORD_CLIENT_SECRET),
+        hasBotToken: Boolean(cfg.botToken || process.env.DISCORD_BOT_TOKEN),
+      });
+      return;
+    }
+
+    if (pathname === '/api/discord/oauth/config' && method === 'POST') {
+      const body = await readJsonBody(req);
+      db.discordOAuth = {
+        ...(db.discordOAuth || {}),
+        clientId: body.clientId !== undefined ? String(body.clientId).trim() : db.discordOAuth?.clientId || '',
+        clientSecret: body.clientSecret !== undefined && String(body.clientSecret).trim()
+          ? String(body.clientSecret).trim()
+          : db.discordOAuth?.clientSecret || '',
+        redirectUri: body.redirectUri !== undefined && String(body.redirectUri).trim()
+          ? String(body.redirectUri).trim()
+          : db.discordOAuth?.redirectUri || 'http://127.0.0.1:4175/api/discord/oauth/callback',
+        botToken: body.botToken !== undefined && String(body.botToken).trim()
+          ? String(body.botToken).trim()
+          : db.discordOAuth?.botToken || '',
+      };
+      store.save();
+      sendJson(res, 200, { ok: true, clientId: db.discordOAuth.clientId, redirectUri: db.discordOAuth.redirectUri });
+      return;
+    }
+
+    if (pathname === '/api/discord/oauth/url' && method === 'GET') {
+      const cfg = db.discordOAuth || {};
+      const clientId = cfg.clientId || process.env.DISCORD_CLIENT_ID || '';
+      const redirectUri = cfg.redirectUri || process.env.DISCORD_REDIRECT_URI || 'http://127.0.0.1:4175/api/discord/oauth/callback';
+      if (!clientId) {
+        sendJson(res, 400, { ok: false, error: 'Configure your Discord Application Client ID first.' });
+        return;
+      }
+      const scopes = encodeURIComponent('identify guilds email connections');
+      const authUrl = `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}`;
+      sendJson(res, 200, { ok: true, url: authUrl });
+      return;
+    }
+
+    if (pathname === '/api/discord/oauth/callback' && method === 'GET') {
+      const code = urlObj.searchParams.get('code');
+      const cfg = db.discordOAuth || {};
+      const clientId = cfg.clientId || process.env.DISCORD_CLIENT_ID || '';
+      const clientSecret = cfg.clientSecret || process.env.DISCORD_CLIENT_SECRET || '';
+      const redirectUri = cfg.redirectUri || process.env.DISCORD_REDIRECT_URI || 'http://127.0.0.1:4175/api/discord/oauth/callback';
+      if (!code || !clientId || !clientSecret) {
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<html><body style="background:#16181f;color:#fff;font-family:sans-serif;padding:32px;"><h2>Discord OAuth2 incomplete</h2><p>Missing authorization code or Discord Application Client ID/Secret.</p></body></html>');
+        return;
+      }
+      try {
+        const params = new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirectUri,
+        });
+        const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString(),
+        });
+        const tokenData = await tokenRes.json().catch(() => null);
+        if (!tokenRes.ok || !tokenData?.access_token) {
+          res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(`<html><body style="background:#16181f;color:#fff;font-family:sans-serif;padding:32px;"><h2>OAuth2 Token Exchange Failed</h2><pre>${JSON.stringify(tokenData)}</pre></body></html>`);
+          return;
+        }
+        const bearerToken = `Bearer ${tokenData.access_token}`;
+        const meRes = await fetchDiscordApi('/users/@me', bearerToken);
+        db.discordAuth = {
+          ...(db.discordAuth || {}),
+          token: bearerToken,
+          authType: 'oauth2',
+          user: meRes.ok ? meRes.data : null,
+          connectedAt: Date.now(),
+        };
+        store.save();
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<html><body style="background:#16181f;color:#fff;font-family:sans-serif;padding:32px;text-align:center;"><h2>Connected via Official Discord OAuth2!</h2><p>You can close this window and return to Protutech.</p><script>if(window.opener){window.opener.postMessage({type:'protutech:discord-oauth-success',token:${JSON.stringify(bearerToken)}},'*');}setTimeout(()=>window.close(),1200);</script></body></html>`);
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<html><body style="background:#16181f;color:#fff;font-family:sans-serif;padding:32px;"><h2>OAuth2 Error</h2><p>${String(err?.message || err)}</p></body></html>`);
+      }
       return;
     }
 

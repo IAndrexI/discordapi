@@ -21,6 +21,7 @@ export interface DiscordConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConnected?: () => void;
+  onOpenNativeDiscord?: () => void;
 }
 
 const CONSOLE_SNIPPET =
@@ -30,7 +31,11 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
   isOpen,
   onClose,
   onConnected,
+  onOpenNativeDiscord,
 }) => {
+  const [oauthClientId, setOauthClientId] = useState('');
+  const [oauthClientSecret, setOauthClientSecret] = useState('');
+  const [showOauthSection, setShowOauthSection] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -193,6 +198,41 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
     }
   };
 
+  const handleStartOfficialOAuth = async () => {
+    const base = window.location.protocol === 'file:' ? 'http://127.0.0.1:4175' : '';
+    setLoading(true);
+    try {
+      if (oauthClientId.trim()) {
+        await fetch(`${base}/api/discord/oauth/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: oauthClientId.trim(),
+            clientSecret: oauthClientSecret.trim() || undefined,
+          }),
+        });
+      }
+      const res = await fetch(`${base}/api/discord/oauth/url`);
+      const data = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!data.ok || !data.url) {
+        setStatusMessage({
+          type: 'error',
+          text: data.error || 'Enter your Discord Application Client ID & Secret first.',
+        });
+        return;
+      }
+      window.open(data.url, '_blank', 'width=520,height=720');
+      setStatusMessage({
+        type: 'info',
+        text: 'Authorize Protutech in the official Discord OAuth2 popup...',
+      });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Could not start Official Discord OAuth2 flow.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCopyConsoleSnippet = () => {
     void navigator.clipboard?.writeText(CONSOLE_SNIPPET);
     setCopiedCode(true);
@@ -327,6 +367,60 @@ export const DiscordConnectModal: React.FC<DiscordConnectModalProps> = ({
                 <span>Paste Token &amp; Connect</span>
               </button>
             </div>
+            {onOpenNativeDiscord && (
+              <button
+                type="button"
+                onClick={onOpenNativeDiscord}
+                className="w-full py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Open Native Embedded Discord (Vesktop / Equicord Mode)</span>
+              </button>
+            )}
+          </div>
+
+          {/* Official Discord OAuth2 API */}
+          <div className="rounded-xl border border-[#232734] bg-[#12141a] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowOauthSection(v => !v)}
+              className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-[#dbdee1] hover:bg-[#1a1d26] cursor-pointer"
+            >
+              <span>Official Discord OAuth2 API (Developer Portal App)</span>
+              <span className="text-[10px] text-[#949ba4]">{showOauthSection ? 'Hide' : 'Configure'}</span>
+            </button>
+            {showOauthSection && (
+              <div className="p-3.5 pt-2 border-t border-[#232734] space-y-2.5">
+                <p className="text-[11px] text-[#949ba4]">
+                  Uses Discord&apos;s official OAuth2 (<code className="text-indigo-300">identify guilds email connections</code>). Set Redirect URI to{' '}
+                  <code className="text-indigo-300">http://127.0.0.1:4175/api/discord/oauth/callback</code>.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={oauthClientId}
+                    onChange={e => setOauthClientId(e.target.value)}
+                    placeholder="Discord Client ID"
+                    className="rounded-lg border border-[#2d323e] bg-[#101218] px-2.5 py-1.5 text-xs text-white font-mono"
+                  />
+                  <input
+                    type="password"
+                    value={oauthClientSecret}
+                    onChange={e => setOauthClientSecret(e.target.value)}
+                    placeholder="Discord Client Secret"
+                    className="rounded-lg border border-[#2d323e] bg-[#101218] px-2.5 py-1.5 text-xs text-white font-mono"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void handleStartOfficialOAuth()}
+                  className="w-full py-2 rounded-lg bg-[var(--discord-blurple)] hover:bg-[var(--discord-blurple-hover)] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                >
+                  Authorize with Official Discord OAuth2
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Manual Input Field */}

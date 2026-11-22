@@ -19,6 +19,7 @@ import {
   isDiscordLatencyWarningSuppressed,
 } from './components/DiscordCallWarningModal';
 import { DiscordConnectModal } from './components/DiscordConnectModal';
+import { DiscordNativeEmbed } from './components/DiscordNativeEmbed';
 import { ClipsModal } from './components/ClipsModal';
 import { clipsService } from './services/clips';
 import { ActivityModal, EmbeddedActivityStage, type ActivityItem } from './components/ActivityModal';
@@ -1130,6 +1131,7 @@ export const App: React.FC = () => {
   const [editingGuild, setEditingGuild] = useState<DiscordGuild | null>(null);
   const [pendingDiscordCallRoom, setPendingDiscordCallRoom] = useState<MatrixRoom | null>(null);
   const [isDiscordConnectOpen, setIsDiscordConnectOpen] = useState(false);
+  const [isNativeDiscordView, setIsNativeDiscordView] = useState(false);
   const [isClipsOpen, setIsClipsOpen] = useState(false);
 
   // Global Discord-style Ctrl + Mouse Wheel Scroll Zoom & Alt+C Instant Clip Hotkey
@@ -1535,7 +1537,21 @@ export const App: React.FC = () => {
             onOpenAddModal={() => handleOpenAddModal('server')}
             onOpenDiscordHub={tab => openDiscordHub(tab || 'quests')}
             onOpenEquicord={() => setIsEquicordOpen(true)}
+            isNativeDiscordView={isNativeDiscordView}
+            onToggleNativeDiscordView={() => setIsNativeDiscordView(v => !v)}
           />
+
+          {isNativeDiscordView ? (
+            <DiscordNativeEmbed
+              onClose={() => setIsNativeDiscordView(false)}
+              onOpenEquicord={() => setIsEquicordOpen(true)}
+              onOpenConnectModal={() => {
+                setIsNativeDiscordView(false);
+                setIsDiscordConnectOpen(true);
+              }}
+            />
+          ) : (
+          <>
 
           {/* 2. Channel & DM Sidebar */}
           <div className="flex flex-col h-full min-h-0 flex-shrink-0">
@@ -1677,6 +1693,8 @@ export const App: React.FC = () => {
               members={currentRoom.members}
               onSelectUser={user => setSelectedProfileUser(user)}
             />
+          )}
+          </>
           )}
         </div>
       )}
@@ -1935,6 +1953,10 @@ export const App: React.FC = () => {
         onClose={() => setIsDiscordConnectOpen(false)}
         onConnected={() => {
           void loadData();
+        }}
+        onOpenNativeDiscord={() => {
+          setIsDiscordConnectOpen(false);
+          setIsNativeDiscordView(true);
         }}
       />
 
