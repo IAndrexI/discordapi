@@ -228,7 +228,7 @@ function inferMediaType(
   return 'file';
 }
 
-function buildFallbackSeedRooms(mode: EngineMode): {
+function buildFallbackSeedRooms(_mode: EngineMode): {
   rooms: MatrixRoom[];
   guilds: DiscordGuild[];
 } {
